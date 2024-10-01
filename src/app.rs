@@ -7,7 +7,7 @@ use tracing::{debug, info};
 
 use crate::{
     action::Action,
-    components::{fps::FpsCounter, home::Home, Component},
+    components::{artworks_list::ArtworksList, home::Home, Component},
     config::Config,
     tui::{Event, Tui},
 };
@@ -32,12 +32,12 @@ pub enum Mode {
 }
 
 impl App {
-    pub fn new(tick_rate: f64, frame_rate: f64) -> Result<Self> {
+    pub fn new(tick_rate: f64, frame_rate: f64, q: String) -> Result<Self> {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         Ok(Self {
             tick_rate,
             frame_rate,
-            components: vec![Box::new(Home::new()), Box::new(FpsCounter::default())],
+            components: vec![Box::new(Home::new()), Box::new(ArtworksList::new(q))],
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,

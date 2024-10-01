@@ -10,6 +10,7 @@ mod cli;
 mod components;
 mod config;
 mod errors;
+mod iiif;
 mod logging;
 mod tui;
 
@@ -19,7 +20,7 @@ async fn main() -> Result<()> {
     crate::logging::init()?;
 
     let args = Cli::parse();
-    let mut app = App::new(args.tick_rate, args.frame_rate)?;
+    let mut app = App::new(args.tick_rate, args.frame_rate, args.q)?;
     app.run().await?;
     Ok(())
 }

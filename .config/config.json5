@@ -1,6 +1,13 @@
 {
   "keybindings": {
     "Home": {
+      "<j>": "MoveDown", // Move down
+      "<k>": "MoveUp", // Move up
+      "<x>": "Select", // Select item
+      "down": "MoveDown", // Move down
+      "up": "MoveUp", // Move up
+      "enter": "Select", // Select item
+      "esc": "ToggleArtworksList", // Close artworks list
       "<q>": "Quit", // Quit the application
       "<Ctrl-d>": "Quit", // Another way to quit
       "<Ctrl-c>": "Quit", // Yet another way to quit

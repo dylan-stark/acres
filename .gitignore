@@ -1,2 +1,7 @@
+/scratch
 /target
+/.vscode
+.data/*.json
 .data/*.log
+.data/*.txt
+!.data/alphabet.txt
