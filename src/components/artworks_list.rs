@@ -242,7 +242,22 @@ pub async fn aic_artworks_search(q: String) -> Result<()> {
     } else {
         let client = Client::new();
         let mut headers = reqwest::header::HeaderMap::new();
-        headers.insert("user-agent", "AIC-TUI/1.0".parse().unwrap());
+        headers.insert(
+            "user-agent",
+            format!(
+                "AIC-TUI/{} ({}; {})",
+                env!("CARGO_PKG_VERSION"),
+                env!("VERGEN_GIT_DESCRIBE"),
+                env!("VERGEN_BUILD_DATE")
+            )
+            .parse()
+            .unwrap(),
+        );
+        headers.insert(
+            "AIC-User-Agent",
+            "AIC-TUI (dylan.stark@gmail.com)".parse().unwrap(),
+        );
+        info!("headers: {:?}", headers);
 
         let mut url = "https://api.artic.edu/api/v1/artworks/search".to_string();
         url = format!("{}?q={}", url, q);
