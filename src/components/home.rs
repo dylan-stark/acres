@@ -90,7 +90,9 @@ impl<'a> Component for Home<'a> {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
-        frame.render_widget(Paragraph::new(self.text.clone()).centered(), area);
+        let text = self.text.clone();
+        let widget = Paragraph::new(text).centered();
+        frame.render_widget(widget, area);
         Ok(())
     }
 }
