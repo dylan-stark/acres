@@ -1,6 +1,6 @@
 [package]
 name = "aic-tui"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "A TUI for browsing Art Institute Chicago's public domain artworks as ASCII art"
 authors = ["Dylan Stark <dylan.stark@gmail.com>"]
