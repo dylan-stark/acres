@@ -14,7 +14,7 @@ use ratatui::{
 use reqwest::Client;
 use serde::Deserialize;
 use tokio::sync::mpsc::UnboundedSender;
-use tracing::info;
+use tracing::{debug, info};
 
 use super::Component;
 
@@ -45,6 +45,7 @@ enum ArtworkListStatus {
 
 impl ArtworksList {
     pub fn new(q: String) -> Self {
+        info!("Creating new artworks list");
         Self {
             artworks: vec![],
             state: ListState::default(),
@@ -142,25 +143,30 @@ const SELECTED_STYLE: Style = Style::new().bg(SLATE.c800).add_modifier(Modifier:
 
 impl Component for ArtworksList {
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<()> {
-        info!("register_action_handler");
         self.action_tx = Some(tx);
         Ok(())
     }
 
     fn init(&mut self, area: Size) -> Result<()> {
-        info!("init");
+        info!("Initializing artworks list component with action handler");
+        debug!("area: {:?}", area);
         let _ = area;
         let tx = self.action_tx.clone().unwrap();
-        info!("tx: {:?}", tx);
+        debug!("tx: {:?}", tx);
         tx.send(Action::EnterSearch)?;
         Ok(())
     }
 
     fn update(&mut self, action: Action) -> Result<Option<Action>> {
+        if !(action == Action::Render || action == Action::Tick) {
+            info!("Updating artworks list: {:?}", action);
+        }
+
         if action == Action::ToggleArtworksList {
             self.toggle()?
         }
 
+        // TODO: Consider if you can handle this better with modes
         if self.is_up {
             match action {
                 Action::MoveDown => self.move_down()?,

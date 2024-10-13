@@ -33,3 +33,14 @@ Options:
   -h, --help                Print help
   -V, --version             Print version
 ```
+
+## Configuration and data
+
+We use `.config/` and `.data/` for configuration and data files.
+You can find the directories at the bottom of the print-out from `aic-tui --version`.
+And you can set them by setting the `AIC_TUI_CONFIG` or `AIC_TUI_DATA` environment variables, resp.
+
+## Logs
+
+If you're interested in the logs, check out `aic-tui.log` under your [`./data`](#configuration-and-data) directory.
+The default log level will be `INFO`, but you can set it to whatever you want with the `AIC_TUI_LOGLEVEL` environment variable.

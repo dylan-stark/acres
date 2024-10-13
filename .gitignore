@@ -1,7 +1,9 @@
 /scratch
 /target
 /.vscode
+.data/*.jpg
 .data/*.json
 .data/*.log
 .data/*.txt
 !.data/alphabet.txt
+!.data/bitocra-13.pdf

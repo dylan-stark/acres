@@ -12,6 +12,7 @@ repository = "https://github.com/dylan-stark/aic-tui"
 [dependencies]
 ansi-to-tui = "6.0.0"
 better-panic = "0.3.0"
+bytes = "1.7.2"
 clap = { version = "4.4.5", features = [
     "derive",
     "cargo",
@@ -34,7 +35,7 @@ lazy_static = "1.5.0"
 libc = "0.2.158"
 pretty_assertions = "1.4.0"
 ratatui = { version = "0.28.1", features = ["serde", "macros"] }
-reqwest = { version = "0.12.7", features = ["json"] }
+reqwest = { version = "0.12.7", features = ["blocking", "json"] }
 serde = { version = "1.0.210", features = ["derive", "serde_derive"] }
 serde_json = "1.0.125"
 signal-hook = "0.3.17"
