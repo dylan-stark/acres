@@ -4,11 +4,7 @@
 
 A TUI for browsing Art Institute Chicago's public domain artworks as ASCII art.
 
-<img src="https://vhs.charm.sh/vhs-qa7lf8ndcehbzprwDjPg.gif" alt="Made with VHS" width="600">
-  <a href="https://vhs.charm.sh">
-    <!-- <img src="https://stuff.charm.sh/vhs/badge.svg"> -->
-  </a>
-</img>
+![Made with VHS](https://vhs.charm.sh/vhs-3r9vucoQZBithIQT3jG0n2.gif)
 
 Built in Rust with the amazing [ratatui.rs](https://ratatui.rs) crate.
 
