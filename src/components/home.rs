@@ -24,6 +24,9 @@ use crate::{
     iiif::Iiif2Url,
 };
 
+const ALPHABET: &[u8] = include_bytes!("../../.data/alphabet.txt");
+const BITOCRA_13: &[u8] = include_bytes!("../../.data/bitocra-13.bdf");
+
 #[derive(Default)]
 pub struct Home<'a> {
     area: Size,
@@ -89,17 +92,6 @@ impl<'a> Component for Home<'a> {
 
     fn init(&mut self, area: Size) -> Result<()> {
         self.area = area;
-
-        let font_path = get_data_dir().join("bitocra-13.bdf");
-        if !font_path.exists() {
-            panic!("Didn't find font file: {:?}", font_path)
-        }
-
-        let alphabet_path = get_data_dir().join("alphabet.txt");
-        if !alphabet_path.exists() {
-            panic!("Didn't find alphabet file: {:?}", alphabet_path)
-        }
-
         Ok(())
     }
 
@@ -235,16 +227,8 @@ impl PixelArea {
 }
 
 fn font() -> Font {
-    let mut alphabet_path = get_data_dir();
-    alphabet_path.push("alphabet.txt");
-    let alphabet = &fs::read(alphabet_path)
-        .unwrap()
-        .iter()
-        .map(|&c| c as char)
-        .collect::<Vec<char>>();
-    let mut font_path = get_data_dir();
-    font_path.push("bitocra-13.bdf");
-    Font::from_bdf(&font_path, alphabet)
+    let alphabet = &ALPHABET.iter().map(|&c| c as char).collect::<Vec<char>>();
+    Font::from_bdf_stream(BITOCRA_13, alphabet)
 }
 
 fn dyn_image_as_ascii(dyn_img: image::DynamicImage, out_width: Option<usize>) -> String {
