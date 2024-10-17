@@ -162,7 +162,7 @@ impl Component for ArtworksList {
             info!("Updating artworks list: {:?}", action);
         }
 
-        if action == Action::ToggleArtworksList {
+        if action == Action::EnterBrowseMode || action == Action::EnterViewMode {
             self.toggle()?
         }
 

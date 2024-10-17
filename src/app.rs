@@ -28,7 +28,8 @@ pub struct App {
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Mode {
     #[default]
-    Home,
+    Browse,
+    View,
 }
 
 impl App {
@@ -41,7 +42,7 @@ impl App {
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,
-            mode: Mode::Home,
+            mode: Mode::Browse,
             last_tick_key_events: Vec::new(),
             action_tx,
             action_rx,
@@ -139,6 +140,8 @@ impl App {
                 Action::Tick => {
                     self.last_tick_key_events.drain(..);
                 }
+                Action::EnterViewMode => self.mode = Mode::View,
+                Action::EnterBrowseMode => self.mode = Mode::Browse,
                 Action::Quit => self.should_quit = true,
                 Action::Suspend => self.should_suspend = true,
                 Action::Resume => self.should_suspend = false,
