@@ -8,12 +8,13 @@ use color_eyre::Result;
 use crate::app::App;
 
 mod action;
+mod aic;
 mod app;
+mod ascii_art;
 mod cli;
 mod components;
 mod config;
 mod errors;
-mod iiif;
 mod logging;
 mod tui;
 
