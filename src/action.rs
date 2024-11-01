@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -11,6 +12,7 @@ pub enum Action {
     Display(String),
     EnterImageDownload(String),
     ExitImageDownload(String),
+    SetImage(Bytes),
     EnterSearch,
     ExitSearch,
     Tick,

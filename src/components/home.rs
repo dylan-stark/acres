@@ -20,8 +20,9 @@ use tracing::info;
 use super::Component;
 use crate::{
     action::Action,
+    aic::iiif,
+    ascii_art::ArtBuilder,
     config::{get_data_dir, Config},
-    iiif::Iiif2Url,
 };
 
 const ALPHABET: &[u8] = include_bytes!("../../.data/alphabet.txt");
@@ -34,6 +35,7 @@ pub struct Home<'a> {
     bytes: Bytes,
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
+    art_builder: ArtBuilder,
 }
 
 impl<'a> Home<'a> {
@@ -41,25 +43,26 @@ impl<'a> Home<'a> {
         Self::default()
     }
 
+    // TODO: Rename this, as it's only the first part of the process of "displaying"
+    /// Gets the image to display.
+    ///
+    /// Spawns a task to get the image and then send a continuation action.
     fn display(&mut self, image_id: String) -> Result<()> {
-        let tx = self.command_tx.clone().unwrap();
+        let tx = self.command_tx.clone().expect("no sender");
         tokio::spawn(async move {
-            tx.send(Action::EnterImageDownload(image_id.clone()))
-                .unwrap();
-            image_ascii(image_id.clone()).await;
-            tx.send(Action::ExitImageDownload(image_id)).unwrap();
+            let image_bytes = image_ascii(image_id.clone()).await;
+            tx.send(Action::SetImage(image_bytes)).unwrap();
         });
         Ok(())
     }
 
-    fn load(&mut self, image_id: String) -> Result<()> {
-        let mut image_path = get_data_dir();
-        image_path.push(format!("{}.jpg", image_id));
-        self.bytes = Bytes::from(fs::read(image_path).unwrap());
+    fn load_bytes(&mut self, image_bytes: Bytes) -> Result<()> {
+        self.bytes = image_bytes;
         self.text = Home::bytes_as_text(self.bytes.clone(), self.area);
         Ok(())
     }
 
+    // TODO: Move this into something else
     fn resize(&mut self, size: Size) -> Result<()> {
         if self.bytes.is_empty() || self.area == size {
             return Ok(());
@@ -92,6 +95,7 @@ impl<'a> Component for Home<'a> {
 
     fn init(&mut self, area: Size) -> Result<()> {
         self.area = area;
+        self.art_builder = self.art_builder.of_size(area.width, area.height);
         Ok(())
     }
 
@@ -107,17 +111,13 @@ impl<'a> Component for Home<'a> {
             Action::Render => {
                 // add any logic here that should run on every render
             }
-            Action::Resize(w, h) => {
-                self.resize(Size::new(w, h))?;
-            }
             Action::Display(image_id) => {
+                //self.art.id(image_id)
                 self.display(image_id)?;
             }
+            Action::SetImage(image_bytes) => self.load_bytes(image_bytes)?,
             Action::EnterImageDownload(image_id) => {
                 info!("Downloading {} ...", image_id);
-            }
-            Action::ExitImageDownload(image_id) => {
-                self.load(image_id)?;
             }
             _ => {}
         }
@@ -125,6 +125,10 @@ impl<'a> Component for Home<'a> {
     }
 
     /// Draws the ASCII image (`text`) centered in the viewing area.
+    ///
+    /// This is called either while Rendering or Resizing. In the case
+    /// of Resizing, it is called after the TUI is resized but before
+    /// the component receives the Resize action.
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
         let [_, middle, _] = Layout::horizontal([
             Constraint::Fill(1),
@@ -138,6 +142,7 @@ impl<'a> Component for Home<'a> {
             Constraint::Fill(1),
         ])
         .areas(middle);
+        self.resize(Size::new(area.width, area.height)).unwrap();
         let text = self.text.clone();
         let widget = Paragraph::new(text);
         frame.render_widget(widget, middle);
@@ -147,10 +152,16 @@ impl<'a> Component for Home<'a> {
 
 async fn image_from_identifier(image_id: String) -> bytes::Bytes {
     info!("image_from_identifier({})", image_id);
-    let url = Iiif2Url::new().identifier(image_id.as_str()).to_string();
-    info!("url: {}", url);
-    let response = reqwest::get(url).await.expect("get failed");
-    response.bytes().await.expect("failed to get bytes")
+    iiif::Client::builder()
+        .build()
+        .image()
+        .with_image_id(image_id)
+        .request()
+        .await
+        .unwrap()
+        .result()
+        .await
+        .unwrap()
 }
 
 fn bytes_as_dyn_image(bytes: Bytes) -> std::result::Result<image::DynamicImage, image::ImageError> {

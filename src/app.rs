@@ -3,7 +3,7 @@ use crossterm::event::KeyEvent;
 use ratatui::prelude::Rect;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::{
     action::Action,
@@ -133,9 +133,6 @@ impl App {
 
     fn handle_actions(&mut self, tui: &mut Tui) -> Result<()> {
         while let Ok(action) = self.action_rx.try_recv() {
-            if action != Action::Tick && action != Action::Render {
-                debug!("{action:?}");
-            }
             match action {
                 Action::Tick => {
                     self.last_tick_key_events.drain(..);

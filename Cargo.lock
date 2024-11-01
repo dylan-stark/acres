@@ -50,6 +50,7 @@ version = "0.2.0"
 dependencies = [
  "ansi-to-tui",
  "anyhow",
+ "async-trait",
  "better-panic",
  "bytes",
  "clap 4.5.18",
@@ -314,6 +315,9 @@ name = "bytes"
 version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "428d9aa8fbc0670b7b8d6030a7fadd0f86151cae55e4dbbece15f3780a3dfaf3"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "camino"

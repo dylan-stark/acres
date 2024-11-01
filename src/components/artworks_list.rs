@@ -11,14 +11,17 @@ use ratatui::{
     widgets::{Block, Clear, List, ListItem, ListState},
     Frame,
 };
-use reqwest::Client;
-use serde::Deserialize;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, info};
 
 use super::Component;
 
-use crate::{action::Action, config::get_data_dir};
+use crate::{
+    action::Action,
+    aic::{self, api::artworks::Client},
+    config::get_data_dir,
+    tui::Event,
+};
 
 #[derive(Debug, Clone)]
 pub struct ArtworksList {
@@ -91,13 +94,41 @@ impl ArtworksList {
         Ok(())
     }
 
+    /// Starts the artworks search.
+    ///
+    /// We spawn off a task to handle the actual search so that it can block
+    /// on the (possibly) long-latency op.
+    ///
+    /// When the task finishes it sends a continuation action to process
+    /// the search results.
     fn search(&mut self) -> Result<()> {
-        info!("Running search");
+        //fn start_search(&mut self) -> Result<()> {
+        info!("Starting search");
         let q = self.q.clone();
         let tx = self.action_tx.clone().unwrap();
         tokio::spawn(async move {
             info!("Search started");
-            aic_artworks_search(q).await.unwrap();
+            let mut results_path = get_data_dir().clone();
+            results_path.push("results.json");
+
+            if results_path.exists() & false {
+                info!("Already have results on disk");
+            } else {
+                let pieces = Client::builder()
+                    .build()
+                    .search()
+                    .with_text(q)
+                    .start()
+                    .await
+                    .unwrap()
+                    .result()
+                    .await
+                    .unwrap();
+
+                info!("Writing search results to {:?}", results_path);
+                fs::write(results_path, serde_json::to_vec(&pieces).unwrap())
+                    .expect("failed to write");
+            };
             info!("Search completed");
             tx.send(Action::ExitSearch).unwrap();
         });
@@ -109,19 +140,10 @@ impl ArtworksList {
         results_path.push("results.json");
 
         info!("Reading results from disk");
-        let body = fs::read_to_string(results_path).unwrap();
+        let json = fs::read_to_string(results_path).unwrap();
 
-        let json: SearchResults = serde_json::from_str(body.as_str()).unwrap();
-
-        let json_data = json
-            .data
-            .iter()
-            .map(|datum| Artwork {
-                id: datum.id,
-                title: datum.title.clone(),
-                image_id: datum.image_id.clone(),
-            })
-            .collect::<Vec<Artwork>>();
+        let json_data: Vec<aic::api::artworks::Artwork> =
+            serde_json::from_str(json.as_str()).unwrap();
 
         self.artworks = json_data
             .into_iter()
@@ -147,13 +169,20 @@ impl Component for ArtworksList {
         Ok(())
     }
 
+    fn handle_events(&mut self, event: Option<Event>) -> Result<Option<Action>> {
+        let action = match event {
+            Some(Event::Init) => Some(Action::EnterSearch),
+            Some(Event::Key(key_event)) => self.handle_key_event(key_event)?,
+            Some(Event::Mouse(mouse_event)) => self.handle_mouse_event(mouse_event)?,
+            _ => None,
+        };
+        Ok(action)
+    }
+
     fn init(&mut self, area: Size) -> Result<()> {
-        info!("Initializing artworks list component with action handler");
+        info!("Initializing artworks list component");
         debug!("area: {:?}", area);
         let _ = area;
-        let tx = self.action_tx.clone().unwrap();
-        debug!("tx: {:?}", tx);
-        tx.send(Action::EnterSearch)?;
         Ok(())
     }
 
@@ -216,74 +245,6 @@ impl ArtworkItem {
             status,
         }
     }
-}
-
-pub struct Artwork {
-    id: usize,
-    title: String,
-    image_id: String,
-}
-
-#[derive(Deserialize)]
-struct Datum {
-    _score: f32,
-    id: usize,
-    image_id: String,
-    title: String,
-}
-
-#[derive(Deserialize)]
-struct SearchResults {
-    data: Vec<Datum>,
-}
-
-pub async fn aic_artworks_search(q: String) -> Result<()> {
-    info!("aic_artworks_search(q={})", q);
-
-    let mut results_path = get_data_dir().clone();
-    results_path.push("results.json");
-
-    if results_path.exists() & false {
-        info!("Already have results on disk");
-    } else {
-        let client = Client::new();
-        let mut headers = reqwest::header::HeaderMap::new();
-        headers.insert(
-            "user-agent",
-            format!(
-                "AIC-TUI/{} ({}; {})",
-                env!("CARGO_PKG_VERSION"),
-                env!("VERGEN_GIT_DESCRIBE"),
-                env!("VERGEN_BUILD_DATE")
-            )
-            .parse()
-            .unwrap(),
-        );
-        headers.insert(
-            "AIC-User-Agent",
-            "AIC-TUI (dylan.stark@gmail.com)".parse().unwrap(),
-        );
-        info!("headers: {:?}", headers);
-
-        let mut url = "https://api.artic.edu/api/v1/artworks/search".to_string();
-        url = format!("{}?q={}", url, q);
-        url = format!(
-            "{}&query[term][is_public_domain]=true&fields=id,title,image_id",
-            url
-        );
-
-        let response = client
-            .get(url)
-            .headers(headers)
-            .send()
-            .await
-            .expect("search failed");
-        let body = response.text().await.expect("failed to get text");
-        info!("Writing search results to {:?}", results_path);
-        fs::write(results_path, body.as_bytes()).expect("failed to write");
-    };
-
-    Ok(())
 }
 
 const SELECTED_TEXT_FG_COLOR: Color = GREEN.c500;

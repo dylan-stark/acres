@@ -9,6 +9,9 @@ lint:
 test:
 	cargo test --locked --all-features --workspace
 
+test_integration:
+	cargo test --locked --all-features --workspace -- --ignored
+
 docs:
 	cargo doc --no-deps --document-private-items --all-features --workspace --examples
 
