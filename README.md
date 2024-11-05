@@ -53,7 +53,7 @@ We use `.config/` and `.data/` for configuration and data files.
 You can find the directories at the bottom of the print-out from `aic-tui --version`.
 And you can set them by setting the `AIC_TUI_CONFIG` or `AIC_TUI_DATA` environment variables, resp.
 
-A quick way to set these to the local `.data/` and `.config/` filters is to use [direnv](https://direnv.net); e.g., with the following for `zsh`:
+A quick way to set these to the local `.data/` and `.config/` folders is to use [direnv](https://direnv.net); e.g., with the following for `zsh`:
 
 ```
 $ eval "$(direnv hook zsh)" 
