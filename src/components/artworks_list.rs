@@ -19,6 +19,7 @@ use super::Component;
 use crate::{
     action::Action,
     aic::{self, api::artworks::Client},
+    app::Mode,
     config::get_data_dir,
     tui::Event,
 };
@@ -28,7 +29,7 @@ pub struct ArtworksList {
     artworks: Vec<ArtworkItem>,
     state: ListState,
     q: String,
-    is_up: bool,
+    mode: Mode,
     action_tx: Option<UnboundedSender<Action>>,
 }
 
@@ -53,7 +54,7 @@ impl ArtworksList {
             artworks: vec![],
             state: ListState::default(),
             q,
-            is_up: true,
+            mode: Mode::default(),
             action_tx: None,
         }
     }
@@ -86,11 +87,6 @@ impl ArtworksList {
                 }
             }
         }
-        Ok(())
-    }
-
-    fn toggle(&mut self) -> Result<()> {
-        self.is_up = !self.is_up;
         Ok(())
     }
 
@@ -187,31 +183,29 @@ impl Component for ArtworksList {
     }
 
     fn update(&mut self, action: Action) -> Result<Option<Action>> {
-        if !(action == Action::Render || action == Action::Tick) {
-            info!("Updating artworks list: {:?}", action);
-        }
-
-        if action == Action::EnterBrowseMode || action == Action::EnterViewMode {
-            self.toggle()?
-        }
-
-        // TODO: Consider if you can handle this better with modes
-        if self.is_up {
+        if self.mode == Mode::Browse {
             match action {
                 Action::MoveDown => self.move_down()?,
                 Action::MoveUp => self.move_up()?,
                 Action::Select => self.select()?,
                 Action::EnterSearch => self.search()?,
                 Action::ExitSearch => self.load()?,
+                Action::EnterViewMode => self.mode = Mode::View,
                 _ => {}
             };
+        } else {
+            #[allow(clippy::single_match)]
+            match action {
+                Action::EnterBrowseMode => self.mode = Mode::Browse,
+                _ => {}
+            }
         }
 
         Ok(None)
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
-        if self.is_up {
+        if self.mode == Mode::Browse {
             let [_, middle, _] =
                 Layout::horizontal([Constraint::Min(8), Constraint::Max(64), Constraint::Min(8)])
                     .areas(area);
