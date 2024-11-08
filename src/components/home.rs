@@ -47,18 +47,18 @@ impl<'a> Home<'a> {
     /// Gets the image to display.
     ///
     /// Spawns a task to get the image and then send a continuation action.
-    fn display(&mut self, image_id: String) -> Result<()> {
+    fn load_image(&mut self, image_id: String) -> Result<()> {
         let tx = self.command_tx.clone().expect("no sender");
         tokio::spawn(async move {
             let image_bytes = image_ascii(image_id.clone()).await;
-            tx.send(Action::SetImage(image_bytes)).unwrap();
+            tx.send(Action::ToText(image_bytes)).unwrap();
         });
         Ok(())
     }
 
-    fn load_bytes(&mut self, image_bytes: Bytes) -> Result<()> {
-        self.bytes = image_bytes;
-        self.text = Home::bytes_as_text(self.bytes.clone(), self.area);
+    fn image_bytes_to_text(&mut self, bytes: Bytes) -> Result<()> {
+        self.bytes = bytes.clone();
+        self.text = Home::bytes_as_text(bytes, self.area);
         Ok(())
     }
 
@@ -100,25 +100,19 @@ impl<'a> Component for Home<'a> {
     }
 
     fn update(&mut self, action: Action) -> Result<Option<Action>> {
-        if !(action == Action::Render || action == Action::Tick) {
-            info!("Updating Home component: {:?}", action);
-        }
-
+        #[allow(clippy::single_match)]
         match action {
-            Action::Tick => {
-                // add any logic here that should run on every tick
+            // NOTE: This action is triggered when user selects a piece
+            Action::LoadImage(image_id) => {
+                self.load_image(image_id)?;
             }
-            Action::Render => {
-                // add any logic here that should run on every render
+            Action::ToText(bytes) => {
+                self.image_bytes_to_text(bytes)?;
             }
-            Action::Display(image_id) => {
-                //self.art.id(image_id)
-                self.display(image_id)?;
-            }
-            Action::SetImage(image_bytes) => self.load_bytes(image_bytes)?,
-            Action::EnterImageDownload(image_id) => {
-                info!("Downloading {} ...", image_id);
-            }
+            Action::Resize(width, height) => self.resize(Size { width, height })?,
+            //Action::EnterImageDownload(image_id) => {
+            //    info!("Downloading {} ...", image_id);
+            //}
             _ => {}
         }
         Ok(None)
@@ -142,9 +136,7 @@ impl<'a> Component for Home<'a> {
             Constraint::Fill(1),
         ])
         .areas(middle);
-        self.resize(Size::new(area.width, area.height)).unwrap();
-        let text = self.text.clone();
-        let widget = Paragraph::new(text);
+        let widget = Paragraph::new(self.text.clone());
         frame.render_widget(widget, middle);
         Ok(())
     }
