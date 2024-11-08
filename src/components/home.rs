@@ -18,12 +18,7 @@ use img_to_ascii::{
 use tracing::info;
 
 use super::Component;
-use crate::{
-    action::Action,
-    aic::iiif,
-    ascii_art::ArtBuilder,
-    config::{get_data_dir, Config},
-};
+use crate::{action::Action, aic::iiif, ascii_art::ArtBuilder, config::get_data_dir};
 
 const ALPHABET: &[u8] = include_bytes!("../../.data/alphabet.txt");
 const BITOCRA_13: &[u8] = include_bytes!("../../.data/bitocra-13.bdf");
@@ -34,7 +29,6 @@ pub struct Home<'a> {
     text: Text<'a>,
     bytes: Bytes,
     action_tx: Option<UnboundedSender<Action>>,
-    config: Config,
     art_builder: ArtBuilder,
 }
 
@@ -84,11 +78,6 @@ impl<'a> Home<'a> {
 impl<'a> Component for Home<'a> {
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<()> {
         self.action_tx = Some(tx);
-        Ok(())
-    }
-
-    fn register_config_handler(&mut self, config: Config) -> Result<()> {
-        self.config = config;
         Ok(())
     }
 
