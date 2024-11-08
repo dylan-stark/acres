@@ -37,15 +37,31 @@ impl<'a> Home<'a> {
         Self::default()
     }
 
-    /// Loads the image to display.
+    /// Loads the image to display and sends them to be processed to text.
     ///
-    /// Spawns a task to get the image and then send a continuation action.
+    /// If the image has already been fetched, the bytes will be on disk
+    /// at a known location, and we should prefer those. Otherwise, we'll
+    /// spawn a task to fetch the bytes and write them to disk. In either
+    /// case we send the bytes along to get processed after we have them.
     fn load_image(&mut self, image_id: String) -> Result<()> {
         let tx = self.action_tx.clone().expect("no sender");
-        tokio::spawn(async move {
-            let image_bytes = image_ascii(image_id.clone()).await;
+
+        let mut data_dir = get_data_dir().clone();
+        data_dir.push(format!("{}.jpg", image_id.clone()));
+
+        if data_dir.exists() {
+            info!("Reading {} from disk", image_id);
+            let image_bytes = Bytes::from(fs::read(data_dir).unwrap());
             tx.send(Action::ToText(image_bytes)).unwrap();
-        });
+        } else {
+            info!("Spawning task to fetch {}", image_id);
+            tokio::spawn(async move {
+                let image_bytes = image_from_identifier(image_id.clone()).await;
+                let _ = fs::write(data_dir, image_bytes.clone());
+                tx.send(Action::ToText(image_bytes)).unwrap();
+            });
+        }
+
         Ok(())
     }
 
@@ -245,25 +261,4 @@ fn dyn_image_as_ascii(dyn_img: image::DynamicImage, out_width: Option<usize>) ->
     );
 
     char_rows_to_terminal_color_string(&char_rows, &dyn_img)
-}
-
-pub async fn image_ascii(image_id: String) -> Bytes {
-    info!("image_ascii({})", image_id);
-
-    let mut data_dir = get_data_dir().clone();
-    data_dir.push(format!("{}.jpg", image_id.clone()));
-
-    if data_dir.exists() {
-        info!("Reading {} from disk", image_id);
-        //return fs::read_to_string(data_dir).unwrap();
-        return Bytes::from(fs::read(data_dir).unwrap());
-    }
-
-    info!("Calling image_from_identifier() ...");
-    let bytes = image_from_identifier(image_id.clone()).await;
-
-    info!("Writing image to {:?}", data_dir);
-    let _ = fs::write(data_dir, bytes.clone());
-
-    bytes
 }
