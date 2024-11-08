@@ -33,7 +33,7 @@ pub struct Home<'a> {
     area: Size,
     text: Text<'a>,
     bytes: Bytes,
-    command_tx: Option<UnboundedSender<Action>>,
+    action_tx: Option<UnboundedSender<Action>>,
     config: Config,
     art_builder: ArtBuilder,
 }
@@ -43,12 +43,11 @@ impl<'a> Home<'a> {
         Self::default()
     }
 
-    // TODO: Rename this, as it's only the first part of the process of "displaying"
-    /// Gets the image to display.
+    /// Loads the image to display.
     ///
     /// Spawns a task to get the image and then send a continuation action.
     fn load_image(&mut self, image_id: String) -> Result<()> {
-        let tx = self.command_tx.clone().expect("no sender");
+        let tx = self.action_tx.clone().expect("no sender");
         tokio::spawn(async move {
             let image_bytes = image_ascii(image_id.clone()).await;
             tx.send(Action::ToText(image_bytes)).unwrap();
@@ -84,7 +83,7 @@ impl<'a> Home<'a> {
 
 impl<'a> Component for Home<'a> {
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<()> {
-        self.command_tx = Some(tx);
+        self.action_tx = Some(tx);
         Ok(())
     }
 
