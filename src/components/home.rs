@@ -72,7 +72,7 @@ impl Home {
         Ok(())
     }
 
-    fn to_text(&mut self) -> Result<()> {
+    fn set_text(&mut self) -> Result<()> {
         self.text = self.art_builder.clone().into_ascii().into_text().unwrap();
         Ok(())
     }
@@ -104,7 +104,7 @@ impl Component for Home {
                 self.resize(Size { width, height })?;
                 return Ok(Some(Action::ToText));
             }
-            Action::ToText => self.to_text()?,
+            Action::ToText => self.set_text()?,
             _ => {}
         }
         Ok(None)
