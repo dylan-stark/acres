@@ -78,7 +78,7 @@ impl ArtworksList {
                         ArtworkListStatus::Selected => ArtworkListStatus::Unselected,
                         ArtworkListStatus::Unselected => ArtworkListStatus::Selected,
                     };
-                    tx.send(Action::Display(item.image_id.clone()))?;
+                    tx.send(Action::LoadImage(item.image_id.clone()))?;
                 } else {
                     item.status = match item.status {
                         ArtworkListStatus::Selected => ArtworkListStatus::Unselected,
