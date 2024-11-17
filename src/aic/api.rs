@@ -183,7 +183,7 @@ pub mod artworks {
             Client { backend }
         }
 
-        #[allow(dead_code)]
+        #[cfg(test)]
         fn with_backend(mut self, backend: impl Backend + Send + 'static) -> ClientBuilder {
             self.backend = Some(Box::new(backend));
             self
