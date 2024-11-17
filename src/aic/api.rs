@@ -1,22 +1,10 @@
 pub mod artworks {
     use std::{collections::HashMap, fmt::Debug};
 
-    use async_trait::async_trait;
     use reqwest::header::HeaderMap;
     use serde::{Deserialize, Serialize};
 
     use crate::aic::Result;
-
-    #[async_trait]
-    trait Backend {
-        async fn search(&self, params: SearchParams) -> SearchResponse;
-    }
-
-    impl Debug for dyn Backend + Send {
-        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-            write!(f, "Backend{{}}")
-        }
-    }
 
     #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct Artwork {
@@ -57,6 +45,7 @@ pub mod artworks {
         data: Vec<Datum>,
     }
 
+    #[derive(Debug)]
     struct RestBackend {
         client: reqwest::Client,
         headers: HeaderMap,
@@ -87,10 +76,6 @@ pub mod artworks {
                 },
             }
         }
-    }
-
-    #[async_trait]
-    impl Backend for RestBackend {
         async fn search(&self, params: SearchParams) -> SearchResponse {
             let mut url = "https://api.artic.edu/api/v1/artworks/search".to_string();
             url = format!("{}?q={}", url, params.text.unwrap());
@@ -160,7 +145,7 @@ pub mod artworks {
     #[derive(Debug)]
     pub struct Client {
         search_store: HashMap<SearchParams, String>,
-        backend: Box<dyn Backend + Send>,
+        backend: RestBackend,
     }
 
     impl Client {
@@ -177,23 +162,21 @@ pub mod artworks {
     }
 
     pub struct ClientBuilder {
-        backend: Option<Box<dyn Backend + Send>>,
+        backend: RestBackend,
     }
 
     impl ClientBuilder {
         pub fn new() -> ClientBuilder {
-            ClientBuilder { backend: None }
+            ClientBuilder {
+                backend: RestBackend::new(),
+            }
         }
 
         pub fn build(self) -> Client {
             let search_store = HashMap::new();
-            let backend = match self.backend {
-                Some(backend) => backend,
-                None => Box::new(RestBackend::new()),
-            };
             Client {
                 search_store,
-                backend,
+                backend: self.backend,
             }
         }
     }
