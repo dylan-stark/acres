@@ -50,7 +50,6 @@ version = "0.2.0"
 dependencies = [
  "ansi-to-tui",
  "anyhow",
- "async-trait",
  "better-panic",
  "bytes",
  "clap 4.5.18",

@@ -173,9 +173,8 @@ pub mod artworks {
         }
 
         pub fn build(self) -> Client {
-            let search_store = HashMap::new();
             Client {
-                search_store,
+                search_store: HashMap::new(),
                 backend: self.backend,
             }
         }
