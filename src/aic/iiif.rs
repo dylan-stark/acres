@@ -1,7 +1,9 @@
 #![allow(dead_code, clippy::upper_case_acronyms)]
-use std::fmt::{self, Debug};
+use std::{
+    collections::HashMap,
+    fmt::{self, Debug},
+};
 
-use async_trait::async_trait;
 use bytes::Bytes;
 use reqwest::header::HeaderMap;
 
@@ -174,7 +176,12 @@ pub struct ImageRequestBuilder {
 
 impl ImageRequestBuilder {
     pub async fn request(self) -> Result<ImageResponse> {
-        Ok(self.client.backend.request(self.params).await)
+        match self.client.request_store.get(&self.params) {
+            Some(bytes) => Ok(ImageResponse {
+                bytes: bytes.clone(),
+            }),
+            None => Ok(self.client.backend.request(self.params).await),
+        }
     }
 
     pub fn with_image_id(mut self, image_id: String) -> ImageRequestBuilder {
@@ -183,6 +190,7 @@ impl ImageRequestBuilder {
     }
 }
 
+#[derive(Debug)]
 struct RestBackend {
     client: reqwest::Client,
     headers: HeaderMap,
@@ -213,10 +221,7 @@ impl RestBackend {
             },
         }
     }
-}
 
-#[async_trait]
-impl Backend for RestBackend {
     async fn request(&self, params: ImageParams) -> ImageResponse {
         let url = Iiif2Url::new()
             .identifier(params.image_id.unwrap().as_str())
@@ -234,44 +239,29 @@ impl Backend for RestBackend {
     }
 }
 
-#[async_trait]
-trait Backend {
-    async fn request(&self, params: ImageParams) -> ImageResponse;
-}
-
-impl Debug for dyn Backend + Send {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Backend{{}}")
-    }
-}
-
 pub struct ClientBuilder {
-    backend: Option<Box<dyn Backend + Send>>,
+    backend: RestBackend,
 }
 
 impl ClientBuilder {
     pub fn new() -> ClientBuilder {
-        ClientBuilder { backend: None }
+        ClientBuilder {
+            backend: RestBackend::new(),
+        }
     }
 
     pub fn build(self) -> Client {
-        let backend = match self.backend {
-            Some(backend) => backend,
-            None => Box::new(RestBackend::new()),
-        };
-        Client { backend }
-    }
-
-    #[allow(dead_code)]
-    fn with_backend(mut self, backend: impl Backend + Send + 'static) -> ClientBuilder {
-        self.backend = Some(Box::new(backend));
-        self
+        Client {
+            request_store: HashMap::new(),
+            backend: self.backend,
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct Client {
-    backend: Box<dyn Backend + Send>,
+    request_store: HashMap<ImageParams, Bytes>,
+    backend: RestBackend,
 }
 
 impl Client {
@@ -289,44 +279,14 @@ impl Client {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
-
     use super::*;
 
-    struct InMemoryBackend {
-        request_results: HashMap<ImageParams, Bytes>,
-    }
-
-    impl InMemoryBackend {
-        fn new() -> InMemoryBackend {
-            InMemoryBackend {
-                request_results: HashMap::new(),
-            }
-        }
-
-        fn with_request_result(mut self, params: ImageParams, result: Bytes) -> InMemoryBackend {
-            self.request_results.insert(params, result.to_owned());
-            self
-        }
-    }
-
-    #[async_trait]
-    impl Backend for InMemoryBackend {
-        async fn request(&self, params: ImageParams) -> ImageResponse {
-            let bytes = match self.request_results.get(&params) {
-                Some(result) => result.clone(),
-                None => Bytes::new(),
-            };
-            ImageResponse { bytes }
-        }
-    }
-
-    fn in_memory_backend() -> InMemoryBackend {
+    fn load_simple_example_to_store(client: &mut Client) {
         let params = ImageParams {
             image_id: Some(String::from("some-image-id")),
         };
         let result = Bytes::from("Some image bytes");
-        InMemoryBackend::new().with_request_result(params, result)
+        client.request_store.insert(params, result);
     }
 
     #[test]
@@ -427,23 +387,15 @@ mod test {
     }
 
     #[test]
-    fn test_build_client_builder_with_in_memory_backend() {
-        let _: Client = Client::builder().with_backend(in_memory_backend()).build();
-    }
-
-    #[test]
     fn test_create_search_builder() {
-        let client = Client::builder().with_backend(in_memory_backend()).build();
+        let client = Client::builder().build();
 
         let _: ImageRequestBuilder = client.image();
     }
 
     #[test]
     fn test_create_search_builder_with_image_id() {
-        let image_request_builder = Client::builder()
-            .with_backend(in_memory_backend())
-            .build()
-            .image();
+        let image_request_builder = Client::builder().build().image();
 
         let image_request_builder: ImageRequestBuilder =
             image_request_builder.with_image_id(String::from("some-image-id"));
@@ -456,9 +408,9 @@ mod test {
 
     #[tokio::test]
     async fn test_image_request_result() {
-        let request_response = Client::builder()
-            .with_backend(in_memory_backend())
-            .build()
+        let mut client = Client::builder().build();
+        load_simple_example_to_store(&mut client);
+        let request_response = client
             .image()
             .with_image_id(String::from("some-image-id"))
             .request()

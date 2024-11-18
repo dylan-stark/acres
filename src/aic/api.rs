@@ -1,22 +1,10 @@
 pub mod artworks {
-    use std::fmt::Debug;
+    use std::{collections::HashMap, fmt::Debug};
 
-    use async_trait::async_trait;
     use reqwest::header::HeaderMap;
     use serde::{Deserialize, Serialize};
 
     use crate::aic::Result;
-
-    #[async_trait]
-    trait Backend {
-        async fn search(&self, params: SearchParams) -> SearchResponse;
-    }
-
-    impl Debug for dyn Backend + Send {
-        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-            write!(f, "Backend{{}}")
-        }
-    }
 
     #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct Artwork {
@@ -57,6 +45,7 @@ pub mod artworks {
         data: Vec<Datum>,
     }
 
+    #[derive(Debug)]
     struct RestBackend {
         client: reqwest::Client,
         headers: HeaderMap,
@@ -87,10 +76,6 @@ pub mod artworks {
                 },
             }
         }
-    }
-
-    #[async_trait]
-    impl Backend for RestBackend {
         async fn search(&self, params: SearchParams) -> SearchResponse {
             let mut url = "https://api.artic.edu/api/v1/artworks/search".to_string();
             url = format!("{}?q={}", url, params.text.unwrap());
@@ -118,8 +103,17 @@ pub mod artworks {
     }
 
     impl SearchRequestBuilder {
+        /// Starts the search to the get the response.
+        ///
+        /// If we have a response already for these search params, then we just
+        /// return that. Otherwise, we hit the REST API.
         pub async fn start(self) -> Result<SearchResponse> {
-            Ok(self.client.backend.search(self.params).await)
+            match self.client.search_store.get(&self.params) {
+                Some(body) => Ok(SearchResponse {
+                    body: body.to_string(),
+                }),
+                None => Ok(self.client.backend.search(self.params).await),
+            }
         }
 
         pub fn with_text(mut self, text: String) -> SearchRequestBuilder {
@@ -150,7 +144,8 @@ pub mod artworks {
 
     #[derive(Debug)]
     pub struct Client {
-        backend: Box<dyn Backend + Send>,
+        search_store: HashMap<SearchParams, String>,
+        backend: RestBackend,
     }
 
     impl Client {
@@ -167,68 +162,33 @@ pub mod artworks {
     }
 
     pub struct ClientBuilder {
-        backend: Option<Box<dyn Backend + Send>>,
+        backend: RestBackend,
     }
 
     impl ClientBuilder {
         pub fn new() -> ClientBuilder {
-            ClientBuilder { backend: None }
+            ClientBuilder {
+                backend: RestBackend::new(),
+            }
         }
 
         pub fn build(self) -> Client {
-            let backend = match self.backend {
-                Some(backend) => backend,
-                None => Box::new(RestBackend::new()),
-            };
-            Client { backend }
-        }
-
-        #[allow(dead_code)]
-        fn with_backend(mut self, backend: impl Backend + Send + 'static) -> ClientBuilder {
-            self.backend = Some(Box::new(backend));
-            self
+            Client {
+                search_store: HashMap::new(),
+                backend: self.backend,
+            }
         }
     }
 
     #[cfg(test)]
     mod test {
-        use std::collections::HashMap;
-
         use super::*;
 
-        struct InMemoryBackend {
-            search_results: HashMap<SearchParams, String>,
-        }
-
-        impl InMemoryBackend {
-            fn new() -> InMemoryBackend {
-                InMemoryBackend {
-                    search_results: HashMap::new(),
-                }
-            }
-
-            fn with_search_result(mut self, params: SearchParams, result: &str) -> InMemoryBackend {
-                self.search_results.insert(params, result.to_owned());
-                self
-            }
-        }
-
-        #[async_trait]
-        impl Backend for InMemoryBackend {
-            async fn search(&self, params: SearchParams) -> SearchResponse {
-                let body = match self.search_results.get(&params) {
-                    Some(result) => String::from(result),
-                    None => String::from(""),
-                };
-                SearchResponse { body }
-            }
-        }
-
-        fn in_memory_backend() -> InMemoryBackend {
+        fn load_simple_example_to_store(client: &mut Client) {
             let params = SearchParams {
                 text: Some(String::from("some query")),
             };
-            let result: &'static str = r###"
+            let results: &'static str = r###"
             {
                 "data": [
                     {
@@ -240,7 +200,7 @@ pub mod artworks {
                 ]
             }
             "###;
-            InMemoryBackend::new().with_search_result(params, result)
+            client.search_store.insert(params, results.to_string());
         }
 
         #[test]
@@ -300,23 +260,15 @@ pub mod artworks {
         }
 
         #[test]
-        fn test_build_client_builder_with_in_memory_backend() {
-            let _: Client = Client::builder().with_backend(in_memory_backend()).build();
-        }
-
-        #[test]
         fn test_create_search_builder() {
-            let client = Client::builder().with_backend(in_memory_backend()).build();
+            let client = Client::builder().build();
 
             let _: SearchRequestBuilder = client.search();
         }
 
         #[test]
         fn test_create_search_builder_with_text() {
-            let search_builder = Client::builder()
-                .with_backend(in_memory_backend())
-                .build()
-                .search();
+            let search_builder = Client::builder().build().search();
 
             let search_builder: SearchRequestBuilder =
                 search_builder.with_text(String::from("some query"));
@@ -328,26 +280,22 @@ pub mod artworks {
         }
 
         // TODO: Adjust this to test the real behavior we want, not
-        //       the this implementation detail of the in-memory backend
+        //       the this implementation detail.
         #[tokio::test]
-        #[should_panic(expected = "EOF while parsing a value")]
+        #[should_panic(expected = "called `Option::unwrap()` on a `None` value")]
         async fn test_search_response_result_panics_without_text() {
-            let search_response = Client::builder()
-                .with_backend(in_memory_backend())
-                .build()
-                .search()
-                .start()
-                .await
-                .unwrap();
+            let mut client = Client::builder().build();
+            load_simple_example_to_store(&mut client);
+            let search_response = client.search().start().await.unwrap();
 
             let _ = search_response.result().await;
         }
 
         #[tokio::test]
         async fn test_search_response_result() {
-            let search_response = Client::builder()
-                .with_backend(in_memory_backend())
-                .build()
+            let mut client = Client::builder().build();
+            load_simple_example_to_store(&mut client);
+            let search_response = client
                 .search()
                 .with_text(String::from("some query"))
                 .start()
