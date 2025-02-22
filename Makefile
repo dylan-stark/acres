@@ -15,4 +15,7 @@ test_integration:
 docs:
 	cargo doc --no-deps --document-private-items --all-features --workspace --examples
 
-.PHONY: build reformat lint test docs
+watch:
+	cargo watch -x "fmt --check" -x "clippy -- -D warnings" -x check -x test
+
+.PHONY: build reformat lint test docs watch
