@@ -129,7 +129,7 @@ impl PixelArea {
 
 fn font() -> Font {
     let alphabet = &ALPHABET.iter().map(|&c| c as char).collect::<Vec<char>>();
-    Font::from_bdf_stream(BITOCRA_13, alphabet)
+    Font::from_bdf_stream(BITOCRA_13, alphabet, false)
 }
 
 fn dyn_image_as_ascii(dyn_img: image::DynamicImage, out_width: Option<usize>) -> String {
