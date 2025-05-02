@@ -51,6 +51,8 @@ dependencies = [
  "assert_cmd",
  "clap 4.5.37",
  "predicates",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
