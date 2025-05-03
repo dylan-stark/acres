@@ -45,15 +45,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "aic-cli"
+name = "aic"
 version = "0.1.0"
 dependencies = [
- "assert_cmd",
- "assert_fs",
- "clap 4.5.37",
  "config 0.15.11",
  "directories 6.0.0",
  "lazy_static",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "aic-cli"
+version = "0.1.0"
+dependencies = [
+ "aic",
+ "assert_cmd",
+ "assert_fs",
+ "clap 4.5.37",
  "predicates",
  "serde",
  "serde_json",
