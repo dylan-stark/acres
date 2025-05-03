@@ -3,14 +3,14 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-struct Artwork {
-    id: usize,
-    title: String,
+pub struct Artwork {
+    pub id: usize,
+    pub title: String,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct ArtworksListing {
-    data: Vec<Artwork>,
+    pub data: Vec<Artwork>,
 }
 
 impl Display for ArtworksListing {

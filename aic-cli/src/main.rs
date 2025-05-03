@@ -10,12 +10,13 @@ struct Cli {
     resource: Resource,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = Cli::parse();
 
     match args.resource {
         Resource::Artworks => {
-            let listing = aic::Api::artworks();
+            let listing = aic::Api::new().artworks().await;
             println!("{}", listing);
         }
     }
