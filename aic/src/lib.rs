@@ -25,7 +25,6 @@ impl Api {
     pub async fn artworks(&self) -> ArtworksListing {
         let config = Config::new().unwrap();
         let artworks_json_path = config.aic_cache_dir.join("artworks.json");
-        println!("artworks_json_path: {:?}", artworks_json_path);
         if self.use_cache && artworks_json_path.is_file() {
             let json = std::fs::read_to_string(artworks_json_path).unwrap();
             serde_json::from_str(&json).unwrap()
