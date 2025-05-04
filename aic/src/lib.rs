@@ -1,61 +1,148 @@
+#![deny(missing_docs)]
+
+//! Simple and ergonomic access to the Art Institute of Chicago's [public APIs].
+//!
+//! Create an API client and list artworks with
+//!
+//! ```
+//! # use eyre::Result;
+//! # #[tokio::main]
+//! # async fn main() -> Result<()> {
+//! let api = aic::Api::new();
+//! let artworks_listing = api.artworks().await?;
+//! println!("{}", artworks_listing);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! [public APIs]: https://api.artic.edu/docs/#introduction
+
 mod artworks;
 mod config;
+
+use eyre::Result;
 
 use crate::artworks::ArtworksListing;
 use crate::config::Config;
 
+/// The top-level API client.
+///
+/// All access to the [AIC public APIs] goes through one of these.
+///
+/// # Examples
+///
+/// ```
+/// let api = aic::Api::new();
+/// ```
+///
+/// [AIC public APIs]: https://api.artic.edu/docs/#introduction
 pub struct Api {
     base_uri: String,
     use_cache: bool,
 }
 
 impl Api {
+    /// Creates a new instance of the API client.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let api = aic::Api::new();
+    /// ```
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Creates an API client builder.
+    ///
+    /// This is useful for tailoring client behavior. See the [`ApiBuilder`]
+    /// struct for more information.
+    ///
+    /// # Examples
+    ///
+    /// Caching is on by default but you can disable it with
+    ///
+    /// ```
+    /// let api = aic::Api::builder()
+    ///     .use_cache(false)
+    ///     .build();
+    /// assert!(!api.use_cache());
+    /// ```
+    ///
+    /// [`ApiBuilder`]: ./struct.ApiBuilder.html
     pub fn builder() -> ApiBuilder {
         ApiBuilder::default()
     }
 
+    /// Returns the base URI.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let api = aic::Api::builder()
+    ///     .base_uri("https://127.0.0.1:8443/api/v1")
+    ///     .build();
+    /// assert_eq!(api.base_uri(), "https://127.0.0.1:8443/api/v1");
+    /// ```
+    pub fn base_uri(&self) -> String {
+        self.base_uri.to_string()
+    }
+
+    /// Returns whether or not caching is enabled or disabled for the API client.
+    ///
+    /// # Examples
+    ///
+    /// Caching is on by default.
+    ///
+    /// ```
+    /// let api = aic::Api::new();
+    /// assert!(api.use_cache());
+    /// ```
     pub fn use_cache(&self) -> bool {
         self.use_cache
     }
 
-    pub async fn artworks(&self) -> ArtworksListing {
-        let config = Config::new().unwrap();
+    /// Pulls a listing of all artworks.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use eyre::Result;
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<()> {
+    /// # let api = aic::Api::new();
+    /// let listing = api.artworks().await?;
+    /// println!("{}", listing);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn artworks(&self) -> Result<ArtworksListing> {
+        // TODO: Move config into `Api`
+        let config = Config::new()?;
         let artworks_json_path = config.aic_cache_dir.join("artworks.json");
         if self.use_cache && artworks_json_path.is_file() {
             let json = std::fs::read_to_string(artworks_json_path).unwrap();
-            serde_json::from_str(&json).unwrap()
+            Ok(serde_json::from_str(&json)?)
         } else {
             let artworks_path = format!("{}/artworks", self.base_uri);
-            eprintln!("artworks_path: {}", artworks_path);
             let client = reqwest::Client::new();
             let mut headers = reqwest::header::HeaderMap::new();
             headers.insert(
                 "user-agent",
-                format!("ACRES/{}", env!("CARGO_PKG_VERSION"),)
-                    .parse()
-                    .unwrap(),
+                format!("ACRES/{}", env!("CARGO_PKG_VERSION"),).parse()?,
             );
-            headers.insert(
-                "ACRES-User-Agent",
-                "ACRES (dylan.stark@gmail.com)".parse().unwrap(),
-            );
+            headers.insert("ACRES-User-Agent", "ACRES (dylan.stark@gmail.com)".parse()?);
 
             let listing = client
                 .get(artworks_path)
                 .headers(headers)
                 .send()
-                .await
-                .unwrap()
+                .await?
                 .json::<ArtworksListing>()
-                .await
-                .unwrap();
-            std::fs::create_dir_all(artworks_json_path.parent().unwrap()).unwrap();
-            std::fs::write(artworks_json_path, listing.to_string()).unwrap();
-            listing
+                .await?;
+            std::fs::create_dir_all(artworks_json_path.parent().unwrap())?;
+            std::fs::write(artworks_json_path, listing.to_string())?;
+            Ok(listing)
         }
     }
 }
@@ -66,22 +153,54 @@ impl Default for Api {
     }
 }
 
+/// An API client builder.
+///
+/// Use one of these to tailor the client; e.g., to disable caching:
+///
+/// ```
+/// let api = aic::Api::builder()
+///     .use_cache(false)
+///     .build();
+/// assert!(!api.use_cache());
+/// ```
 pub struct ApiBuilder {
     base_uri: String,
     use_cache: bool,
 }
 
 impl ApiBuilder {
+    /// Changes the base URI.
+    ///
+    /// This default is `https://api.artic.edu/api/v1`. If you need to change it for some reason,
+    /// you can with
+    ///
+    /// ```
+    /// let api = aic::Api::builder()
+    ///     .base_uri("https://127.0.0.1:8443/api/v1")
+    ///     .build();
+    /// assert_eq!(api.base_uri(), "https://127.0.0.1:8443/api/v1");
+    /// ```
     pub fn base_uri(mut self, base_uri: &str) -> Self {
         self.base_uri = base_uri.to_string();
         self
     }
 
+    /// Sets whether or not to cache the response.
+    ///
+    /// The default is to always cache, but you can turn off caching with
+    ///
+    /// ```
+    /// let api = aic::Api::builder()
+    ///     .use_cache(false)
+    ///     .build();
+    /// assert!(!api.use_cache());
+    /// ```
     pub fn use_cache(mut self, use_cache: bool) -> Self {
         self.use_cache = use_cache;
         self
     }
 
+    /// Builds the actual API client.
     pub fn build(self) -> Api {
         Api {
             base_uri: self.base_uri,
@@ -133,7 +252,7 @@ mod tests {
         let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
         assert_eq!(api.base_uri, mock_uri);
 
-        let listing: ArtworksListing = api.artworks().await;
+        let listing: ArtworksListing = api.artworks().await.unwrap();
 
         assert_eq!(listing.data.len(), 1);
         assert_eq!(listing.data[0].id, 1);
