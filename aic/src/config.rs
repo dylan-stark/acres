@@ -18,8 +18,10 @@ lazy_static! {
 impl Config {
     pub fn new() -> Result<Self, config::ConfigError> {
         let aic_cache_dir = get_aic_cache_dir();
-        let builder = config::Config::builder()
-            .set_default("aic_cache_dir", aic_cache_dir.to_str().unwrap())?;
+        let builder = config::Config::builder().set_default(
+            "aic_cache_dir",
+            aic_cache_dir.to_str().expect("path is valid"),
+        )?;
         let cfg: Self = builder.build()?.try_deserialize()?;
         Ok(cfg)
     }
