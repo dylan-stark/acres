@@ -1,9 +1,14 @@
-// See https://iiif.io/api/image/3.0/#2-uri-syntax
+#![deny(missing_docs)]
+
+//! Simple and ergonomic access to the IIIF APIs.
+//!
+//! Create an API client and list artworks with
 
 use std::fmt::Display;
 
 use anyhow::anyhow;
 
+/// A base URI builder
 #[derive(Default)]
 pub struct ImageBaseUriBuilder {
     scheme: Scheme,
@@ -12,9 +17,15 @@ pub struct ImageBaseUriBuilder {
     identifier: String,
 }
 
+/// Supported URI schemes.
+///
+/// According to <https://iiif.io/api/image/3.0/#2-uri-syntax>:
+/// > "Indicates the use of the HTTP or HTTPS protocol in calling the service."
 #[derive(Debug)]
 pub enum Scheme {
+    /// HTTP protocol
     Http,
+    /// HTTPS protocol
     Https,
 }
 
@@ -97,6 +108,7 @@ impl ImageBaseUriBuilder {
         self
     }
 
+    /// Builds the actual base URI for an image.
     pub fn build(self) -> anyhow::Result<ImageBaseUri> {
         if self.server.is_empty() {
             return Err(anyhow!("Missing server"));
@@ -114,6 +126,7 @@ impl ImageBaseUriBuilder {
     }
 }
 
+/// The base URI for an image.
 #[derive(Debug)]
 pub struct ImageBaseUri {
     scheme: Scheme,
@@ -123,6 +136,7 @@ pub struct ImageBaseUri {
 }
 
 impl ImageBaseUri {
+    /// Creates a image base URI builder.
     pub fn builder() -> ImageBaseUriBuilder {
         ImageBaseUriBuilder::default()
     }
