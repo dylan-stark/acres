@@ -20,7 +20,7 @@
 mod artworks;
 mod config;
 
-use eyre::Result;
+use eyre::{Context, Result};
 
 use crate::artworks::ArtworksListing;
 use crate::config::Config;
@@ -118,10 +118,15 @@ impl Api {
     /// ```
     pub async fn artworks(&self) -> Result<ArtworksListing> {
         // TODO: Move config into `Api`
-        let config = Config::new()?;
+        let config = Config::new().wrap_err("failed to load config")?;
         let artworks_json_path = config.aic_cache_dir.join("artworks.json");
         if self.use_cache && artworks_json_path.is_file() {
-            let json = std::fs::read_to_string(artworks_json_path).unwrap();
+            let json = std::fs::read_to_string(&artworks_json_path).wrap_err_with(|| {
+                format!(
+                    "failed to read cached file from {}",
+                    artworks_json_path.display()
+                )
+            })?;
             Ok(serde_json::from_str(&json)?)
         } else {
             let artworks_path = format!("{}/artworks", self.base_uri);
@@ -129,19 +134,36 @@ impl Api {
             let mut headers = reqwest::header::HeaderMap::new();
             headers.insert(
                 "user-agent",
-                format!("ACRES/{}", env!("CARGO_PKG_VERSION"),).parse()?,
+                format!("ACRES/{}", env!("CARGO_PKG_VERSION"),)
+                    .parse()
+                    .wrap_err("failed constructing user-agent header")?,
             );
-            headers.insert("ACRES-User-Agent", "ACRES (dylan.stark@gmail.com)".parse()?);
+            headers.insert(
+                "ACRES-User-Agent",
+                "ACRES (dylan.stark@gmail.com)"
+                    .parse()
+                    .wrap_err("failed constructing ACRES-User-Agent header")?,
+            );
 
             let listing = client
-                .get(artworks_path)
+                .get(&artworks_path)
                 .headers(headers)
                 .send()
-                .await?
+                .await
+                .wrap_err_with(|| format!("failed to GET {}", artworks_path))?
                 .json::<ArtworksListing>()
-                .await?;
-            std::fs::create_dir_all(artworks_json_path.parent().unwrap())?;
-            std::fs::write(artworks_json_path, listing.to_string())?;
+                .await
+                .wrap_err_with(|| format!("failed to get JSON from GET {}", artworks_path))?;
+            std::fs::create_dir_all(artworks_json_path.parent().expect("path has parent"))
+                .wrap_err_with(|| {
+                    format!(
+                        "failed to create parent directory for {}",
+                        artworks_json_path.display()
+                    )
+                })?;
+            // TODO: handle ?
+            std::fs::write(&artworks_json_path, listing.to_string())
+                .wrap_err_with(|| format!("failed to write {}", artworks_json_path.display()))?;
             Ok(listing)
         }
     }
