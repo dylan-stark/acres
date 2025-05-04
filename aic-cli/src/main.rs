@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 //! aic-cli is a simple CLI for accessing the Art Institute of Chicago's [public APIs].
 //!
