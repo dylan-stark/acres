@@ -78,11 +78,11 @@ impl Api {
     ///
     /// # Examples
     ///
+    /// The default base URI is `https://api.artic.edu/api/v1`.
+    ///
     /// ```
-    /// let api = aic::Api::builder()
-    ///     .base_uri("https://127.0.0.1:8443/api/v1")
-    ///     .build();
-    /// assert_eq!(api.base_uri(), "https://127.0.0.1:8443/api/v1");
+    /// let api = aic::Api::new();
+    /// assert_eq!(api.base_uri(), "https://api.artic.edu/api/v1");
     /// ```
     pub fn base_uri(&self) -> String {
         self.base_uri.to_string()
@@ -246,6 +246,11 @@ mod tests {
     use wiremock::{Mock, ResponseTemplate};
 
     use super::*;
+
+    #[test]
+    fn base_uri_default() {
+        assert_eq!(Api::new().base_uri(), "https://api.artic.edu/api/v1");
+    }
 
     #[test]
     fn use_cache_by_default() {
