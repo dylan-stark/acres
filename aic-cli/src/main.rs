@@ -6,7 +6,7 @@
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
-use clap::{command, Command};
+use clap::{command, value_parser, Arg, Command};
 
 #[doc(hidden)]
 #[tokio::main]
@@ -14,10 +14,24 @@ async fn main() {
     let matches = command!()
         .propagate_version(true)
         .subcommand_required(true)
-        .subcommand(Command::new("artworks").about("The artworks collection"))
+        .subcommand(
+            Command::new("artworks")
+                .about("The artworks collection")
+                .arg(
+                    Arg::new("artwork-ids")
+                        .long("ids")
+                        .help("comma-seperated list of artwork ids")
+                        .value_delimiter(',')
+                        .value_parser(value_parser!(usize)),
+                ),
+        )
         .get_matches();
 
-    if matches.subcommand_matches("artworks").is_some() {
+    if let Some(matches) = matches.subcommand_matches("artworks") {
+        let _ids = match matches.get_many::<usize>("artwork-ids") {
+            Some(ids) => ids.collect(),
+            None => vec![],
+        };
         match aic::Api::new().artworks().await {
             Ok(listing) => println!("{}", listing),
             Err(error) => eprintln!("{:?}", error),
