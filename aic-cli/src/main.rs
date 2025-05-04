@@ -6,29 +6,21 @@
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
-use clap::Parser;
-
-#[doc(hidden)]
-#[derive(Clone, clap::ValueEnum)]
-enum Resource {
-    Artworks,
-}
-
-#[doc(hidden)]
-#[derive(Parser)]
-struct Cli {
-    resource: Resource,
-}
+use clap::{command, Command};
 
 #[doc(hidden)]
 #[tokio::main]
 async fn main() {
-    let args = Cli::parse();
+    let matches = command!()
+        .propagate_version(true)
+        .subcommand_required(true)
+        .subcommand(Command::new("artworks").about("The artworks collection"))
+        .get_matches();
 
-    match args.resource {
-        Resource::Artworks => match aic::Api::new().artworks().await {
+    if matches.subcommand_matches("artworks").is_some() {
+        match aic::Api::new().artworks().await {
             Ok(listing) => println!("{}", listing),
             Err(error) => eprintln!("{:?}", error),
-        },
+        }
     }
 }

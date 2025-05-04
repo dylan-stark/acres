@@ -29,26 +29,22 @@ fn listing_artworks_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn no_resource() -> Result<(), Box<dyn std::error::Error>> {
+fn requires_subcommand() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("aic-cli")?;
 
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains(
-            "the following required arguments were not provided:",
-        ))
-        .stderr(predicate::str::contains("<RESOURCE>"));
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "requires a subcommand but one was not provided",
+    ));
     Ok(())
 }
 
 #[test]
-fn unsupported_resource() -> Result<(), Box<dyn std::error::Error>> {
+fn unsupported_subcommand() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("aic-cli")?;
     cmd.arg("artists");
 
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("invalid value 'artists'"))
-        .stderr(predicate::str::contains("possible values: artworks"));
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "unrecognized subcommand 'artists'",
+    ));
     Ok(())
 }
