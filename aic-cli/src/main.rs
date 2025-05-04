@@ -15,9 +15,9 @@ async fn main() {
     let args = Cli::parse();
 
     match args.resource {
-        Resource::Artworks => {
-            let listing = aic::Api::new().artworks().await;
-            println!("{}", listing);
-        }
+        Resource::Artworks => match aic::Api::new().artworks().await {
+            Ok(listing) => println!("{}", listing),
+            Err(error) => eprintln!("{:?}", error),
+        },
     }
 }
