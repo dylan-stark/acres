@@ -22,17 +22,18 @@ async fn main() {
                         .long("ids")
                         .help("comma-seperated list of artwork ids")
                         .value_delimiter(',')
-                        .value_parser(value_parser!(usize)),
+                        .value_parser(value_parser!(u32)),
                 ),
         )
         .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("artworks") {
-        let _ids = match matches.get_many::<usize>("artwork-ids") {
-            Some(ids) => ids.collect(),
-            None => vec![],
+        let api = aic::Api::new().artworks().list();
+        let api = match matches.get_many::<u32>("artwork-ids") {
+            Some(ids) => api.ids(ids.copied().collect()),
+            None => api,
         };
-        match aic::Api::new().artworks().await {
+        match api.get().await {
             Ok(listing) => println!("{}", listing),
             Err(error) => eprintln!("{:?}", error),
         }

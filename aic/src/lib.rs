@@ -9,7 +9,7 @@
 //! # #[tokio::main]
 //! # async fn main() -> Result<()> {
 //! let api = aic::Api::new();
-//! let artworks_listing = api.artworks().await?;
+//! let artworks_listing = api.artworks().list().get().await?;
 //! println!("{}", artworks_listing);
 //! # Ok(())
 //! # }
@@ -21,9 +21,146 @@ mod artworks;
 mod config;
 
 use eyre::{Context, Result};
+use serde::ser::SerializeSeq;
+use serde::Serialize;
 
 use crate::artworks::ArtworksListing;
 use crate::config::Config;
+
+struct ArtworksListingQueryParams {
+    ids: Option<Vec<u32>>,
+}
+
+impl Serialize for ArtworksListingQueryParams {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut seq = serializer.serialize_seq(None)?;
+        if let Some(ids) = &self.ids {
+            let ids_string = ids
+                .iter()
+                .map(|id| id.to_string())
+                .collect::<Vec<String>>()
+                .join(",");
+            seq.serialize_element(&("ids", ids_string))?
+        }
+        seq.end()
+    }
+}
+
+/// An artworks collection listing.
+///
+/// This corresonds to the [`GET /artworks`] endpoint on the public API.
+///
+/// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
+pub struct ArtworksCollectionListing {
+    api: Api,
+    ids: Option<Vec<u32>>,
+}
+
+impl ArtworksCollectionListing {
+    /// Sets the artwork ids to retrieve.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let listing = aic::Api::new().artworks().list().ids(vec![256, 1024, 4096]);
+    /// ```
+    pub fn ids(mut self, ids: Vec<u32>) -> Self {
+        self.ids = Some(ids);
+        self
+    }
+
+    /// Pulls a listing of all artworks.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use eyre::Result;
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<()> {
+    /// # let api = aic::Api::new();
+    /// let listing = api.artworks().list().get().await?;
+    /// println!("{}", listing);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn get(&self) -> Result<ArtworksListing> {
+        // TODO: Move config into `Api`
+        let config = Config::new().wrap_err("failed to load config")?;
+        let artworks_json_path = config.aic_cache_dir.join("artworks.json");
+        if self.api.use_cache && artworks_json_path.is_file() {
+            let json = std::fs::read_to_string(&artworks_json_path).wrap_err_with(|| {
+                format!(
+                    "failed to read cached file from {}",
+                    artworks_json_path.display()
+                )
+            })?;
+            Ok(serde_json::from_str(&json)?)
+        } else {
+            let artworks_path = format!("{}/artworks", self.api.base_uri);
+            let client = reqwest::Client::new();
+            let mut headers = reqwest::header::HeaderMap::new();
+            headers.insert(
+                "user-agent",
+                format!("ACRES/{}", env!("CARGO_PKG_VERSION"),)
+                    .parse()
+                    .wrap_err("failed constructing user-agent header")?,
+            );
+            headers.insert(
+                "ACRES-User-Agent",
+                "ACRES (dylan.stark@gmail.com)"
+                    .parse()
+                    .wrap_err("failed constructing ACRES-User-Agent header")?,
+            );
+            let query_params = ArtworksListingQueryParams {
+                ids: self.ids.clone(),
+            };
+
+            let listing = client
+                .get(&artworks_path)
+                .headers(headers)
+                .query(&query_params)
+                .send()
+                .await
+                .wrap_err_with(|| format!("failed to GET {}", artworks_path))?
+                .json::<ArtworksListing>()
+                .await
+                .wrap_err_with(|| format!("failed to get JSON from GET {}", artworks_path))?;
+            std::fs::create_dir_all(artworks_json_path.parent().expect("path has parent"))
+                .wrap_err_with(|| {
+                    format!(
+                        "failed to create parent directory for {}",
+                        artworks_json_path.display()
+                    )
+                })?;
+            std::fs::write(&artworks_json_path, listing.to_string())
+                .wrap_err_with(|| format!("failed to write {}", artworks_json_path.display()))?;
+            Ok(listing)
+        }
+    }
+}
+
+/// The [artworks collection].
+///
+/// [artworks collection]: https://api.artic.edu/docs/#artworks
+pub struct ArtworksCollection {
+    api: Api,
+}
+
+impl ArtworksCollection {
+    /// Returns an artworks collection listing.
+    pub fn list(&self) -> ArtworksCollectionListing {
+        ArtworksCollectionListing {
+            ids: None,
+            api: Api {
+                base_uri: self.api.base_uri.clone(),
+                use_cache: self.api.use_cache,
+            },
+        }
+    }
+}
 
 /// The top-level API client.
 ///
@@ -102,69 +239,13 @@ impl Api {
         self.use_cache
     }
 
-    /// Pulls a listing of all artworks.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use eyre::Result;
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<()> {
-    /// # let api = aic::Api::new();
-    /// let listing = api.artworks().await?;
-    /// println!("{}", listing);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn artworks(&self) -> Result<ArtworksListing> {
-        // TODO: Move config into `Api`
-        let config = Config::new().wrap_err("failed to load config")?;
-        let artworks_json_path = config.aic_cache_dir.join("artworks.json");
-        if self.use_cache && artworks_json_path.is_file() {
-            let json = std::fs::read_to_string(&artworks_json_path).wrap_err_with(|| {
-                format!(
-                    "failed to read cached file from {}",
-                    artworks_json_path.display()
-                )
-            })?;
-            Ok(serde_json::from_str(&json)?)
-        } else {
-            let artworks_path = format!("{}/artworks", self.base_uri);
-            let client = reqwest::Client::new();
-            let mut headers = reqwest::header::HeaderMap::new();
-            headers.insert(
-                "user-agent",
-                format!("ACRES/{}", env!("CARGO_PKG_VERSION"),)
-                    .parse()
-                    .wrap_err("failed constructing user-agent header")?,
-            );
-            headers.insert(
-                "ACRES-User-Agent",
-                "ACRES (dylan.stark@gmail.com)"
-                    .parse()
-                    .wrap_err("failed constructing ACRES-User-Agent header")?,
-            );
-
-            let listing = client
-                .get(&artworks_path)
-                .headers(headers)
-                .send()
-                .await
-                .wrap_err_with(|| format!("failed to GET {}", artworks_path))?
-                .json::<ArtworksListing>()
-                .await
-                .wrap_err_with(|| format!("failed to get JSON from GET {}", artworks_path))?;
-            std::fs::create_dir_all(artworks_json_path.parent().expect("path has parent"))
-                .wrap_err_with(|| {
-                    format!(
-                        "failed to create parent directory for {}",
-                        artworks_json_path.display()
-                    )
-                })?;
-            // TODO: handle ?
-            std::fs::write(&artworks_json_path, listing.to_string())
-                .wrap_err_with(|| format!("failed to write {}", artworks_json_path.display()))?;
-            Ok(listing)
+    /// Returns an artworks collection.
+    pub fn artworks(&self) -> ArtworksCollection {
+        ArtworksCollection {
+            api: Api {
+                base_uri: self.base_uri.clone(),
+                use_cache: self.use_cache,
+            },
         }
     }
 }
@@ -242,7 +323,7 @@ impl Default for ApiBuilder {
 
 #[cfg(test)]
 mod tests {
-    use wiremock::matchers::{any, path};
+    use wiremock::matchers::{any, path, query_param};
     use wiremock::{Mock, ResponseTemplate};
 
     use super::*;
@@ -279,10 +360,35 @@ mod tests {
         let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
         assert_eq!(api.base_uri, mock_uri);
 
-        let listing: ArtworksListing = api.artworks().await.unwrap();
+        let listing: ArtworksListing = api.artworks().list().get().await.unwrap();
 
         assert_eq!(listing.data.len(), 1);
         assert_eq!(listing.data[0].id, 1);
         assert_eq!(listing.data[0].title, "Numero uno");
+    }
+
+    #[tokio::test]
+    async fn api_artworks_listing_by_ids() {
+        let mock_server = wiremock::MockServer::start().await;
+        let mock_uri = format!("{}/api/v1", mock_server.uri());
+        let mock_listing: ArtworksListing =
+            serde_json::from_str(r#"{ "data": [ { "id": 1, "title": "Numero uno" }, { "id": 3, "title": "Numero tres" } ] }"#).unwrap();
+        Mock::given(any())
+            .and(path("/api/v1/artworks"))
+            .and(query_param("ids", "1,3"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(mock_listing))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+        let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
+        assert_eq!(api.base_uri, mock_uri);
+
+        let listing: ArtworksListing = api.artworks().list().ids(vec![1, 3]).get().await.unwrap();
+
+        assert_eq!(listing.data.len(), 2);
+        assert_eq!(listing.data[0].id, 1);
+        assert_eq!(listing.data[0].title, "Numero uno");
+        assert_eq!(listing.data[1].id, 3);
+        assert_eq!(listing.data[1].title, "Numero tres");
     }
 }
