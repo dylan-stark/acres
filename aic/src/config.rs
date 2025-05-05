@@ -7,8 +7,8 @@ use serde::Deserialize;
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Config {
     #[serde(default)]
-    pub aic_use_cache: bool,
-    pub aic_cache_dir: PathBuf,
+    pub use_cache: bool,
+    pub cache_dir: PathBuf,
 }
 
 lazy_static! {
@@ -18,13 +18,11 @@ lazy_static! {
 
 impl Config {
     pub fn new() -> Result<Self, config::ConfigError> {
-        let aic_cache_dir = get_aic_cache_dir();
+        let cache_dir = get_aic_cache_dir();
         let builder = config::Config::builder()
-            .set_default("aic_use_cache", true)?
-            .set_default(
-                "aic_cache_dir",
-                aic_cache_dir.to_str().expect("path is valid"),
-            )?;
+            .set_default("use_cache", true)?
+            .set_default("cache_dir", cache_dir.to_str().expect("path is valid"))?
+            .add_source(config::Environment::with_prefix("AIC"));
         let cfg: Self = builder.build()?.try_deserialize()?;
         Ok(cfg)
     }
@@ -43,4 +41,14 @@ fn get_aic_cache_dir() -> PathBuf {
 
 fn project_directory() -> Option<ProjectDirs> {
     ProjectDirs::from("com", "aic", env!("CARGO_PKG_NAME"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn defaults_to_using_cache() {
+        assert!(Config::new().unwrap().use_cache);
+    }
 }

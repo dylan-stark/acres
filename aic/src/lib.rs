@@ -89,8 +89,8 @@ impl ArtworksCollectionListing {
     pub async fn get(&self) -> Result<ArtworksListing> {
         // TODO: Move config into `Api`
         let config = Config::new().wrap_err("failed to load config")?;
-        let artworks_json_path = config.aic_cache_dir.join("artworks.json");
-        if config.aic_use_cache && self.api.use_cache && artworks_json_path.is_file() {
+        let artworks_json_path = config.cache_dir.join("artworks.json");
+        if config.use_cache && self.api.use_cache && artworks_json_path.is_file() {
             let json = std::fs::read_to_string(&artworks_json_path).wrap_err_with(|| {
                 format!(
                     "failed to read cached file from {}",
