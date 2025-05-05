@@ -7,6 +7,7 @@ use serde::Deserialize;
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Config {
     #[serde(default)]
+    pub aic_use_cache: bool,
     pub aic_cache_dir: PathBuf,
 }
 
@@ -18,10 +19,12 @@ lazy_static! {
 impl Config {
     pub fn new() -> Result<Self, config::ConfigError> {
         let aic_cache_dir = get_aic_cache_dir();
-        let builder = config::Config::builder().set_default(
-            "aic_cache_dir",
-            aic_cache_dir.to_str().expect("path is valid"),
-        )?;
+        let builder = config::Config::builder()
+            .set_default("aic_use_cache", true)?
+            .set_default(
+                "aic_cache_dir",
+                aic_cache_dir.to_str().expect("path is valid"),
+            )?;
         let cfg: Self = builder.build()?.try_deserialize()?;
         Ok(cfg)
     }
