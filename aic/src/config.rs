@@ -1,7 +1,6 @@
 use std::{env, path::PathBuf};
 
 use directories::ProjectDirs;
-use lazy_static::lazy_static;
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -9,11 +8,6 @@ pub struct Config {
     #[serde(default)]
     pub use_cache: bool,
     pub cache_dir: PathBuf,
-}
-
-lazy_static! {
-    pub static ref AIC_CACHE_DIR: Option<PathBuf> =
-        env::var("AIC_CACHE_DIR").ok().map(PathBuf::from);
 }
 
 impl Config {
@@ -29,9 +23,7 @@ impl Config {
 }
 
 fn get_aic_cache_dir() -> PathBuf {
-    let directory = if let Some(s) = AIC_CACHE_DIR.clone() {
-        s
-    } else if let Some(proj_dirs) = project_directory() {
+    let directory = if let Some(proj_dirs) = project_directory() {
         proj_dirs.data_local_dir().to_path_buf()
     } else {
         PathBuf::from(".").join(".cache")
