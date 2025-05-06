@@ -30,13 +30,14 @@ dependencies = [
 name = "aic"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "config",
  "directories",
- "eyre",
  "lazy_static",
  "reqwest",
  "serde",
  "serde_json",
+ "thiserror",
  "tokio",
  "wiremock",
 ]
@@ -49,6 +50,7 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "clap",
+ "eyre",
  "predicates",
  "serde",
  "serde_json",

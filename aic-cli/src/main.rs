@@ -7,10 +7,11 @@
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
 use clap::{command, value_parser, Arg, Command};
+use eyre::Context;
 
 #[doc(hidden)]
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), eyre::Report> {
     let matches = command!()
         .propagate_version(true)
         .subcommand_required(true)
@@ -23,6 +24,12 @@ async fn main() {
                         .help("comma-seperated list of artwork ids")
                         .value_delimiter(',')
                         .value_parser(value_parser!(u32)),
+                )
+                .arg(
+                    Arg::new("limit")
+                        .long("limit")
+                        .help("max number of artworks to return at once")
+                        .value_parser(value_parser!(u32)),
                 ),
         )
         .get_matches();
@@ -33,9 +40,16 @@ async fn main() {
             Some(ids) => api.ids(ids.copied().collect()),
             None => api,
         };
+        let api = match matches.get_one::<u32>("limit") {
+            Some(limit) => api.limit(*limit),
+            None => api,
+        };
+
         match api.get().await {
             Ok(listing) => println!("{}", listing),
-            Err(error) => eprintln!("{:?}", error),
+            Err(error) => return Err(error).wrap_err("We couldn't get that listing ..."),
         }
     }
+
+    Ok(())
 }
