@@ -3,19 +3,20 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-pub struct Pagination {
-    pub total: u32,
-    pub limit: u32,
-    pub offset: u32,
-    pub total_pages: u32,
-    pub current_page: u32,
-    pub next_url: String,
+struct Pagination {
+    total: u32,
+    limit: u32,
+    offset: u32,
+    total_pages: u32,
+    current_page: u32,
+    next_url: String,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Artwork {
-    pub id: usize,
-    pub title: String,
+struct Artwork {
+    id: Option<usize>,
+    title: Option<String>,
+    description: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -35,8 +36,8 @@ impl Display for ArtworksListing {
 pub mod tests {
     use super::*;
 
-    pub fn basic_pagination() -> Pagination {
-        let value = serde_json::json!(
+    pub fn basic_pagination() -> serde_json::Value {
+        serde_json::json!(
             {
                 "total": 1,
                 "limit": 12,
@@ -45,41 +46,41 @@ pub mod tests {
                 "current_page": 1,
                 "next_url": "https://www.artic.edu/artworks/?page=2"
             }
-        );
-        serde_json::from_str(&value.to_string()).unwrap()
+        )
     }
 
-    pub fn numero_uno() -> Artwork {
-        let value = serde_json::json!(
+    pub fn numero_uno() -> serde_json::Value {
+        serde_json::json!(
             {
                 "id": 1,
                 "title": "Numero uno"
             }
-        );
-        serde_json::from_str(&value.to_string()).unwrap()
+        )
     }
 
-    pub fn numero_tres() -> Artwork {
-        let value = serde_json::json!(
+    pub fn numero_tres() -> serde_json::Value {
+        serde_json::json!(
             {
                 "id": 3,
                 "title": "Numero tres"
             }
-        );
-        serde_json::from_str(&value.to_string()).unwrap()
+        )
     }
 
     pub fn listing_with_numero_uno() -> ArtworksListing {
         ArtworksListing {
-            pagination: basic_pagination(),
-            data: vec![numero_uno()],
+            pagination: serde_json::from_str(&basic_pagination().to_string()).unwrap(),
+            data: vec![serde_json::from_str(&numero_uno().to_string()).unwrap()],
         }
     }
 
     pub fn listing_with_numeros_uno_and_tres() -> ArtworksListing {
         ArtworksListing {
-            pagination: basic_pagination(),
-            data: vec![numero_uno(), numero_tres()],
+            pagination: serde_json::from_str(&basic_pagination().to_string()).unwrap(),
+            data: vec![
+                serde_json::from_str(&numero_uno().to_string()).unwrap(),
+                serde_json::from_str(&numero_tres().to_string()).unwrap(),
+            ],
         }
     }
 
@@ -125,6 +126,10 @@ pub mod tests {
   }
 }
             "#;
-        let _listing: ArtworksListing = serde_json::from_str(json).unwrap();
+        let listing: ArtworksListing = serde_json::from_str(json).unwrap();
+
+        assert_eq!(listing.data.len(), 2);
+        assert!(matches!(&listing.data[0].title, Some(title) if title == "Claude Monet"));
+        assert_eq!(listing.data[0].description, None);
     }
 }
