@@ -20,8 +20,8 @@ pub struct Artwork {
 
 #[derive(Serialize, Deserialize)]
 pub struct ArtworksListing {
-    pub pagination: Pagination,
-    pub data: Vec<Artwork>,
+    pagination: Pagination,
+    data: Vec<Artwork>,
 }
 
 impl Display for ArtworksListing {

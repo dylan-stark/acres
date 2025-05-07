@@ -446,7 +446,7 @@ mod tests {
         let mock_listing = listing_with_numero_uno();
         Mock::given(any())
             .and(path("/api/v1/artworks"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(mock_listing))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&mock_listing))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -455,9 +455,7 @@ mod tests {
 
         let listing: ArtworksListing = api.artworks().list().get().await.unwrap();
 
-        assert_eq!(listing.data.len(), 1);
-        assert_eq!(listing.data[0].id, 1);
-        assert_eq!(listing.data[0].title, "Numero uno");
+        assert_eq!(listing.to_string(), mock_listing.to_string());
     }
 
     #[tokio::test]
@@ -468,7 +466,7 @@ mod tests {
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .and(query_param("ids", "1,3"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(mock_listing))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&mock_listing))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -477,11 +475,7 @@ mod tests {
 
         let listing: ArtworksListing = api.artworks().list().ids(vec![1, 3]).get().await.unwrap();
 
-        assert_eq!(listing.data.len(), 2);
-        assert_eq!(listing.data[0].id, 1);
-        assert_eq!(listing.data[0].title, "Numero uno");
-        assert_eq!(listing.data[1].id, 3);
-        assert_eq!(listing.data[1].title, "Numero tres");
+        assert_eq!(listing.to_string(), mock_listing.to_string());
     }
 
     #[tokio::test]
@@ -492,7 +486,7 @@ mod tests {
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .and(query_param("limit", "2"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(mock_listing))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&mock_listing))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -501,11 +495,7 @@ mod tests {
 
         let listing: ArtworksListing = api.artworks().list().limit(2).get().await.unwrap();
 
-        assert_eq!(listing.data.len(), 2);
-        assert_eq!(listing.data[0].id, 1);
-        assert_eq!(listing.data[0].title, "Numero uno");
-        assert_eq!(listing.data[1].id, 3);
-        assert_eq!(listing.data[1].title, "Numero tres");
+        assert_eq!(listing.to_string(), mock_listing.to_string());
     }
 
     #[tokio::test]
@@ -517,15 +507,22 @@ mod tests {
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .and(query_param("limit", "1000"))
-            .respond_with(ResponseTemplate::new(403).set_body_json(mock_error))
+            .respond_with(ResponseTemplate::new(403).set_body_json(&mock_error))
             .expect(1)
             .mount(&mock_server)
             .await;
         let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
         assert_eq!(api.base_uri, mock_uri);
 
-        let _error = api.artworks().list().limit(1000).get().await.err();
+        let error = api.artworks().list().limit(1000).get().await.err().unwrap();
 
-        //assert_eq!(error.status, AicError::INVALID_LIMIT);
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "{}: {}",
+                mock_error.get("error").unwrap(),
+                mock_error.get("detail").unwrap()
+            )
+        );
     }
 }
