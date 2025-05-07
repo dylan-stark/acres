@@ -34,6 +34,9 @@ impl Display for ArtworksListing {
 
 #[cfg(test)]
 pub mod tests {
+    use predicates::prelude::predicate;
+    use predicates::Predicate;
+
     use super::*;
 
     pub fn basic_pagination() -> serde_json::Value {
@@ -131,5 +134,11 @@ pub mod tests {
         assert_eq!(listing.data.len(), 2);
         assert!(matches!(&listing.data[0].title, Some(title) if title == "Claude Monet"));
         assert_eq!(listing.data[0].description, None);
+        assert!(
+            matches!(&listing.data[1].title, Some(title) if predicate::str::contains("Drinking Cup").eval(title))
+        );
+        assert!(
+            matches!(&listing.data[1].description, Some(title) if predicate::str::contains("During the course of the 5th and 4th centuries BCE,").eval(title))
+        );
     }
 }
