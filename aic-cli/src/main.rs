@@ -30,6 +30,12 @@ async fn main() -> Result<(), eyre::Report> {
                         .long("limit")
                         .help("max number of artworks to return at once")
                         .value_parser(value_parser!(u32)),
+                )
+                .arg(
+                    Arg::new("page")
+                        .long("page")
+                        .help("which page to retrieve")
+                        .value_parser(value_parser!(u32)),
                 ),
         )
         .get_matches();
@@ -42,6 +48,10 @@ async fn main() -> Result<(), eyre::Report> {
         };
         let api = match matches.get_one::<u32>("limit") {
             Some(limit) => api.limit(*limit),
+            None => api,
+        };
+        let api = match matches.get_one::<u32>("page") {
+            Some(page) => api.page(*page),
             None => api,
         };
 

@@ -3,6 +3,16 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
+pub struct Pagination {
+    pub total: u32,
+    pub limit: u32,
+    pub offset: u32,
+    pub total_pages: u32,
+    pub current_page: u32,
+    pub next_url: String,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct Artwork {
     pub id: usize,
     pub title: String,
@@ -10,6 +20,7 @@ pub struct Artwork {
 
 #[derive(Serialize, Deserialize)]
 pub struct ArtworksListing {
+    pub pagination: Pagination,
     pub data: Vec<Artwork>,
 }
 
@@ -21,13 +32,60 @@ impl Display for ArtworksListing {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
+
+    pub fn basic_pagination() -> Pagination {
+        let value = serde_json::json!(
+            {
+                "total": 1,
+                "limit": 12,
+                "offset": 0,
+                "total_pages": 42,
+                "current_page": 1,
+                "next_url": "https://www.artic.edu/artworks/?page=2"
+            }
+        );
+        serde_json::from_str(&value.to_string()).unwrap()
+    }
+
+    pub fn numero_uno() -> Artwork {
+        let value = serde_json::json!(
+            {
+                "id": 1,
+                "title": "Numero uno"
+            }
+        );
+        serde_json::from_str(&value.to_string()).unwrap()
+    }
+
+    pub fn numero_tres() -> Artwork {
+        let value = serde_json::json!(
+            {
+                "id": 3,
+                "title": "Numero tres"
+            }
+        );
+        serde_json::from_str(&value.to_string()).unwrap()
+    }
+
+    pub fn listing_with_numero_uno() -> ArtworksListing {
+        ArtworksListing {
+            pagination: basic_pagination(),
+            data: vec![numero_uno()],
+        }
+    }
+
+    pub fn listing_with_numeros_uno_and_tres() -> ArtworksListing {
+        ArtworksListing {
+            pagination: basic_pagination(),
+            data: vec![numero_uno(), numero_tres()],
+        }
+    }
 
     #[test]
     fn artworks_listing_to_string() {
-        let listing: ArtworksListing =
-            serde_json::from_str(r#"{ "data": [ { "id": 1, "title": "Numero uno" } ] }"#).unwrap();
-        let _listing_string: String = listing.to_string();
+        let mock_listing = listing_with_numero_uno();
+        let _listing_string: String = mock_listing.to_string();
     }
 }

@@ -39,6 +39,7 @@ pub enum AicError {
 struct ArtworksListingQueryParams {
     ids: Option<Vec<u32>>,
     limit: Option<u32>,
+    page: Option<u32>,
 }
 
 impl Serialize for ArtworksListingQueryParams {
@@ -58,6 +59,9 @@ impl Serialize for ArtworksListingQueryParams {
         if let Some(limit) = &self.limit {
             seq.serialize_element(&("limit", limit))?
         }
+        if let Some(page) = &self.page {
+            seq.serialize_element(&("page", page))?
+        }
         seq.end()
     }
 }
@@ -71,6 +75,7 @@ pub struct ArtworksCollectionListing {
     api: Api,
     ids: Option<Vec<u32>>,
     limit: Option<u32>,
+    page: Option<u32>,
 }
 
 impl ArtworksCollectionListing {
@@ -100,6 +105,23 @@ impl ArtworksCollectionListing {
     /// [pagination section]: https://api.artic.edu/docs/#pagination
     pub fn limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
+        self
+    }
+
+    /// Sets page number to return.
+    ///
+    /// See [pagination section] for additional information on valid settings
+    /// for `page` and interactions with related options.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let listing = aic::Api::new().artworks().list().page(2);
+    /// ```
+    ///
+    /// [pagination section]: https://api.artic.edu/docs/#pagination
+    pub fn page(mut self, page: u32) -> Self {
+        self.page = Some(page);
         self
     }
 
@@ -148,6 +170,7 @@ impl ArtworksCollectionListing {
             let query_params = ArtworksListingQueryParams {
                 ids: self.ids.clone(),
                 limit: self.limit,
+                page: self.page,
             };
 
             let response = client
@@ -199,6 +222,7 @@ impl ArtworksCollection {
         ArtworksCollectionListing {
             ids: None,
             limit: None,
+            page: None,
             api: Api {
                 base_uri: self.api.base_uri.clone(),
                 use_cache: self.api.use_cache,
@@ -373,6 +397,7 @@ mod tests {
     use wiremock::{Mock, ResponseTemplate};
 
     use super::*;
+    use crate::artworks::tests::*;
 
     #[test]
     fn base_uri_default() {
@@ -395,8 +420,7 @@ mod tests {
     async fn api_artworks_listing() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_listing: ArtworksListing =
-            serde_json::from_str(r#"{ "data": [ { "id": 1, "title": "Numero uno" } ] }"#).unwrap();
+        let mock_listing = listing_with_numero_uno();
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .respond_with(ResponseTemplate::new(200).set_body_json(mock_listing))
@@ -417,8 +441,7 @@ mod tests {
     async fn api_artworks_listing_by_ids() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_listing: ArtworksListing =
-            serde_json::from_str(r#"{ "data": [ { "id": 1, "title": "Numero uno" }, { "id": 3, "title": "Numero tres" } ] }"#).unwrap();
+        let mock_listing = listing_with_numeros_uno_and_tres();
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .and(query_param("ids", "1,3"))
@@ -442,8 +465,7 @@ mod tests {
     async fn api_artworks_listing_with_limit() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_listing: ArtworksListing =
-            serde_json::from_str(r#"{ "data": [ { "id": 1, "title": "Numero uno" }, { "id": 3, "title": "Numero tres" } ] }"#).unwrap();
+        let mock_listing = listing_with_numeros_uno_and_tres();
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .and(query_param("limit", "2"))
