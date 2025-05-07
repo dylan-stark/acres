@@ -9,6 +9,14 @@ fn listing_artworks_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
     let cached_artworks_file = assert_fs::NamedTempFile::new("artworks.json")?;
     cached_artworks_file.write_str(
         r#"{
+              "pagination": {
+              "total": 128194,
+              "limit": 2,
+              "offset": 0,
+              "total_pages": 64097,
+              "current_page": 1,
+              "next_url": "https://api.artic.edu/api/v1/artworks?page=2&limit=2&fields=title%2Cdescription"
+            },
             "data": [ { "id": 999, "title": "Emergency!" } ]
         }"#,
     )?;
