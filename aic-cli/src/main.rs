@@ -36,6 +36,12 @@ async fn main() -> Result<(), eyre::Report> {
                         .long("page")
                         .help("which page to retrieve")
                         .value_parser(value_parser!(u32)),
+                )
+                .arg(
+                    Arg::new("fields")
+                        .long("fields")
+                        .help("comma-separated list of fields to retrieve")
+                        .value_parser(value_parser!(String)),
                 ),
         )
         .get_matches();
@@ -52,6 +58,10 @@ async fn main() -> Result<(), eyre::Report> {
         };
         let api = match matches.get_one::<u32>("page") {
             Some(page) => api.page(*page),
+            None => api,
+        };
+        let api = match matches.get_many::<String>("fields") {
+            Some(fields) => api.fields(fields.into_iter().map(|field| field.to_string()).collect()),
             None => api,
         };
 

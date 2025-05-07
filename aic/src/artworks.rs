@@ -88,4 +88,43 @@ pub mod tests {
         let mock_listing = listing_with_numero_uno();
         let _listing_string: String = mock_listing.to_string();
     }
+
+    #[test]
+    fn just_title_and_description_fields() {
+        let json = r#"
+{
+  "pagination": {
+    "total": 128194,
+    "limit": 2,
+    "offset": 0,
+    "total_pages": 64097,
+    "current_page": 1,
+    "next_url": "https://api.artic.edu/api/v1/artworks?page=2&limit=2&fields=title%2Cdescription"
+  },
+  "data": [
+    {
+      "title": "Claude Monet",
+      "description": null
+    },
+    {
+      "title": "Skyphos (Drinking Cup)",
+      "description": "\u003Cp\u003EDuring the course of the 5th and 4th centuries BCE, black vessels (commonly called black-glaze vessels) were made with increasing frequency in both Greece and South Italy. Many of them replicate the shape of metal vessels. Others have detailing that is molded or incised. While the quality of these vessels varies greatly, all would have been less expensive than vessels decorated in other contemporary techniques, for example, in red-figure.\u003C/p\u003E\n"
+    }
+  ],
+  "info": {
+    "license_text": "The `description` field in this response is licensed under a Creative Commons Attribution 4.0 Generic License (CC-By) and the Terms and Conditions of artic.edu. All other data in this response is licensed under a Creative Commons Zero (CC0) 1.0 designation and the Terms and Conditions of artic.edu.",
+    "license_links": [
+      "https://creativecommons.org/publicdomain/zero/1.0/",
+      "https://www.artic.edu/terms"
+    ],
+    "version": "1.13"
+  },
+  "config": {
+    "iiif_url": "https://www.artic.edu/iiif/2",
+    "website_url": "http://www.artic.edu"
+  }
+}
+            "#;
+        let _listing: ArtworksListing = serde_json::from_str(json).unwrap();
+    }
 }

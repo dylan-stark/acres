@@ -40,6 +40,7 @@ struct ArtworksListingQueryParams {
     ids: Option<Vec<u32>>,
     limit: Option<u32>,
     page: Option<u32>,
+    fields: Vec<String>,
 }
 
 impl Serialize for ArtworksListingQueryParams {
@@ -62,6 +63,13 @@ impl Serialize for ArtworksListingQueryParams {
         if let Some(page) = &self.page {
             seq.serialize_element(&("page", page))?
         }
+        let fields_string: String = self
+            .fields
+            .iter()
+            .map(|field| field.to_string())
+            .collect::<Vec<String>>()
+            .join(",");
+        seq.serialize_element(&("fields", fields_string))?;
         seq.end()
     }
 }
@@ -76,6 +84,7 @@ pub struct ArtworksCollectionListing {
     ids: Option<Vec<u32>>,
     limit: Option<u32>,
     page: Option<u32>,
+    fields: Vec<String>,
 }
 
 impl ArtworksCollectionListing {
@@ -125,6 +134,18 @@ impl ArtworksCollectionListing {
         self
     }
 
+    /// Sets the artwork fields to retrieve.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let listing = aic::Api::new().artworks().list().fields(vec!["title".into(), "description".into()]);
+    /// ```
+    pub fn fields(mut self, fields: Vec<String>) -> Self {
+        self.fields = fields;
+        self
+    }
+
     /// Pulls a listing of all artworks.
     ///
     /// # Examples
@@ -171,6 +192,7 @@ impl ArtworksCollectionListing {
                 ids: self.ids.clone(),
                 limit: self.limit,
                 page: self.page,
+                fields: self.fields.clone(),
             };
 
             let response = client
@@ -223,6 +245,7 @@ impl ArtworksCollection {
             ids: None,
             limit: None,
             page: None,
+            fields: vec!["id".into(), "title".into()],
             api: Api {
                 base_uri: self.api.base_uri.clone(),
                 use_cache: self.api.use_cache,
