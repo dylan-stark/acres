@@ -171,7 +171,9 @@ impl ArtworksCollectionListing {
                     artworks_json_path.display()
                 )
             })?;
-            Ok(serde_json::from_str(&json).context("failed to serialie JSON")?)
+            Ok(ArtworksListing::new(
+                serde_json::from_str(&json).context("failed to serialie JSON")?,
+            ))
         } else {
             let artworks_path = format!("{}/artworks", self.api.base_uri);
             let client = reqwest::Client::new();
@@ -204,7 +206,7 @@ impl ArtworksCollectionListing {
                 .with_context(|| format!("failed to GET {}", artworks_path))?;
             let listing = match response.status() {
                 StatusCode::OK => Ok(response
-                    .json::<ArtworksListing>()
+                    .json::<serde_json::Value>()
                     .await
                     .with_context(|| format!("failed to get JSON from GET {}", artworks_path))?),
                 _ => Err(response
@@ -226,7 +228,10 @@ impl ArtworksCollectionListing {
                     .with_context(|| format!("failed to write {}", artworks_json_path.display()))?;
             }
 
-            Ok(listing?)
+            match listing {
+                Ok(listing) => Ok(ArtworksListing::new(listing)),
+                Err(error) => Err(error.into()),
+            }
         }
     }
 }
@@ -446,7 +451,7 @@ mod tests {
         let mock_listing = listing_with_numero_uno();
         Mock::given(any())
             .and(path("/api/v1/artworks"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(&mock_listing))
+            .respond_with(ResponseTemplate::new(200).set_body_string(mock_listing.to_string()))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -466,7 +471,7 @@ mod tests {
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .and(query_param("ids", "1,3"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(&mock_listing))
+            .respond_with(ResponseTemplate::new(200).set_body_string(mock_listing.to_string()))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -486,7 +491,7 @@ mod tests {
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .and(query_param("limit", "2"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(&mock_listing))
+            .respond_with(ResponseTemplate::new(200).set_body_string(mock_listing.to_string()))
             .expect(1)
             .mount(&mock_server)
             .await;
