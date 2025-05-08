@@ -8,7 +8,16 @@
 //! # use anyhow::Result;
 //! # #[tokio::main]
 //! # async fn main() -> Result<()> {
+//! # let mock_server = wiremock::MockServer::start().await;
+//! # let mock_uri = format!("{}/api/v1", mock_server.uri());
+//! # wiremock::Mock::given(wiremock::matchers::any())
+//! #     .and(wiremock::matchers::path("/api/v1/artworks"))
+//! #     .respond_with(wiremock::ResponseTemplate::new(200).set_body_string("{}"))
+//! #     .expect(1)
+//! #     .mount(&mock_server)
+//! #     .await;
 //! let api = aic::Api::new();
+//! # let api = aic::Api::builder().base_uri(&mock_uri).use_cache(false).build();
 //! let artworks_listing = api.artworks().list().get().await?;
 //! println!("{}", artworks_listing);
 //! # Ok(())
@@ -154,7 +163,15 @@ impl ArtworksCollectionListing {
     /// # use anyhow::Result;
     /// # #[tokio::main]
     /// # async fn main() -> Result<()> {
-    /// # let api = aic::Api::new();
+    /// # let mock_server = wiremock::MockServer::start().await;
+    /// # let mock_uri = format!("{}/api/v1", mock_server.uri());
+    /// # wiremock::Mock::given(wiremock::matchers::any())
+    /// #     .and(wiremock::matchers::path("/api/v1/artworks"))
+    /// #     .respond_with(wiremock::ResponseTemplate::new(200).set_body_string("{}"))
+    /// #     .expect(1)
+    /// #     .mount(&mock_server)
+    /// #     .await;
+    /// # let api = aic::Api::builder().base_uri(&mock_uri).use_cache(false).build();
     /// let listing = api.artworks().list().get().await?;
     /// println!("{}", listing);
     /// # Ok(())
