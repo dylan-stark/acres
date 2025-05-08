@@ -1,5 +1,10 @@
 use std::fmt::Display;
 
+/// A listing of artworks.
+///
+/// This is the response from the [`GET /artworks`].
+///
+/// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
 pub struct ArtworksListing(serde_json::Value);
 
 impl Display for ArtworksListing {
@@ -10,6 +15,7 @@ impl Display for ArtworksListing {
 }
 
 impl ArtworksListing {
+    #[doc(hidden)]
     pub fn new(response: serde_json::Value) -> Self {
         ArtworksListing(response)
     }

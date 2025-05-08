@@ -34,7 +34,7 @@ use reqwest::StatusCode;
 use serde::ser::SerializeSeq;
 use serde::Serialize;
 
-use crate::artworks::ArtworksListing;
+pub use crate::artworks::ArtworksListing;
 use crate::config::Config;
 
 /// An AIC error.
