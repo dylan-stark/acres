@@ -50,6 +50,7 @@ struct ArtworksListingQueryParams {
     limit: Option<u32>,
     page: Option<u32>,
     fields: Vec<String>,
+    include: Vec<String>,
 }
 
 impl Serialize for ArtworksListingQueryParams {
@@ -72,13 +73,12 @@ impl Serialize for ArtworksListingQueryParams {
         if let Some(page) = &self.page {
             seq.serialize_element(&("page", page))?
         }
-        let fields_string: String = self
-            .fields
-            .iter()
-            .map(|field| field.to_string())
-            .collect::<Vec<String>>()
-            .join(",");
-        seq.serialize_element(&("fields", fields_string))?;
+        if !self.fields.is_empty() {
+            seq.serialize_element(&("fields", self.fields.join(",")))?;
+        }
+        if !self.include.is_empty() {
+            seq.serialize_element(&("include", self.include.join(",")))?;
+        }
         seq.end()
     }
 }
@@ -94,6 +94,7 @@ pub struct ArtworksCollectionListing {
     limit: Option<u32>,
     page: Option<u32>,
     fields: Vec<String>,
+    include: Vec<String>,
 }
 
 impl ArtworksCollectionListing {
@@ -155,6 +156,18 @@ impl ArtworksCollectionListing {
         self
     }
 
+    /// Sets the sub-resources to include.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let listing = aic::Api::new().artworks().list().include(vec!["place_pivots".into()]);
+    /// ```
+    pub fn include(mut self, include: Vec<String>) -> Self {
+        self.include = include;
+        self
+    }
+
     /// Pulls a listing of all artworks.
     ///
     /// # Examples
@@ -212,6 +225,7 @@ impl ArtworksCollectionListing {
                 limit: self.limit,
                 page: self.page,
                 fields: self.fields.clone(),
+                include: self.include.clone(),
             };
 
             let response = client
@@ -268,6 +282,7 @@ impl ArtworksCollection {
             limit: None,
             page: None,
             fields: vec!["id".into(), "title".into()],
+            include: vec![],
             api: Api {
                 base_uri: self.api.base_uri.clone(),
                 use_cache: self.api.use_cache,
@@ -546,5 +561,72 @@ mod tests {
                 mock_error.get("detail").unwrap()
             )
         );
+    }
+
+    #[tokio::test]
+    async fn api_artworks_listing_with_page() {
+        let mock_server = wiremock::MockServer::start().await;
+        let mock_uri = format!("{}/api/v1", mock_server.uri());
+        Mock::given(any())
+            .and(path("/api/v1/artworks"))
+            .and(query_param("page", "2"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("{}"))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+        let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
+        assert_eq!(api.base_uri, mock_uri);
+
+        api.artworks().list().page(2).get().await.unwrap();
+
+        // Then page query param is set to 2, as asserted by the mock
+    }
+
+    #[tokio::test]
+    async fn api_artworks_listing_with_fields() {
+        let mock_server = wiremock::MockServer::start().await;
+        let mock_uri = format!("{}/api/v1", mock_server.uri());
+        Mock::given(any())
+            .and(path("/api/v1/artworks"))
+            .and(query_param("fields", "title,description"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("{}"))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+        let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
+        assert_eq!(api.base_uri, mock_uri);
+
+        api.artworks()
+            .list()
+            .fields(vec!["title".into(), "description".into()])
+            .get()
+            .await
+            .unwrap();
+
+        // Then fields query param is set to "title,description", as asserted by the mock
+    }
+
+    #[tokio::test]
+    async fn api_artworks_listing_with_include() {
+        let mock_server = wiremock::MockServer::start().await;
+        let mock_uri = format!("{}/api/v1", mock_server.uri());
+        Mock::given(any())
+            .and(path("/api/v1/artworks"))
+            .and(query_param("include", "date,place_pivots"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("{}"))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+        let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
+        assert_eq!(api.base_uri, mock_uri);
+
+        api.artworks()
+            .list()
+            .include(vec!["date".into(), "place_pivots".into()])
+            .get()
+            .await
+            .unwrap();
+
+        // Then include query param is set to "date,place_pivots", as asserted by the mock
     }
 }

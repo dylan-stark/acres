@@ -19,7 +19,7 @@ async fn main() -> Result<(), eyre::Report> {
             Command::new("artworks")
                 .about("The artworks collection")
                 .arg(
-                    Arg::new("artwork-ids")
+                    Arg::new("ids")
                         .long("ids")
                         .help("comma-seperated list of artwork ids")
                         .value_delimiter(',')
@@ -42,13 +42,19 @@ async fn main() -> Result<(), eyre::Report> {
                         .long("fields")
                         .help("comma-separated list of fields to retrieve")
                         .value_parser(value_parser!(String)),
+                )
+                .arg(
+                    Arg::new("include")
+                        .long("include")
+                        .help("comma-separated list of sub-resources to include")
+                        .value_parser(value_parser!(String)),
                 ),
         )
         .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("artworks") {
         let api = aic::Api::new().artworks().list();
-        let api = match matches.get_many::<u32>("artwork-ids") {
+        let api = match matches.get_many::<u32>("ids") {
             Some(ids) => api.ids(ids.copied().collect()),
             None => api,
         };
@@ -62,6 +68,15 @@ async fn main() -> Result<(), eyre::Report> {
         };
         let api = match matches.get_many::<String>("fields") {
             Some(fields) => api.fields(fields.into_iter().map(|field| field.to_string()).collect()),
+            None => api,
+        };
+        let api = match matches.get_many::<String>("include") {
+            Some(include) => api.include(
+                include
+                    .into_iter()
+                    .map(|include| include.to_string())
+                    .collect(),
+            ),
             None => api,
         };
 
