@@ -1,3 +1,4 @@
+#![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 
 //! Simple and ergonomic access to the Art Institute of Chicago's [public APIs].
@@ -88,6 +89,7 @@ impl Serialize for ArtworksListingQueryParams {
 /// This corresonds to the [`GET /artworks`] endpoint on the public API.
 ///
 /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
+#[derive(Debug)]
 pub struct ArtworksCollectionListing {
     api: Api,
     ids: Option<Vec<u32>>,
@@ -270,6 +272,7 @@ impl ArtworksCollectionListing {
 /// The [artworks collection].
 ///
 /// [artworks collection]: https://api.artic.edu/docs/#artworks
+#[derive(Debug)]
 pub struct ArtworksCollection {
     api: Api,
 }
@@ -302,6 +305,7 @@ impl ArtworksCollection {
 /// ```
 ///
 /// [AIC public APIs]: https://api.artic.edu/docs/#introduction
+#[derive(Debug)]
 pub struct Api {
     base_uri: String,
     use_cache: bool,
@@ -395,6 +399,7 @@ impl Default for Api {
 ///     .build();
 /// assert!(!api.use_cache());
 /// ```
+#[derive(Debug)]
 pub struct ApiBuilder {
     base_uri: String,
     use_cache: bool,
