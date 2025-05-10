@@ -30,10 +30,10 @@
 mod artworks;
 mod config;
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use reqwest::StatusCode;
-use serde::ser::SerializeSeq;
 use serde::Serialize;
+use serde::ser::SerializeSeq;
 
 pub use crate::artworks::ArtworksListing;
 use crate::config::Config;

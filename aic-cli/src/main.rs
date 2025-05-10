@@ -6,7 +6,7 @@
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
-use clap::{command, value_parser, Arg, Command};
+use clap::{Arg, Command, command, value_parser};
 use eyre::Context;
 
 #[doc(hidden)]
