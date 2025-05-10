@@ -89,7 +89,7 @@ impl Serialize for ArtworksListingQueryParams {
 /// This corresonds to the [`GET /artworks`] endpoint on the public API.
 ///
 /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ArtworksCollectionListing {
     api: Api,
     ids: Option<Vec<u32>>,
@@ -272,7 +272,7 @@ impl ArtworksCollectionListing {
 /// The [artworks collection].
 ///
 /// [artworks collection]: https://api.artic.edu/docs/#artworks
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ArtworksCollection {
     api: Api,
 }
