@@ -7,11 +7,10 @@ edition = "2024"
 aic = { path = "../aic" }
 clap = { version = "4.5.37", features = ["cargo", "derive"] }
 eyre = "0.6.12"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
 tokio = { version = "1.44.2", features = ["rt", "macros", "full"] }
 
 [dev-dependencies]
 assert_cmd = "2.0.17"
 assert_fs = "1.1.3"
 predicates = "3.1.3"
+serde_json = "1.0.140"
