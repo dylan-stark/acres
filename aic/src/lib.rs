@@ -89,7 +89,7 @@ impl Serialize for ArtworksListingQueryParams {
 /// This corresonds to the [`GET /artworks`] endpoint on the public API.
 ///
 /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ArtworksCollectionListing {
     api: Api,
     ids: Option<Vec<u32>>,
@@ -272,7 +272,7 @@ impl ArtworksCollectionListing {
 /// The [artworks collection].
 ///
 /// [artworks collection]: https://api.artic.edu/docs/#artworks
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ArtworksCollection {
     api: Api,
 }
@@ -305,7 +305,7 @@ impl ArtworksCollection {
 /// ```
 ///
 /// [AIC public APIs]: https://api.artic.edu/docs/#introduction
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Api {
     base_uri: String,
     use_cache: bool,
@@ -399,7 +399,7 @@ impl Default for Api {
 ///     .build();
 /// assert!(!api.use_cache());
 /// ```
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ApiBuilder {
     base_uri: String,
     use_cache: bool,

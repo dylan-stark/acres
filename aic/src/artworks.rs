@@ -5,7 +5,7 @@ use std::fmt::Display;
 /// This is the response from the [`GET /artworks`].
 ///
 /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ArtworksListing(serde_json::Value);
 
 impl Display for ArtworksListing {
