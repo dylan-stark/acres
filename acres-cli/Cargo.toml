@@ -1,10 +1,10 @@
 [package]
-name = "aic-cli"
+name = "acres-cli"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-aic = { path = "../aic" }
+acres = { path = "../acres" }
 clap = { version = "4.5.37", features = ["cargo", "derive"] }
 eyre = "0.6.12"
 tokio = { version = "1.44.2", features = ["rt", "macros", "full"] }

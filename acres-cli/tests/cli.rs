@@ -22,8 +22,8 @@ fn listing_artworks_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     // When we run the CLI to get artworks listing
-    let mut cmd = Command::cargo_bin("aic-cli")?;
-    cmd.env("AIC_CACHE_DIR", cached_artworks_file.parent().unwrap())
+    let mut cmd = Command::cargo_bin("acres-cli")?;
+    cmd.env("ACRES_CACHE_DIR", cached_artworks_file.parent().unwrap())
         .arg("artworks");
 
     // Then stdout has *only* the listing
@@ -38,7 +38,7 @@ fn listing_artworks_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn requires_subcommand() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("aic-cli")?;
+    let mut cmd = Command::cargo_bin("acres-cli")?;
 
     cmd.assert().failure().stderr(predicate::str::contains(
         "requires a subcommand but one was not provided",
@@ -48,7 +48,7 @@ fn requires_subcommand() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn unsupported_subcommand() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("aic-cli")?;
+    let mut cmd = Command::cargo_bin("acres-cli")?;
     cmd.arg("artists");
 
     cmd.assert().failure().stderr(predicate::str::contains(

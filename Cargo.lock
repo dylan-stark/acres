@@ -3,6 +3,36 @@
 version = 4
 
 [[package]]
+name = "acres"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "config",
+ "directories",
+ "predicates",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "wiremock",
+]
+
+[[package]]
+name = "acres-cli"
+version = "0.1.0"
+dependencies = [
+ "acres",
+ "assert_cmd",
+ "assert_fs",
+ "clap",
+ "eyre",
+ "predicates",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -24,36 +54,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e60d3430d3a69478ad0993f19238d2df97c507009a52b3c10addcd7f6bcb916"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "aic"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "config",
- "directories",
- "predicates",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "wiremock",
-]
-
-[[package]]
-name = "aic-cli"
-version = "0.1.0"
-dependencies = [
- "aic",
- "assert_cmd",
- "assert_fs",
- "clap",
- "eyre",
- "predicates",
- "serde_json",
- "tokio",
 ]
 
 [[package]]

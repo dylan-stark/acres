@@ -1,8 +1,8 @@
 #![deny(missing_docs)]
 
-//! aic-cli is a simple CLI for accessing the Art Institute of Chicago's [public APIs].
+//! acres-cli is a simple CLI for accessing the Art Institute of Chicago's [public APIs].
 //!
-//! You can get the (first page of the) artworks listing with `aic-cli artworks`.
+//! You can get the (first page of the) artworks listing with `acres-cli artworks`.
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
@@ -53,7 +53,7 @@ async fn main() -> Result<(), eyre::Report> {
         .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("artworks") {
-        let api = aic::Api::new().artworks().list();
+        let api = acres::Api::new().artworks().list();
         let api = match matches.get_many::<u32>("ids") {
             Some(ids) => api.ids(ids.copied().collect()),
             None => api,

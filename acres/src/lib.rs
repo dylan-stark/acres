@@ -17,8 +17,8 @@
 //! #     .expect(1)
 //! #     .mount(&mock_server)
 //! #     .await;
-//! let api = aic::Api::new();
-//! # let api = aic::Api::builder().base_uri(&mock_uri).use_cache(false).build();
+//! let api = acres::Api::new();
+//! # let api = acres::Api::builder().base_uri(&mock_uri).use_cache(false).build();
 //! let artworks_listing = api.artworks().list().get().await?;
 //! println!("{}", artworks_listing);
 //! # Ok(())
@@ -38,9 +38,9 @@ use serde::ser::SerializeSeq;
 pub use crate::artworks::ArtworksListing;
 use crate::config::Config;
 
-/// An AIC error.
+/// An ACRES error.
 #[derive(Debug, thiserror::Error)]
-pub enum AicError {
+pub enum AcresError {
     /// An unexpected error.
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
@@ -105,7 +105,7 @@ impl ArtworksCollectionListing {
     /// # Examples
     ///
     /// ```
-    /// let listing = aic::Api::new().artworks().list().ids(vec![256, 1024, 4096]);
+    /// let listing = acres::Api::new().artworks().list().ids(vec![256, 1024, 4096]);
     /// ```
     pub fn ids(mut self, ids: Vec<u32>) -> Self {
         self.ids = Some(ids);
@@ -120,7 +120,7 @@ impl ArtworksCollectionListing {
     /// # Examples
     ///
     /// ```
-    /// let listing = aic::Api::new().artworks().list().limit(10);
+    /// let listing = acres::Api::new().artworks().list().limit(10);
     /// ```
     ///
     /// [pagination section]: https://api.artic.edu/docs/#pagination
@@ -137,7 +137,7 @@ impl ArtworksCollectionListing {
     /// # Examples
     ///
     /// ```
-    /// let listing = aic::Api::new().artworks().list().page(2);
+    /// let listing = acres::Api::new().artworks().list().page(2);
     /// ```
     ///
     /// [pagination section]: https://api.artic.edu/docs/#pagination
@@ -151,7 +151,7 @@ impl ArtworksCollectionListing {
     /// # Examples
     ///
     /// ```
-    /// let listing = aic::Api::new().artworks().list().fields(vec!["title".into(), "description".into()]);
+    /// let listing = acres::Api::new().artworks().list().fields(vec!["title".into(), "description".into()]);
     /// ```
     pub fn fields(mut self, fields: Vec<String>) -> Self {
         self.fields = fields;
@@ -163,7 +163,7 @@ impl ArtworksCollectionListing {
     /// # Examples
     ///
     /// ```
-    /// let listing = aic::Api::new().artworks().list().include(vec!["place_pivots".into()]);
+    /// let listing = acres::Api::new().artworks().list().include(vec!["place_pivots".into()]);
     /// ```
     pub fn include(mut self, include: Vec<String>) -> Self {
         self.include = include;
@@ -186,13 +186,13 @@ impl ArtworksCollectionListing {
     /// #     .expect(1)
     /// #     .mount(&mock_server)
     /// #     .await;
-    /// # let api = aic::Api::builder().base_uri(&mock_uri).use_cache(false).build();
+    /// # let api = acres::Api::builder().base_uri(&mock_uri).use_cache(false).build();
     /// let listing = api.artworks().list().get().await?;
     /// println!("{}", listing);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn get(&self) -> Result<ArtworksListing, AicError> {
+    pub async fn get(&self) -> Result<ArtworksListing, AcresError> {
         // TODO: Move config into `Api`
         let config = Config::new().context("failed to load config")?;
         let artworks_json_path = config.cache_dir.join("artworks.json");
@@ -301,7 +301,7 @@ impl ArtworksCollection {
 /// # Examples
 ///
 /// ```
-/// let api = aic::Api::new();
+/// let api = acres::Api::new();
 /// ```
 ///
 /// [AIC public APIs]: https://api.artic.edu/docs/#introduction
@@ -317,7 +317,7 @@ impl Api {
     /// # Examples
     ///
     /// ```
-    /// let api = aic::Api::new();
+    /// let api = acres::Api::new();
     /// ```
     pub fn new() -> Self {
         Self::default()
@@ -333,7 +333,7 @@ impl Api {
     /// Caching is on by default but you can disable it with
     ///
     /// ```
-    /// let api = aic::Api::builder()
+    /// let api = acres::Api::builder()
     ///     .use_cache(false)
     ///     .build();
     /// assert!(!api.use_cache());
@@ -351,7 +351,7 @@ impl Api {
     /// The default base URI is `https://api.artic.edu/api/v1`.
     ///
     /// ```
-    /// let api = aic::Api::new();
+    /// let api = acres::Api::new();
     /// assert_eq!(api.base_uri(), "https://api.artic.edu/api/v1");
     /// ```
     pub fn base_uri(&self) -> String {
@@ -365,7 +365,7 @@ impl Api {
     /// Caching is on by default.
     ///
     /// ```
-    /// let api = aic::Api::new();
+    /// let api = acres::Api::new();
     /// assert!(api.use_cache());
     /// ```
     pub fn use_cache(&self) -> bool {
@@ -394,7 +394,7 @@ impl Default for Api {
 /// Use one of these to tailor the client; e.g., to disable caching:
 ///
 /// ```
-/// let api = aic::Api::builder()
+/// let api = acres::Api::builder()
 ///     .use_cache(false)
 ///     .build();
 /// assert!(!api.use_cache());
@@ -412,7 +412,7 @@ impl ApiBuilder {
     /// you can with
     ///
     /// ```
-    /// let api = aic::Api::builder()
+    /// let api = acres::Api::builder()
     ///     .base_uri("https://127.0.0.1:8443/api/v1")
     ///     .build();
     /// assert_eq!(api.base_uri(), "https://127.0.0.1:8443/api/v1");
@@ -427,7 +427,7 @@ impl ApiBuilder {
     /// The default is to always cache, but you can turn off caching with
     ///
     /// ```
-    /// let api = aic::Api::builder()
+    /// let api = acres::Api::builder()
     ///     .use_cache(false)
     ///     .build();
     /// assert!(!api.use_cache());
