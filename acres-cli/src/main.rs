@@ -53,7 +53,7 @@ async fn main() -> Result<(), eyre::Report> {
         .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("artworks") {
-        let api = aic::Api::new().artworks().list();
+        let api = acres::Api::new().artworks().list();
         let api = match matches.get_many::<u32>("ids") {
             Some(ids) => api.ids(ids.copied().collect()),
             None => api,

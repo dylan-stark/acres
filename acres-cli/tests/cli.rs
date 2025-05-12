@@ -23,7 +23,7 @@ fn listing_artworks_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
 
     // When we run the CLI to get artworks listing
     let mut cmd = Command::cargo_bin("acres-cli")?;
-    cmd.env("AIC_CACHE_DIR", cached_artworks_file.parent().unwrap())
+    cmd.env("ACRES_CACHE_DIR", cached_artworks_file.parent().unwrap())
         .arg("artworks");
 
     // Then stdout has *only* the listing
