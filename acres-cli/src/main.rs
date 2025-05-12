@@ -1,8 +1,8 @@
 #![deny(missing_docs)]
 
-//! aic-cli is a simple CLI for accessing the Art Institute of Chicago's [public APIs].
+//! acres-cli is a simple CLI for accessing the Art Institute of Chicago's [public APIs].
 //!
-//! You can get the (first page of the) artworks listing with `aic-cli artworks`.
+//! You can get the (first page of the) artworks listing with `acres-cli artworks`.
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
