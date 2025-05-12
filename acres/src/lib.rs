@@ -19,8 +19,8 @@
 //! #     .await;
 //! let api = acres::Api::new();
 //! # let api = acres::Api::builder().base_uri(&mock_uri).use_cache(false).build();
-//! let artworks_listing = api.artworks().list().get().await?;
-//! println!("{}", artworks_listing);
+//! let artworks_list = api.artworks().list().get().await?;
+//! println!("{}", artworks_list);
 //! # Ok(())
 //! # }
 //! ```
@@ -35,7 +35,7 @@ use reqwest::StatusCode;
 use serde::Serialize;
 use serde::ser::SerializeSeq;
 
-pub use crate::artworks::ArtworksListing;
+pub use crate::artworks::ArtworksList;
 use crate::config::Config;
 
 /// An ACRES error.
@@ -46,7 +46,7 @@ pub enum AcresError {
     UnexpectedError(#[from] anyhow::Error),
 }
 
-struct ArtworksListingQueryParams {
+struct ArtworksListQueryParams {
     ids: Option<Vec<u32>>,
     limit: Option<u32>,
     page: Option<u32>,
@@ -54,7 +54,7 @@ struct ArtworksListingQueryParams {
     include: Vec<String>,
 }
 
-impl Serialize for ArtworksListingQueryParams {
+impl Serialize for ArtworksListQueryParams {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -84,13 +84,13 @@ impl Serialize for ArtworksListingQueryParams {
     }
 }
 
-/// An artworks collection listing.
+/// An artworks collection list.
 ///
 /// This corresonds to the [`GET /artworks`] endpoint on the public API.
 ///
 /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
 #[derive(Clone, Debug, Default)]
-pub struct ArtworksCollectionListing {
+pub struct ArtworksCollectionList {
     api: Api,
     ids: Option<Vec<u32>>,
     limit: Option<u32>,
@@ -99,13 +99,13 @@ pub struct ArtworksCollectionListing {
     include: Vec<String>,
 }
 
-impl ArtworksCollectionListing {
+impl ArtworksCollectionList {
     /// Sets the artwork ids to retrieve.
     ///
     /// # Examples
     ///
     /// ```
-    /// let listing = acres::Api::new().artworks().list().ids(vec![256, 1024, 4096]);
+    /// let list = acres::Api::new().artworks().list().ids(vec![256, 1024, 4096]);
     /// ```
     pub fn ids(mut self, ids: Vec<u32>) -> Self {
         self.ids = Some(ids);
@@ -120,7 +120,7 @@ impl ArtworksCollectionListing {
     /// # Examples
     ///
     /// ```
-    /// let listing = acres::Api::new().artworks().list().limit(10);
+    /// let list = acres::Api::new().artworks().list().limit(10);
     /// ```
     ///
     /// [pagination section]: https://api.artic.edu/docs/#pagination
@@ -137,7 +137,7 @@ impl ArtworksCollectionListing {
     /// # Examples
     ///
     /// ```
-    /// let listing = acres::Api::new().artworks().list().page(2);
+    /// let list = acres::Api::new().artworks().list().page(2);
     /// ```
     ///
     /// [pagination section]: https://api.artic.edu/docs/#pagination
@@ -151,7 +151,7 @@ impl ArtworksCollectionListing {
     /// # Examples
     ///
     /// ```
-    /// let listing = acres::Api::new().artworks().list().fields(vec!["title".into(), "description".into()]);
+    /// let list = acres::Api::new().artworks().list().fields(vec!["title".into(), "description".into()]);
     /// ```
     pub fn fields(mut self, fields: Vec<String>) -> Self {
         self.fields = fields;
@@ -163,14 +163,14 @@ impl ArtworksCollectionListing {
     /// # Examples
     ///
     /// ```
-    /// let listing = acres::Api::new().artworks().list().include(vec!["place_pivots".into()]);
+    /// let list = acres::Api::new().artworks().list().include(vec!["place_pivots".into()]);
     /// ```
     pub fn include(mut self, include: Vec<String>) -> Self {
         self.include = include;
         self
     }
 
-    /// Pulls a listing of all artworks.
+    /// Pulls a list of all artworks.
     ///
     /// # Examples
     ///
@@ -187,12 +187,12 @@ impl ArtworksCollectionListing {
     /// #     .mount(&mock_server)
     /// #     .await;
     /// # let api = acres::Api::builder().base_uri(&mock_uri).use_cache(false).build();
-    /// let listing = api.artworks().list().get().await?;
-    /// println!("{}", listing);
+    /// let list = api.artworks().list().get().await?;
+    /// println!("{}", list);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn get(&self) -> Result<ArtworksListing, AcresError> {
+    pub async fn get(&self) -> Result<ArtworksList, AcresError> {
         // TODO: Move config into `Api`
         let config = Config::new().context("failed to load config")?;
         let artworks_json_path = config.cache_dir.join("artworks.json");
@@ -203,7 +203,7 @@ impl ArtworksCollectionListing {
                     artworks_json_path.display()
                 )
             })?;
-            Ok(ArtworksListing::new(
+            Ok(ArtworksList::new(
                 serde_json::from_str(&json).context("failed to serialie JSON")?,
             ))
         } else {
@@ -222,7 +222,7 @@ impl ArtworksCollectionListing {
                     .parse()
                     .context("failed constructing ACRES-User-Agent header")?,
             );
-            let query_params = ArtworksListingQueryParams {
+            let query_params = ArtworksListQueryParams {
                 ids: self.ids.clone(),
                 limit: self.limit,
                 page: self.page,
@@ -237,7 +237,7 @@ impl ArtworksCollectionListing {
                 .send()
                 .await
                 .with_context(|| format!("failed to GET {}", artworks_path))?;
-            let listing = match response.status() {
+            let list = match response.status() {
                 StatusCode::OK => Ok(response
                     .json::<serde_json::Value>()
                     .await
@@ -249,7 +249,7 @@ impl ArtworksCollectionListing {
                     .with_context(|| format!("failed to get JSON from GET {}", artworks_path))?),
             };
 
-            if let Ok(listing) = &listing {
+            if let Ok(list) = &list {
                 std::fs::create_dir_all(artworks_json_path.parent().expect("path has parent"))
                     .with_context(|| {
                         format!(
@@ -257,12 +257,12 @@ impl ArtworksCollectionListing {
                             artworks_json_path.display()
                         )
                     })?;
-                std::fs::write(&artworks_json_path, listing.to_string())
+                std::fs::write(&artworks_json_path, list.to_string())
                     .with_context(|| format!("failed to write {}", artworks_json_path.display()))?;
             }
 
-            match listing {
-                Ok(listing) => Ok(ArtworksListing::new(listing)),
+            match list {
+                Ok(list) => Ok(ArtworksList::new(list)),
                 Err(error) => Err(error.into()),
             }
         }
@@ -278,9 +278,9 @@ pub struct ArtworksCollection {
 }
 
 impl ArtworksCollection {
-    /// Returns an artworks collection listing.
-    pub fn list(&self) -> ArtworksCollectionListing {
-        ArtworksCollectionListing {
+    /// Returns an artworks collection list.
+    pub fn list(&self) -> ArtworksCollectionList {
+        ArtworksCollectionList {
             ids: None,
             limit: None,
             page: None,
@@ -482,66 +482,66 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn api_artworks_listing() {
+    async fn api_artworks_list() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_listing = listing_with_numero_uno();
+        let mock_list = list_with_numero_uno();
         Mock::given(any())
             .and(path("/api/v1/artworks"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(mock_listing.to_string()))
+            .respond_with(ResponseTemplate::new(200).set_body_string(mock_list.to_string()))
             .expect(1)
             .mount(&mock_server)
             .await;
         let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
         assert_eq!(api.base_uri, mock_uri);
 
-        let listing: ArtworksListing = api.artworks().list().get().await.unwrap();
+        let list: ArtworksList = api.artworks().list().get().await.unwrap();
 
-        assert_eq!(listing.to_string(), mock_listing.to_string());
+        assert_eq!(list.to_string(), mock_list.to_string());
     }
 
     #[tokio::test]
-    async fn api_artworks_listing_by_ids() {
+    async fn api_artworks_list_by_ids() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_listing = listing_with_numeros_uno_and_tres();
+        let mock_list = list_with_numeros_uno_and_tres();
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .and(query_param("ids", "1,3"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(mock_listing.to_string()))
+            .respond_with(ResponseTemplate::new(200).set_body_string(mock_list.to_string()))
             .expect(1)
             .mount(&mock_server)
             .await;
         let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
         assert_eq!(api.base_uri, mock_uri);
 
-        let listing: ArtworksListing = api.artworks().list().ids(vec![1, 3]).get().await.unwrap();
+        let list: ArtworksList = api.artworks().list().ids(vec![1, 3]).get().await.unwrap();
 
-        assert_eq!(listing.to_string(), mock_listing.to_string());
+        assert_eq!(list.to_string(), mock_list.to_string());
     }
 
     #[tokio::test]
-    async fn api_artworks_listing_with_limit() {
+    async fn api_artworks_list_with_limit() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_listing = listing_with_numeros_uno_and_tres();
+        let mock_list = list_with_numeros_uno_and_tres();
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .and(query_param("limit", "2"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(mock_listing.to_string()))
+            .respond_with(ResponseTemplate::new(200).set_body_string(mock_list.to_string()))
             .expect(1)
             .mount(&mock_server)
             .await;
         let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
         assert_eq!(api.base_uri, mock_uri);
 
-        let listing: ArtworksListing = api.artworks().list().limit(2).get().await.unwrap();
+        let list: ArtworksList = api.artworks().list().limit(2).get().await.unwrap();
 
-        assert_eq!(listing.to_string(), mock_listing.to_string());
+        assert_eq!(list.to_string(), mock_list.to_string());
     }
 
     #[tokio::test]
-    async fn error_from_api_artworks_listing_with_limit() {
+    async fn error_from_api_artworks_list_with_limit() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
         let mock_error: Value =
@@ -569,7 +569,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn api_artworks_listing_with_page() {
+    async fn api_artworks_list_with_page() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
         Mock::given(any())
@@ -588,7 +588,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn api_artworks_listing_with_fields() {
+    async fn api_artworks_list_with_fields() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
         Mock::given(any())
@@ -612,7 +612,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn api_artworks_listing_with_include() {
+    async fn api_artworks_list_with_include() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
         Mock::given(any())

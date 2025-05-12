@@ -4,8 +4,8 @@ use predicates::prelude::predicate;
 use std::process::Command;
 
 #[test]
-fn listing_artworks_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
-    // Given this artworks listing is already in the cache
+fn list_artworks_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
+    // Given this artworks list is already in the cache
     let cached_artworks_file = assert_fs::NamedTempFile::new("artworks.json")?;
     cached_artworks_file.write_str(
         r#"{
@@ -21,12 +21,12 @@ fn listing_artworks_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
         }"#,
     )?;
 
-    // When we run the CLI to get artworks listing
+    // When we run the CLI to get artworks list
     let mut cmd = Command::cargo_bin("acres-cli")?;
     cmd.env("ACRES_CACHE_DIR", cached_artworks_file.parent().unwrap())
         .arg("artworks");
 
-    // Then stdout has *only* the listing
+    // Then stdout has *only* the list
     let stdout = String::from_utf8(cmd.output()?.stdout)?;
     // And we're able to deserialize it so some valid JSON
     let value: serde_json::Value = serde_json::from_str(&stdout)?;

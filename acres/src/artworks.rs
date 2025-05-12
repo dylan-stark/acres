@@ -1,24 +1,24 @@
 use std::fmt::Display;
 
-/// A listing of artworks.
+/// A list of artworks.
 ///
 /// This is the response from the [`GET /artworks`].
 ///
 /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
 #[derive(Clone, Debug)]
-pub struct ArtworksListing(serde_json::Value);
+pub struct ArtworksList(serde_json::Value);
 
-impl Display for ArtworksListing {
+impl Display for ArtworksList {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let json = serde_json::to_string(&self.0).map_err(|_| std::fmt::Error)?;
         f.write_str(json.as_str())
     }
 }
 
-impl ArtworksListing {
+impl ArtworksList {
     #[doc(hidden)]
     pub fn new(response: serde_json::Value) -> Self {
-        ArtworksListing(response)
+        ArtworksList(response)
     }
 }
 
@@ -57,24 +57,24 @@ pub mod tests {
         )
     }
 
-    pub fn listing_with_numero_uno() -> ArtworksListing {
-        ArtworksListing::new(serde_json::json!({
+    pub fn list_with_numero_uno() -> ArtworksList {
+        ArtworksList::new(serde_json::json!({
             "pagination": basic_pagination(),
             "data": vec![numero_uno()],
         }))
     }
 
-    pub fn listing_with_numeros_uno_and_tres() -> ArtworksListing {
-        ArtworksListing::new(serde_json::json!({
+    pub fn list_with_numeros_uno_and_tres() -> ArtworksList {
+        ArtworksList::new(serde_json::json!({
             "pagination": basic_pagination(),
             "data": vec![numero_uno(), numero_tres()],
         }))
     }
 
     #[test]
-    fn artworks_listing_to_string() {
-        let mock_listing = listing_with_numero_uno();
-        let _listing_string: String = mock_listing.to_string();
+    fn artworks_list_to_string() {
+        let mock_list = list_with_numero_uno();
+        let _list_string: String = mock_list.to_string();
     }
 
     #[test]
@@ -115,13 +115,12 @@ pub mod tests {
 }
             "#;
 
-        // When we create a new artworks listing with it
+        // When we create a new artworks list with it
         let json_value: serde_json::Value = serde_json::from_str(json).unwrap();
-        let listing = ArtworksListing(json_value.clone());
+        let list = ArtworksList(json_value.clone());
 
-        // Then the listing "looks like" what we got from the server
-        let listing_value: serde_json::Value =
-            serde_json::from_str(&format!("{}", listing)).unwrap();
-        assert_eq!(listing_value, json_value);
+        // Then the list "looks like" what we got from the server
+        let list_value: serde_json::Value = serde_json::from_str(&format!("{}", list)).unwrap();
+        assert_eq!(list_value, json_value);
     }
 }
