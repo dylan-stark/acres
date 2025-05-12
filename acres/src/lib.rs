@@ -35,7 +35,7 @@ use reqwest::StatusCode;
 use serde::Serialize;
 use serde::ser::SerializeSeq;
 
-pub use crate::artworks::ArtworksList;
+pub use crate::artworks::list::ArtworksList;
 use crate::config::Config;
 
 /// An ACRES error.
@@ -462,7 +462,7 @@ mod tests {
     use wiremock::{Mock, ResponseTemplate};
 
     use super::*;
-    use crate::artworks::tests::*;
+    use crate::artworks::list::tests::*;
 
     #[test]
     fn base_uri_default() {
