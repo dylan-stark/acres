@@ -27,18 +27,17 @@
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
-mod artworks;
+pub mod artworks;
 mod config;
+mod common;
 
-use anyhow::{Context, anyhow};
-use reqwest::StatusCode;
+use artworks::ListOp;
 use serde::Serialize;
 use serde::ser::SerializeSeq;
 
-pub use crate::artworks::list::ArtworksList;
-use crate::config::Config;
+pub use crate::artworks::ArtworksList;
 
-/// An ACRES error.
+/// An Acres error.
 #[derive(Debug, thiserror::Error)]
 pub enum AcresError {
     /// An unexpected error.
@@ -84,191 +83,6 @@ impl Serialize for ArtworksListQueryParams {
     }
 }
 
-/// An artworks collection list.
-///
-/// This corresonds to the [`GET /artworks`] endpoint on the public API.
-///
-/// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
-#[derive(Clone, Debug, Default)]
-pub struct ArtworksCollectionList {
-    api: Api,
-    ids: Option<Vec<u32>>,
-    limit: Option<u32>,
-    page: Option<u32>,
-    fields: Vec<String>,
-    include: Vec<String>,
-}
-
-impl ArtworksCollectionList {
-    /// Sets the artwork ids to retrieve.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let list = acres::Api::new().artworks().list().ids(vec![256, 1024, 4096]);
-    /// ```
-    pub fn ids(mut self, ids: Vec<u32>) -> Self {
-        self.ids = Some(ids);
-        self
-    }
-
-    /// Sets limit on number of artworks to return per page.
-    ///
-    /// See [pagination section] for additional information on valid settings
-    /// for `limit` and interactions with related options.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let list = acres::Api::new().artworks().list().limit(10);
-    /// ```
-    ///
-    /// [pagination section]: https://api.artic.edu/docs/#pagination
-    pub fn limit(mut self, limit: u32) -> Self {
-        self.limit = Some(limit);
-        self
-    }
-
-    /// Sets page number to return.
-    ///
-    /// See [pagination section] for additional information on valid settings
-    /// for `page` and interactions with related options.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let list = acres::Api::new().artworks().list().page(2);
-    /// ```
-    ///
-    /// [pagination section]: https://api.artic.edu/docs/#pagination
-    pub fn page(mut self, page: u32) -> Self {
-        self.page = Some(page);
-        self
-    }
-
-    /// Sets the artwork fields to retrieve.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let list = acres::Api::new().artworks().list().fields(vec!["title".into(), "description".into()]);
-    /// ```
-    pub fn fields(mut self, fields: Vec<String>) -> Self {
-        self.fields = fields;
-        self
-    }
-
-    /// Sets the sub-resources to include.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let list = acres::Api::new().artworks().list().include(vec!["place_pivots".into()]);
-    /// ```
-    pub fn include(mut self, include: Vec<String>) -> Self {
-        self.include = include;
-        self
-    }
-
-    /// Pulls a list of all artworks.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use anyhow::Result;
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<()> {
-    /// # let mock_server = wiremock::MockServer::start().await;
-    /// # let mock_uri = format!("{}/api/v1", mock_server.uri());
-    /// # wiremock::Mock::given(wiremock::matchers::any())
-    /// #     .and(wiremock::matchers::path("/api/v1/artworks"))
-    /// #     .respond_with(wiremock::ResponseTemplate::new(200).set_body_string("{}"))
-    /// #     .expect(1)
-    /// #     .mount(&mock_server)
-    /// #     .await;
-    /// # let api = acres::Api::builder().base_uri(&mock_uri).use_cache(false).build();
-    /// let list = api.artworks().list().get().await?;
-    /// println!("{}", list);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn get(&self) -> Result<ArtworksList, AcresError> {
-        // TODO: Move config into `Api`
-        let config = Config::new().context("failed to load config")?;
-        let artworks_json_path = config.cache_dir.join("artworks.json");
-        if config.use_cache && self.api.use_cache && artworks_json_path.is_file() {
-            let json = std::fs::read_to_string(&artworks_json_path).with_context(|| {
-                format!(
-                    "failed to read cached file from {}",
-                    artworks_json_path.display()
-                )
-            })?;
-            Ok(ArtworksList::new(
-                serde_json::from_str(&json).context("failed to serialie JSON")?,
-            ))
-        } else {
-            let artworks_path = format!("{}/artworks", self.api.base_uri);
-            let client = reqwest::Client::new();
-            let mut headers = reqwest::header::HeaderMap::new();
-            headers.insert(
-                "user-agent",
-                format!("ACRES/{}", env!("CARGO_PKG_VERSION"),)
-                    .parse()
-                    .context("failed constructing user-agent header")?,
-            );
-            headers.insert(
-                "ACRES-User-Agent",
-                "ACRES (dylan.stark@gmail.com)"
-                    .parse()
-                    .context("failed constructing ACRES-User-Agent header")?,
-            );
-            let query_params = ArtworksListQueryParams {
-                ids: self.ids.clone(),
-                limit: self.limit,
-                page: self.page,
-                fields: self.fields.clone(),
-                include: self.include.clone(),
-            };
-
-            let response = client
-                .get(&artworks_path)
-                .headers(headers)
-                .query(&query_params)
-                .send()
-                .await
-                .with_context(|| format!("failed to GET {}", artworks_path))?;
-            let list = match response.status() {
-                StatusCode::OK => Ok(response
-                    .json::<serde_json::Value>()
-                    .await
-                    .with_context(|| format!("failed to get JSON from GET {}", artworks_path))?),
-                _ => Err(response
-                    .json::<serde_json::Value>()
-                    .await
-                    .map(|value| anyhow!("{}: {}", value["error"], value["detail"]))
-                    .with_context(|| format!("failed to get JSON from GET {}", artworks_path))?),
-            };
-
-            if let Ok(list) = &list {
-                std::fs::create_dir_all(artworks_json_path.parent().expect("path has parent"))
-                    .with_context(|| {
-                        format!(
-                            "failed to create parent directory for {}",
-                            artworks_json_path.display()
-                        )
-                    })?;
-                std::fs::write(&artworks_json_path, list.to_string())
-                    .with_context(|| format!("failed to write {}", artworks_json_path.display()))?;
-            }
-
-            match list {
-                Ok(list) => Ok(ArtworksList::new(list)),
-                Err(error) => Err(error.into()),
-            }
-        }
-    }
-}
-
 /// The [artworks collection].
 ///
 /// [artworks collection]: https://api.artic.edu/docs/#artworks
@@ -279,18 +93,11 @@ pub struct ArtworksCollection {
 
 impl ArtworksCollection {
     /// Returns an artworks collection list.
-    pub fn list(&self) -> ArtworksCollectionList {
-        ArtworksCollectionList {
-            ids: None,
-            limit: None,
-            page: None,
-            fields: vec!["id".into(), "title".into()],
-            include: vec![],
-            api: Api {
-                base_uri: self.api.base_uri.clone(),
-                use_cache: self.api.use_cache,
-            },
-        }
+    pub fn list(&self) -> ListOp {
+        ListOp::default().api(Api {
+            base_uri: self.api.base_uri.clone(),
+            use_cache: self.api.use_cache,
+        })
     }
 }
 
@@ -462,7 +269,6 @@ mod tests {
     use wiremock::{Mock, ResponseTemplate};
 
     use super::*;
-    use crate::artworks::list::tests::*;
 
     #[test]
     fn base_uri_default() {
@@ -485,7 +291,7 @@ mod tests {
     async fn api_artworks_list() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_list = list_with_numero_uno();
+        let mock_list = common::tests::list_with_numero_uno();
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .respond_with(ResponseTemplate::new(200).set_body_string(mock_list.to_string()))
@@ -504,7 +310,7 @@ mod tests {
     async fn api_artworks_list_by_ids() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_list = list_with_numeros_uno_and_tres();
+        let mock_list = common::tests::list_with_numeros_uno_and_tres();
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .and(query_param("ids", "1,3"))
@@ -524,7 +330,7 @@ mod tests {
     async fn api_artworks_list_with_limit() {
         let mock_server = wiremock::MockServer::start().await;
         let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_list = list_with_numeros_uno_and_tres();
+        let mock_list = common::tests::list_with_numeros_uno_and_tres();
         Mock::given(any())
             .and(path("/api/v1/artworks"))
             .and(query_param("limit", "2"))
