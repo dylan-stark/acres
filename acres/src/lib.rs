@@ -32,10 +32,7 @@ mod config;
 mod common;
 
 use artworks::ListOp;
-use serde::Serialize;
-use serde::ser::SerializeSeq;
-
-pub use crate::artworks::ArtworksList;
+pub use crate::artworks::List;
 
 /// An Acres error.
 #[derive(Debug, thiserror::Error)]
@@ -43,44 +40,6 @@ pub enum AcresError {
     /// An unexpected error.
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
-}
-
-struct ArtworksListQueryParams {
-    ids: Option<Vec<u32>>,
-    limit: Option<u32>,
-    page: Option<u32>,
-    fields: Vec<String>,
-    include: Vec<String>,
-}
-
-impl Serialize for ArtworksListQueryParams {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut seq = serializer.serialize_seq(None)?;
-        if let Some(ids) = &self.ids {
-            let ids_string = ids
-                .iter()
-                .map(|id| id.to_string())
-                .collect::<Vec<String>>()
-                .join(",");
-            seq.serialize_element(&("ids", ids_string))?
-        }
-        if let Some(limit) = &self.limit {
-            seq.serialize_element(&("limit", limit))?
-        }
-        if let Some(page) = &self.page {
-            seq.serialize_element(&("page", page))?
-        }
-        if !self.fields.is_empty() {
-            seq.serialize_element(&("fields", self.fields.join(",")))?;
-        }
-        if !self.include.is_empty() {
-            seq.serialize_element(&("include", self.include.join(",")))?;
-        }
-        seq.end()
-    }
 }
 
 /// The [artworks collection].
@@ -301,7 +260,7 @@ mod tests {
         let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
         assert_eq!(api.base_uri, mock_uri);
 
-        let list: ArtworksList = api.artworks().list().get().await.unwrap();
+        let list: List = api.artworks().list().get().await.unwrap();
 
         assert_eq!(list.to_string(), mock_list.to_string());
     }
@@ -321,7 +280,7 @@ mod tests {
         let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
         assert_eq!(api.base_uri, mock_uri);
 
-        let list: ArtworksList = api.artworks().list().ids(vec![1, 3]).get().await.unwrap();
+        let list: List = api.artworks().list().ids(vec![1, 3]).get().await.unwrap();
 
         assert_eq!(list.to_string(), mock_list.to_string());
     }
@@ -341,7 +300,7 @@ mod tests {
         let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
         assert_eq!(api.base_uri, mock_uri);
 
-        let list: ArtworksList = api.artworks().list().limit(2).get().await.unwrap();
+        let list: List = api.artworks().list().limit(2).get().await.unwrap();
 
         assert_eq!(list.to_string(), mock_list.to_string());
     }

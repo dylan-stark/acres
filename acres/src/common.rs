@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod tests {
-    use crate::ArtworksList;
+    use crate::List;
 
     pub fn basic_pagination() -> serde_json::Value {
         serde_json::json!(
@@ -33,15 +33,15 @@ pub mod tests {
         )
     }
 
-    pub fn list_with_numero_uno() -> ArtworksList {
-        ArtworksList::new(serde_json::json!({
+    pub fn list_with_numero_uno() -> List {
+        List::new(serde_json::json!({
             "pagination": basic_pagination(),
             "data": vec![numero_uno()],
         }))
     }
 
-    pub fn list_with_numeros_uno_and_tres() -> ArtworksList {
-        ArtworksList::new(serde_json::json!({
+    pub fn list_with_numeros_uno_and_tres() -> List {
+        List::new(serde_json::json!({
             "pagination": basic_pagination(),
             "data": vec![numero_uno(), numero_tres()],
         }))

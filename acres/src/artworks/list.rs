@@ -8,19 +8,19 @@ use std::fmt::Display;
 ///
 /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
 #[derive(Clone, Debug)]
-pub struct ArtworksList(serde_json::Value);
+pub struct List(serde_json::Value);
 
-impl Display for ArtworksList {
+impl Display for List {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let json = serde_json::to_string(&self.0).map_err(|_| std::fmt::Error)?;
         f.write_str(json.as_str())
     }
 }
 
-impl ArtworksList {
+impl List {
     #[doc(hidden)]
     pub fn new(response: serde_json::Value) -> Self {
-        ArtworksList(response)
+        List(response)
     }
 }
 
@@ -75,7 +75,7 @@ pub mod tests {
 
         // When we create a new artworks list with it
         let json_value: serde_json::Value = serde_json::from_str(json).unwrap();
-        let list = ArtworksList(json_value.clone());
+        let list = List(json_value.clone());
 
         // Then the list "looks like" what we got from the server
         let list_value: serde_json::Value = serde_json::from_str(&format!("{}", list)).unwrap();

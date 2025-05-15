@@ -1,7 +1,8 @@
 use anyhow::{anyhow, Context};
 use reqwest::StatusCode;
 
-use crate::{config::Config, AcresError, Api, artworks::ArtworksList, ArtworksListQueryParams};
+use crate::{config::Config, AcresError, Api, artworks::List};
+use crate::artworks::list_op_query_params::ListQueryParams;
 
 
 /// An artworks collection list operation.
@@ -131,7 +132,7 @@ impl ListOp {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn get(&self) -> Result<ArtworksList, AcresError> {
+    pub async fn get(&self) -> Result<List, AcresError> {
         // TODO: Move config into `Api`
         let config = Config::new().context("failed to load config")?;
         let artworks_json_path = config.cache_dir.join("artworks.json");
@@ -142,7 +143,7 @@ impl ListOp {
                     artworks_json_path.display()
                 )
             })?;
-            Ok(ArtworksList::new(
+            Ok(List::new(
                 serde_json::from_str(&json).context("failed to serialie JSON")?,
             ))
         } else {
@@ -161,7 +162,7 @@ impl ListOp {
                     .parse()
                     .context("failed constructing ACRES-User-Agent header")?,
             );
-            let query_params = ArtworksListQueryParams {
+            let query_params = ListQueryParams {
                 ids: self.ids.clone(),
                 limit: self.limit,
                 page: self.page,
@@ -201,7 +202,7 @@ impl ListOp {
             }
 
             match list {
-                Ok(list) => Ok(ArtworksList::new(list)),
+                Ok(list) => Ok(List::new(list)),
                 Err(error) => Err(error.into()),
             }
         }
