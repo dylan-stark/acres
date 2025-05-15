@@ -31,7 +31,7 @@ pub mod artworks;
 mod config;
 mod common;
 
-use artworks::ListOp;
+use artworks::ArtworksCollection;
 pub use crate::artworks::List;
 
 /// An Acres error.
@@ -40,24 +40,6 @@ pub enum AcresError {
     /// An unexpected error.
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
-}
-
-/// The [artworks collection].
-///
-/// [artworks collection]: https://api.artic.edu/docs/#artworks
-#[derive(Clone, Debug, Default)]
-pub struct ArtworksCollection {
-    api: Api,
-}
-
-impl ArtworksCollection {
-    /// Returns an artworks collection list.
-    pub fn list(&self) -> ListOp {
-        ListOp::default().api(Api {
-            base_uri: self.api.base_uri.clone(),
-            use_cache: self.api.use_cache,
-        })
-    }
 }
 
 /// The top-level API client.
