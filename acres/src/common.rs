@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod tests {
-    use crate::List;
+    use crate::artworks::List;
 
     pub fn basic_pagination() -> serde_json::Value {
         serde_json::json!(

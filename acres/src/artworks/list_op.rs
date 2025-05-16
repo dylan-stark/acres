@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context};
 use reqwest::StatusCode;
 
-use crate::{config::Config, AcresError, Api, artworks::List};
+use crate::{config::Config, AcresError, api::Api, artworks::List};
 use crate::artworks::list_op_query_params::ListQueryParams;
 
 
