@@ -11,7 +11,7 @@ use crate::artworks::ArtworksCollection;
 /// ```
 ///
 /// [AIC public APIs]: https://api.artic.edu/docs/#introduction
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Api {
     pub(crate) base_uri: String,
     pub(crate) use_cache: bool,
@@ -105,7 +105,7 @@ impl Default for Api {
 ///     .build();
 /// assert!(!api.use_cache());
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ApiBuilder {
     base_uri: String,
     use_cache: bool,

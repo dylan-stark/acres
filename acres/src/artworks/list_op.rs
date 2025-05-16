@@ -10,7 +10,7 @@ use crate::artworks::list_op_query_params::ListQueryParams;
 /// This corresonds to the [`GET /artworks`] endpoint on the public API.
 ///
 /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ListOp {
     api: Api,
     ids: Option<Vec<u32>>,

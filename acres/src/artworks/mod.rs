@@ -11,7 +11,7 @@ use crate::api::Api;
 /// The [artworks collection].
 ///
 /// [artworks collection]: https://api.artic.edu/docs/#artworks
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ArtworksCollection {
     pub(crate) api: Api,
 }
