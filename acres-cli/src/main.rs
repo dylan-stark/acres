@@ -7,8 +7,8 @@
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
 use clap::{Arg, Command, command, value_parser};
-use eyre::Context;
 use color_eyre::Result;
+use eyre::Context;
 
 mod logging;
 
