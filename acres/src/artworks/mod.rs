@@ -19,6 +19,11 @@ pub struct ArtworksCollection {
 impl ArtworksCollection {
     /// Returns an artworks collection list.
     pub fn list(&self) -> ListOp {
+        tracing::info!(
+            msg = "Creating default list op with API",
+            self.api.base_uri,
+            self.api.use_cache,
+        );
         ListOp::default().api(Api {
             base_uri: self.api.base_uri.clone(),
             use_cache: self.api.use_cache,

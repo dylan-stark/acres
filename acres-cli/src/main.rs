@@ -8,10 +8,16 @@
 
 use clap::{Arg, Command, command, value_parser};
 use eyre::Context;
+use color_eyre::Result;
+
+mod logging;
 
 #[doc(hidden)]
 #[tokio::main]
-async fn main() -> Result<(), eyre::Report> {
+async fn main() -> Result<()> {
+    crate::logging::init()?;
+    color_eyre::install()?;
+
     let matches = command!()
         .propagate_version(true)
         .subcommand_required(true)

@@ -26,6 +26,7 @@ impl Api {
     /// let api = acres::Api::new();
     /// ```
     pub fn new() -> Self {
+        tracing::info!(msg="Creating new API.");
         Self::default()
     }
 
@@ -80,6 +81,7 @@ impl Api {
 
     /// Returns an artworks collection.
     pub fn artworks(&self) -> ArtworksCollection {
+        tracing::info!(msg="Creating new artworks collection", self.base_uri, self.use_cache);
         ArtworksCollection {
             api: Api {
                 base_uri: self.base_uri.clone(),

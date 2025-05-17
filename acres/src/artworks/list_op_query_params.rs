@@ -1,6 +1,7 @@
 use serde::Serialize;
 use serde::ser::SerializeSeq;
 
+#[derive(Debug)]
 pub(super) struct ListQueryParams {
     pub(super) ids: Option<Vec<u32>>,
     pub(super) limit: Option<u32>,

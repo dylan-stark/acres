@@ -48,6 +48,7 @@ impl ListOp {
     /// let list = acres::Api::new().artworks().list().ids(vec![256, 1024, 4096]);
     /// ```
     pub fn ids(mut self, ids: Vec<u32>) -> Self {
+        tracing::info!(msg="Settings ids", ?ids);
         self.ids = Some(ids);
         self
     }
@@ -65,6 +66,7 @@ impl ListOp {
     ///
     /// [pagination section]: https://api.artic.edu/docs/#pagination
     pub fn limit(mut self, limit: u32) -> Self {
+        tracing::info!(msg="Settings limit", limit);
         self.limit = Some(limit);
         self
     }
@@ -82,6 +84,7 @@ impl ListOp {
     ///
     /// [pagination section]: https://api.artic.edu/docs/#pagination
     pub fn page(mut self, page: u32) -> Self {
+        tracing::info!(msg="Settings page", page);
         self.page = Some(page);
         self
     }
@@ -94,6 +97,7 @@ impl ListOp {
     /// let list = acres::Api::new().artworks().list().fields(vec!["title".into(), "description".into()]);
     /// ```
     pub fn fields(mut self, fields: Vec<String>) -> Self {
+        tracing::info!(msg="Settings fields", ?fields);
         self.fields = fields;
         self
     }
@@ -106,6 +110,7 @@ impl ListOp {
     /// let list = acres::Api::new().artworks().list().include(vec!["place_pivots".into()]);
     /// ```
     pub fn include(mut self, include: Vec<String>) -> Self {
+        tracing::info!(msg="Settings include", ?include);
         self.include = include;
         self
     }
@@ -133,10 +138,12 @@ impl ListOp {
     /// # }
     /// ```
     pub async fn get(&self) -> Result<List, AcresError> {
+        tracing::info!(msg="Getting artworks list", ?self);
         // TODO: Move config into `Api`
         let config = Config::new().context("failed to load config")?;
         let artworks_json_path = config.cache_dir.join("artworks.json");
         if config.use_cache && self.api.use_cache && artworks_json_path.is_file() {
+            tracing::info!(msg="Using cached file", ?artworks_json_path);
             let json = std::fs::read_to_string(&artworks_json_path).with_context(|| {
                 format!(
                     "failed to read cached file from {}",
@@ -147,6 +154,7 @@ impl ListOp {
                 serde_json::from_str(&json).context("failed to serialie JSON")?,
             ))
         } else {
+            tracing::info!(msg="Not using cache");
             let artworks_path = format!("{}/artworks", self.api.base_uri);
             let client = reqwest::Client::new();
             let mut headers = reqwest::header::HeaderMap::new();
@@ -162,6 +170,7 @@ impl ListOp {
                     .parse()
                     .context("failed constructing ACRES-User-Agent header")?,
             );
+            tracing::debug!(?headers);
             let query_params = ListQueryParams {
                 ids: self.ids.clone(),
                 limit: self.limit,
@@ -169,6 +178,7 @@ impl ListOp {
                 fields: self.fields.clone(),
                 include: self.include.clone(),
             };
+            tracing::debug!(?query_params);
 
             let response = client
                 .get(&artworks_path)
