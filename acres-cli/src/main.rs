@@ -2,16 +2,22 @@
 
 //! acres-cli is a simple CLI for accessing the Art Institute of Chicago's [public APIs].
 //!
-//! You can get the (first page of the) artworks listing with `acres-cli artworks`.
+//! You can get the (first page of the) artworks list with `acres-cli artworks`.
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
 use clap::{Arg, Command, command, value_parser};
+use color_eyre::Result;
 use eyre::Context;
+
+mod logging;
 
 #[doc(hidden)]
 #[tokio::main]
-async fn main() -> Result<(), eyre::Report> {
+async fn main() -> Result<()> {
+    crate::logging::init()?;
+    color_eyre::install()?;
+
     let matches = command!()
         .propagate_version(true)
         .subcommand_required(true)
@@ -81,8 +87,8 @@ async fn main() -> Result<(), eyre::Report> {
         };
 
         match api.get().await {
-            Ok(listing) => println!("{}", listing),
-            Err(error) => return Err(error).wrap_err("We couldn't get that listing ..."),
+            Ok(list) => println!("{}", list),
+            Err(error) => return Err(error).wrap_err("We couldn't get that list ..."),
         }
     }
 
