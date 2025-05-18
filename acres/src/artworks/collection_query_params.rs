@@ -2,7 +2,7 @@ use serde::Serialize;
 use serde::ser::SerializeSeq;
 
 #[derive(Debug)]
-pub(super) struct ListQueryParams {
+pub(super) struct CollectionQueryParams {
     pub(super) ids: Option<Vec<u32>>,
     pub(super) limit: Option<u32>,
     pub(super) page: Option<u32>,
@@ -10,7 +10,7 @@ pub(super) struct ListQueryParams {
     pub(super) include: Vec<String>,
 }
 
-impl Serialize for ListQueryParams {
+impl Serialize for CollectionQueryParams {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
