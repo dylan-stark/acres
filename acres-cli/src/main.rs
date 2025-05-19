@@ -23,6 +23,14 @@ async fn main() -> Result<()> {
         .propagate_version(true)
         .subcommand_required(true)
         .subcommand(
+            Command::new("artwork").about("An artwork").arg(
+                Arg::new("id")
+                    .help("the id of the artwork")
+                    .required(true)
+                    .value_parser(value_parser!(u32)),
+            ),
+        )
+        .subcommand(
             Command::new("artworks")
                 .about("The artworks collection")
                 .arg(
@@ -59,6 +67,17 @@ async fn main() -> Result<()> {
         )
         .get_matches();
 
+    if let Some(matches) = matches.subcommand_matches("artwork") {
+        let id = matches
+            .get_one::<u32>("id")
+            .expect("clap `required` ensures its present");
+        let artwork = artworks::Artwork::builder().id(*id);
+        match artwork.build().await {
+            Ok(artwork) => println!("{}", artwork),
+            Err(error) => return Err(error).wrap_err("We couldn't get that artwork ..."),
+        }
+    }
+
     if let Some(matches) = matches.subcommand_matches("artworks") {
         let collection = artworks::Collection::builder();
         let collection = match matches.get_many::<u32>("ids") {
@@ -89,8 +108,6 @@ async fn main() -> Result<()> {
             None => collection,
         };
 
-        // let collection: Option<artworks::Collection> = collection.get().await;
-        // match collection {
         match collection.build().await {
             Ok(collection) => println!("{}", collection),
             Err(error) => return Err(error).wrap_err("We couldn't get that list ..."),
