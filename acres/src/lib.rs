@@ -5,22 +5,13 @@
 //!
 //! Create an API client and list artworks with
 //!
-//! ```
+//! ```no_run
+//! use acres::artworks;
 //! # use anyhow::Result;
 //! # #[tokio::main]
 //! # async fn main() -> Result<()> {
-//! # let mock_server = wiremock::MockServer::start().await;
-//! # let mock_uri = format!("{}/api/v1", mock_server.uri());
-//! # wiremock::Mock::given(wiremock::matchers::any())
-//! #     .and(wiremock::matchers::path("/api/v1/artworks"))
-//! #     .respond_with(wiremock::ResponseTemplate::new(200).set_body_string("{}"))
-//! #     .expect(1)
-//! #     .mount(&mock_server)
-//! #     .await;
-//! let api = acres::Api::new();
-//! # let api = acres::Api::builder().base_uri(&mock_uri).use_cache(false).build();
-//! let artworks_list = api.artworks().list().get().await?;
-//! println!("{}", artworks_list);
+//! let collection = artworks::CollectionBuilder::new().build().await?;
+//! println!("{}", collection);
 //! # Ok(())
 //! # }
 //! ```

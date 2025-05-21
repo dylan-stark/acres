@@ -1,26 +1,35 @@
-//! List artworks operation.
+//! Artworks collections.
 
 use std::fmt::Display;
 
-/// A list of artworks.
+use super::collection_builder::CollectionBuilder;
+
+/// A collection of artworks.
 ///
 /// This is the response from the [`GET /artworks`].
 ///
 /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
 #[derive(Clone, Debug, PartialEq)]
-pub struct List(serde_json::Value);
+pub struct Collection(serde_json::Value);
 
-impl Display for List {
+impl Display for Collection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let json = serde_json::to_string(&self.0).map_err(|_| std::fmt::Error)?;
         f.write_str(json.as_str())
     }
 }
 
-impl List {
+impl Collection {
     #[doc(hidden)]
     pub fn new(response: serde_json::Value) -> Self {
-        List(response)
+        Collection(response)
+    }
+
+    /// Creates a new collection builder.
+    ///
+    /// Use the builder to configure the collection that you want to build.
+    pub fn builder() -> CollectionBuilder {
+        CollectionBuilder::default()
     }
 }
 
@@ -30,9 +39,9 @@ pub mod tests {
     use crate::common;
 
     #[test]
-    fn artworks_list_to_string() {
-        let mock_list = common::tests::list_with_numero_uno();
-        let _list_string: String = mock_list.to_string();
+    fn artworks_collection_to_string() {
+        let mock_collection = common::tests::collection_with_numero_uno();
+        let _collection_string: String = mock_collection.to_string();
     }
 
     #[test]
@@ -73,12 +82,13 @@ pub mod tests {
 }
             "#;
 
-        // When we create a new artworks list with it
+        // When we create a new artworks collection with it
         let json_value: serde_json::Value = serde_json::from_str(json).unwrap();
-        let list = List(json_value.clone());
+        let collection = Collection(json_value.clone());
 
-        // Then the list "looks like" what we got from the server
-        let list_value: serde_json::Value = serde_json::from_str(&format!("{}", list)).unwrap();
-        assert_eq!(list_value, json_value);
+        // Then the collection "looks like" what we got from the server
+        let collection_value: serde_json::Value =
+            serde_json::from_str(&format!("{}", collection)).unwrap();
+        assert_eq!(collection_value, json_value);
     }
 }
