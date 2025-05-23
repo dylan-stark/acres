@@ -4,7 +4,7 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 pub fn init() -> Result<()> {
     tracing_subscriber::registry()
-        .with(fmt::layer())
+        .with(fmt::layer().with_writer(std::io::stderr))
         .with(EnvFilter::from_default_env())
         .with(ErrorLayer::default())
         .try_init()?;
