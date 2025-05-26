@@ -1,8 +1,13 @@
 use std::fmt::Display;
 
 use anyhow::Context;
-use bytes::Bytes;
 use tracing::debug;
+
+#[cfg(feature = "image")]
+use bytes::Bytes;
+
+#[cfg(feature = "image")]
+use std::path::PathBuf;
 
 use crate::AcresError;
 
@@ -50,23 +55,107 @@ impl Artwork {
     /// Renders the artwork as image (bytes).
     #[cfg(feature = "image")]
     pub async fn to_image(&self) -> Result<Bytes, AcresError> {
-        let iiif_url = self.to_iiif()?;
-        let bytes = reqwest::get(iiif_url)
-            .await
-            .context("getting image via IIIF url")?
-            .bytes()
-            .await
-            .context("getting bytes for image")?;
-        Ok(bytes)
+        use crate::config::Config;
+
+        let config = Config::new().context("failed to load config")?;
+        let identifier = self.0["data"]["image_id"]
+            .as_str()
+            .context("artwork JSON is missing .data.image_id")?;
+        let image_filename = format!("{}.jpg", identifier);
+        let image_path = config.cache_dir.join("images").join(image_filename);
+        if config.use_cache && image_path.is_file() {
+            tracing::info!(msg = "Using cached file", ?image_path);
+            Ok(Self::load_image(&image_path)?)
+        } else {
+            let iiif_url = self.to_iiif()?;
+            let bytes = reqwest::get(iiif_url)
+                .await
+                .context("getting image via IIIF url")?
+                .bytes()
+                .await
+                .context("getting bytes for image")?;
+            if config.use_cache {
+                Self::store_image(&bytes, &image_path)?;
+            }
+            Ok(bytes)
+        }
+    }
+
+    #[cfg(feature = "image")]
+    fn load_image(file_path: &PathBuf) -> anyhow::Result<Bytes> {
+        let image = std::fs::read(file_path).with_context(|| {
+            format!(
+                "failed to read cached image file from {}",
+                file_path.display()
+            )
+        })?;
+        Ok(image.into())
+    }
+
+    #[cfg(feature = "image")]
+    fn store_image(image: &Bytes, file_path: &PathBuf) -> anyhow::Result<()> {
+        std::fs::create_dir_all(file_path.parent().expect("path has parent")).with_context(
+            || {
+                format!(
+                    "failed to create parent directory for {}",
+                    file_path.display()
+                )
+            },
+        )?;
+        std::fs::write(file_path, image)
+            .with_context(|| format!("failed to write {}", file_path.display()))?;
+        Ok(())
     }
 
     /// Renders the artwork as ASCII art.
     #[cfg(feature = "ascii-art")]
     pub async fn to_ascii(&self) -> Result<String, AcresError> {
-        let bytes = self.to_image().await?; // Produces image bytes, not an image::Image
-        let ascii =
-            ascii_art::bytes_to_ascii(bytes).context("failed to render image bytes to ASCII")?;
+        use crate::config::Config;
+
+        let config = Config::new().context("failed to load config")?;
+        let identifier = self.0["data"]["image_id"]
+            .as_str()
+            .context("artwork JSON is missing .data.image_id")?;
+        let ascii_filename = format!("{}.ascii", identifier);
+        let ascii_path = config.cache_dir.join("ascii").join(ascii_filename);
+        if config.use_cache && ascii_path.is_file() {
+            tracing::info!(msg = "Using cached file", ?ascii_path);
+            Ok(Self::load_ascii(&ascii_path)?)
+        } else {
+            let bytes = self.to_image().await?; // Produces image bytes, not an image::Image
+            let ascii = ascii_art::bytes_to_ascii(bytes)
+                .context("failed to render image bytes to ASCII")?;
+            if config.use_cache {
+                Self::store_ascii(&ascii, &ascii_path)?;
+            }
+            Ok(ascii)
+        }
+    }
+
+    #[cfg(feature = "ascii-art")]
+    fn load_ascii(file_path: &PathBuf) -> anyhow::Result<String> {
+        let ascii = std::fs::read_to_string(file_path).with_context(|| {
+            format!(
+                "failed to read cached ascii file from {}",
+                file_path.display()
+            )
+        })?;
         Ok(ascii)
+    }
+
+    #[cfg(feature = "ascii-art")]
+    fn store_ascii(ascii: &String, file_path: &PathBuf) -> anyhow::Result<()> {
+        std::fs::create_dir_all(file_path.parent().expect("path has parent")).with_context(
+            || {
+                format!(
+                    "failed to create parent directory for {}",
+                    file_path.display()
+                )
+            },
+        )?;
+        std::fs::write(file_path, ascii)
+            .with_context(|| format!("failed to write {}", file_path.display()))?;
+        Ok(())
     }
 
     /// Creates an artwork builder.
