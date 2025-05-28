@@ -2,7 +2,13 @@
 
 //! acres-cli is a simple CLI for accessing the Art Institute of Chicago's [public APIs].
 //!
-//! You can get the (first page of the) artworks list with `acres-cli artworks`.
+//! You can list artworks with `acres-cli artworks`.
+//! The output is just JSON, so you can pipe to `jq` for easier consumption.
+//!
+//! If you know the `id` of a particular artwork, you can get it with `acres-cli
+//! artwork <id>`.
+//! The output is just JSON, by default, but you can get the image bytes by setting `--as=image` or
+//! an ASCII art representation with `--as=ascii`.
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
@@ -13,8 +19,10 @@ use clap::{Arg, Command, command, value_parser};
 use color_eyre::Result;
 use eyre::Context;
 
+#[doc(hidden)]
 mod logging;
 
+#[doc(hidden)]
 #[derive(clap::ValueEnum, Clone)]
 enum AsOption {
     Iiif,
