@@ -18,6 +18,7 @@ impl Config {
             .set_default("cache_dir", cache_dir.to_str().expect("path is valid"))?
             .add_source(config::Environment::with_prefix("ACRES"));
         let cfg: Self = builder.build()?.try_deserialize()?;
+        tracing::debug!(?cfg);
         Ok(cfg)
     }
 }
