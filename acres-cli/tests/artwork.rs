@@ -57,7 +57,8 @@ fn artwork_as_ascii_outputs_ascii_art() -> Result<(), Box<dyn std::error::Error>
 
     // Then stdout has *only* the ascii art
     let output = cmd.output()?;
-    let actual = String::from_utf8(output.stdout)?;
+    let mut actual = String::from_utf8(output.stdout)?;
+    actual.pop();
     // And the generated art is cached
     let cached_ascii_file = cache_path.join("ascii").join("0.ascii");
     let expected = fs::read_to_string(cached_ascii_file).expect("found cached ascii art");

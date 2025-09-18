@@ -106,7 +106,7 @@ async fn main() -> Result<()> {
             {
                 AsOption::Ascii => match artwork.to_ascii().await {
                     Ok(ascii) => std::io::stdout()
-                        .write_all(ascii.as_bytes())
+                        .write_all((ascii + "\n").as_bytes())
                         .wrap_err("We failed writing out the ASCII ...")?,
                     Err(error) => {
                         return Err(error).wrap_err("We couldn't generate that ASCII art ...");
