@@ -17,6 +17,7 @@ use std::io::Write;
 use acres::artworks;
 use clap::{Arg, Command, command, value_parser};
 use color_eyre::Result;
+use crossterm::terminal;
 use eyre::Context;
 
 #[doc(hidden)]
@@ -48,6 +49,13 @@ async fn main() -> Result<()> {
                         .help("the id of the artwork")
                         .required(true)
                         .value_parser(value_parser!(u32)),
+                )
+                .arg(
+                    Arg::new("width")
+                        .long("width")
+                        .help("width in chars; disregarded if not outputting as ASCII")
+                        .required(false)
+                        .value_parser(value_parser!(usize)),
                 )
                 .arg(
                     Arg::new("as")
@@ -104,14 +112,23 @@ async fn main() -> Result<()> {
                 .get_one::<AsOption>("as")
                 .expect("clap ensures this is a string")
             {
-                AsOption::Ascii => match artwork.to_ascii().await {
-                    Ok(ascii) => std::io::stdout()
-                        .write_all((ascii + "\n").as_bytes())
-                        .wrap_err("We failed writing out the ASCII ...")?,
-                    Err(error) => {
-                        return Err(error).wrap_err("We couldn't generate that ASCII art ...");
+                AsOption::Ascii => {
+                    let chars_wide = match matches.get_one::<usize>("width") {
+                        Some(&width) => width,
+                        None => match terminal::size() {
+                            Ok((columns, _)) => columns.into(),
+                            Err(_) => 80,
+                        },
+                    };
+                    match artwork.to_ascii(chars_wide).await {
+                        Ok(ascii) => std::io::stdout()
+                            .write_all((ascii + "\n").as_bytes())
+                            .wrap_err("We failed writing out the ASCII ...")?,
+                        Err(error) => {
+                            return Err(error).wrap_err("We couldn't generate that ASCII art ...");
+                        }
                     }
-                },
+                }
                 AsOption::Iiif => match artwork.to_iiif() {
                     Ok(iiif_url) => println!("{}", iiif_url),
                     Err(error) => {

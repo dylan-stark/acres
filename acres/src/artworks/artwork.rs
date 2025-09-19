@@ -109,21 +109,23 @@ impl Artwork {
 
     /// Renders the artwork as ASCII art.
     #[cfg(feature = "ascii-art")]
-    pub async fn to_ascii(&self) -> Result<String, AcresError> {
+    pub async fn to_ascii(&self, chars_wide: usize) -> Result<String, AcresError> {
         use crate::config::Config;
 
         let config = Config::new().context("failed to load config")?;
         let identifier = self.0["data"]["image_id"]
             .as_str()
             .context("artwork JSON is missing .data.image_id")?;
-        let ascii_filename = format!("{}.ascii", identifier);
+        let ascii_filename = format!("{}.{}.ascii", identifier, chars_wide);
         let ascii_path = config.cache_dir.join("ascii").join(ascii_filename);
         if config.use_cache && ascii_path.is_file() {
             tracing::info!(msg = "Using cached file", ?ascii_path);
             Ok(Self::load_ascii(&ascii_path)?)
         } else {
             let bytes = self.to_image().await?; // Produces image bytes, not an image::Image
-            let ascii = ascii_art::bytes_to_ascii(bytes)
+            let art = ascii_art::AsciiArt { chars_wide };
+            let ascii = art
+                .bytes_to_ascii(bytes)
                 .context("failed to render image bytes to ASCII")?;
             if config.use_cache {
                 Self::store_ascii(&ascii, &ascii_path)?;
@@ -180,29 +182,37 @@ mod ascii_art {
         image::LumaImage,
     };
 
-    pub fn bytes_to_ascii(bytes: Bytes) -> Result<String> {
-        const ALPHABET: &[u8] = include_bytes!("../../.data/alphabet.txt");
-        const BITOCRA_13: &[u8] = include_bytes!("../../.data/bitocra-13.bdf");
-        let dyn_img = Reader::new(Cursor::new(bytes))
-            .with_guessed_format()
-            .context("image reader failed")?
-            .decode()
-            .context("image decode failed")?;
-        let alphabet = &ALPHABET.iter().map(|&c| c as char).collect::<Vec<char>>();
-        let font = Font::from_bdf_stream(BITOCRA_13, alphabet, false);
-        let luma_img = LumaImage::from(&dyn_img);
-        let convert = get_converter("direction-and-intensity");
-        let out_width_chars = Some(80);
-        let brightness_offset = 0.;
-        let algorithm = get_conversion_algorithm("edge-augmented");
-        let char_rows = img_to_char_rows(
-            &font,
-            &luma_img,
-            convert,
-            out_width_chars,
-            brightness_offset,
-            &algorithm,
-        );
-        Ok(char_rows_to_terminal_color_string(&char_rows, &dyn_img))
+    #[derive(Debug)]
+    pub struct AsciiArt {
+        pub chars_wide: usize,
+    }
+
+    impl AsciiArt {
+        pub fn bytes_to_ascii(self, bytes: Bytes) -> Result<String> {
+            tracing::info!("converting bytes to ascii");
+            tracing::debug!(?self);
+            const ALPHABET: &[u8] = include_bytes!("../../.data/alphabet.txt");
+            const BITOCRA_13: &[u8] = include_bytes!("../../.data/bitocra-13.bdf");
+            let dyn_img = Reader::new(Cursor::new(bytes))
+                .with_guessed_format()
+                .context("image reader failed")?
+                .decode()
+                .context("image decode failed")?;
+            let alphabet = &ALPHABET.iter().map(|&c| c as char).collect::<Vec<char>>();
+            let font = Font::from_bdf_stream(BITOCRA_13, alphabet, false);
+            let luma_img = LumaImage::from(&dyn_img);
+            let convert = get_converter("direction-and-intensity");
+            let brightness_offset = 0.;
+            let algorithm = get_conversion_algorithm("edge-augmented");
+            let char_rows = img_to_char_rows(
+                &font,
+                &luma_img,
+                convert,
+                Some(self.chars_wide),
+                brightness_offset,
+                &algorithm,
+            );
+            Ok(char_rows_to_terminal_color_string(&char_rows, &dyn_img))
+        }
     }
 }
