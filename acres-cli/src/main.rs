@@ -178,6 +178,7 @@ async fn main() -> Result<()> {
             ),
             None => collection,
         };
+        tracing::debug!(?collection);
 
         match collection.build().await {
             Ok(collection) => println!("{}", collection),
