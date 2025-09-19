@@ -31,6 +31,8 @@ impl Artwork {
     }
 
     /// Constructs the IIIF image URL.
+    ///
+    /// The AIC uses IIIF's Image API 2.0: <https://iiif.io/api/image/2.0/>.
     pub fn to_iiif(&self) -> Result<String, AcresError> {
         let ifff_url = self.0["config"]["iiif_url"]
             .as_str()
