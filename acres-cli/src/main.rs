@@ -2,16 +2,35 @@
 
 //! acres-cli is a simple CLI for accessing the Art Institute of Chicago's [public APIs].
 //!
-//! You can get the (first page of the) artworks list with `acres-cli artworks`.
+//! You can list artworks with `acres-cli artworks`.
+//! The output is just JSON, so you can pipe to `jq` for easier consumption.
+//!
+//! If you know the `id` of a particular artwork, you can get it with `acres-cli
+//! artwork <id>`.
+//! The output is just JSON, by default, but you can get the image bytes by setting `--as=image` or
+//! an ASCII art representation with `--as=ascii`.
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
+
+use std::io::Write;
 
 use acres::artworks;
 use clap::{Arg, Command, command, value_parser};
 use color_eyre::Result;
+use crossterm::terminal;
 use eyre::Context;
 
+#[doc(hidden)]
 mod logging;
+
+#[doc(hidden)]
+#[derive(clap::ValueEnum, Clone)]
+enum AsOption {
+    Iiif,
+    Jpeg,
+    Json,
+    Ascii,
+}
 
 #[doc(hidden)]
 #[tokio::main]
@@ -23,12 +42,28 @@ async fn main() -> Result<()> {
         .propagate_version(true)
         .subcommand_required(true)
         .subcommand(
-            Command::new("artwork").about("An artwork").arg(
-                Arg::new("id")
-                    .help("the id of the artwork")
-                    .required(true)
-                    .value_parser(value_parser!(u32)),
-            ),
+            Command::new("artwork")
+                .about("An artwork")
+                .arg(
+                    Arg::new("id")
+                        .help("the id of the artwork")
+                        .required(true)
+                        .value_parser(value_parser!(u32)),
+                )
+                .arg(
+                    Arg::new("width")
+                        .long("width")
+                        .help("width in chars; disregarded if not outputting as ASCII")
+                        .required(false)
+                        .value_parser(value_parser!(usize)),
+                )
+                .arg(
+                    Arg::new("as")
+                        .long("as")
+                        .help("how to format the output")
+                        .value_parser(value_parser!(AsOption))
+                        .default_value("json"),
+                ),
         )
         .subcommand(
             Command::new("artworks")
@@ -73,7 +108,43 @@ async fn main() -> Result<()> {
             .expect("clap `required` ensures its present");
         let artwork = artworks::Artwork::builder().id(*id);
         match artwork.build().await {
-            Ok(artwork) => println!("{}", artwork),
+            Ok(artwork) => match matches
+                .get_one::<AsOption>("as")
+                .expect("clap ensures this is a string")
+            {
+                AsOption::Ascii => {
+                    let chars_wide = match matches.get_one::<usize>("width") {
+                        Some(&width) => width,
+                        None => match terminal::size() {
+                            Ok((columns, _)) => columns.into(),
+                            Err(_) => 80,
+                        },
+                    };
+                    match artwork.to_ascii(chars_wide).await {
+                        Ok(ascii) => std::io::stdout()
+                            .write_all((ascii + "\n").as_bytes())
+                            .wrap_err("We failed writing out the ASCII ...")?,
+                        Err(error) => {
+                            return Err(error).wrap_err("We couldn't generate that ASCII art ...");
+                        }
+                    }
+                }
+                AsOption::Iiif => match artwork.to_iiif() {
+                    Ok(iiif_url) => println!("{}", iiif_url),
+                    Err(error) => {
+                        return Err(error).wrap_err("We couldn't generate that IIIF url ...");
+                    }
+                },
+                AsOption::Jpeg => match artwork.to_image().await {
+                    Ok(image) => std::io::stdout()
+                        .write_all(&image)
+                        .wrap_err("We failed writing out the image ...")?,
+                    Err(error) => {
+                        return Err(error).wrap_err("We couldn't get that image ...");
+                    }
+                },
+                AsOption::Json => println!("{}", artwork),
+            },
             Err(error) => return Err(error).wrap_err("We couldn't get that artwork ..."),
         }
     }
