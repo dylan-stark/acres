@@ -1,7 +1,12 @@
 # Acres CLI
 
 `acres-cli` is meant to be something of a Swiss Army Knife for working with the Art Institute of Chicago's [artworks collection](https://api.artic.edu/docs/#collections-3) from terminal.
+It includes
+- [`artworks` tool](#working-with-the-artworks-collection) for finding and inspecting pieces from the collection
+- [`iiif` tool](#working-with-iiif-urls) for constructing IIIF URLs for downloading images for the artwork you find
+- [`ascii-art` tool](#working-with-ascii-art) for rendering those images as ASCII art directly in the terminal
 
+## Working with the Artworks Collection
 
 List artworks with
 
@@ -12,7 +17,12 @@ acres-cli artworks
 For the first example [here](https://api.artic.edu/docs/#get-artworks-2), you'd do
 
 ```sh
-% acres-cli artworks artworks --limit 2 | jq '{ pagination: .pagination, data: .data[] | { id: .id, title: .title, api_link: .api_link } }'
+acres-cli artworks --limit 2 | jq '{ pagination: .pagination, data: .data[] | { id: .id, title: .title, api_link: .api_link } }'
+```
+
+to get
+
+```json
 {
   "pagination": {
     "current_page": 1,
@@ -51,13 +61,13 @@ We're using `jq` here to pare down the results and pretty-print them.
 [Search the collection](https://api.artic.edu/docs/#get-artworks-search-2) with
 
 ```
-acres-cli search
+acres-cli artwork-search
 ```
 
 > ***Coming soon!***
 
 
-[Get specific piece from the collection](https://api.artic.edu/docs/#get-artworks-id-2) with
+[Get a specific piece from the collection](https://api.artic.edu/docs/#get-artworks-id-2) with
 
 ```sh
 acres-cli artwork <id>
@@ -66,7 +76,13 @@ acres-cli artwork <id>
 The example from the website would look like
 
 ```sh
-% acres-cli artwork 4 | jq '{ title: .data.title, artist: .data.artist_display, date: .data.date_display, medium: .data.medium_display }'
+acres-cli artwork 4 \
+    | jq '{ title: .data.title, artist: .data.artist_display, date: .data.date_display, medium: .data.medium_display }'
+```
+
+and would print out
+
+```json
 {
   "title": "Priest and Boy",
   "artist": "Lawrence Carmichael Earle\nAmerican, 1845-1921",
@@ -90,12 +106,95 @@ Following the example from the website would look like
 
 If you're looking for programmatic access to the artworks collection directly in Rust, check out the `acres` crate.
 
----
+# Working with IIIF URLs
 
-Render a piece of artwork as an ASCII image with
+You'll need to use the [IIIF image API](https://api.artic.edu/docs/#iiif-image-api) to download images for the artwork you find.
+The `iiif` tool helps with this by converting the artwork info you've collected into IIIF URLs for retrieving the associated images.
 
 ```sh
-% acres-cli artwork 77333 --as ascii
+acres-cli iiif <artwork-info>
+```
+
+For example,
+
+```sh
+% acres-cli artwork 77333 | arcres-cli iiif -
+https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/default.jpg
+```
+
+Or, without the piping,
+
+```sh
+% acres-cli artwork 77333 > 77333.json
+% arcres-cli iiif 77333.json
+https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/default.jpg
+```
+
+But we're not super strict about what the input for the `image` tool.
+It really only needs to have the necessary information.
+So you could have some intermediate filtering, like
+
+```sh
+% acres-cli artwork 77333 \
+    | jq '{ config: { iiif_url: .config.iiif_url }, data: { image_id: .data.image_id } }' \
+    | arcres-cli iiif -
+https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/default.jpg
+```
+
+By default, we'll use the `image_id`.
+But the above technique is handy for when you want to use one of the alternate image IDs for an artwork:
+
+```sh
+% acres-cli artwork 75644 \
+    | jq '{ config: { iiif_url: .config.iiif_url }, data: { image_id: .data.alt_image_ids[2] } }' \
+    | arcres-cli iiif -
+https://www.artic.edu/iiif/2/1d59d547-aad0-50f5-ac1c-6e516eea146b/full/843,/0/default.jpg
+```
+
+The recommended default URL is easy enough to construct from the IIIF URL and image ID.
+But the real power of the `image` tool comes in when you want to adjust the request.
+For example, you can change the quality to retrieve the black-and-white variant as a PNG:
+
+```sh
+% arcres-cli iiif 77333.json --quality bitonal --format png
+https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/bitonal.png
+```
+
+If one or more of the options aren't available for that piece, you'll get an error message explaining as much.
+And, given the emphasis on chaining these tools, the error message will show up on `stderr` and CLI will stop with a non-zero exit code.
+
+```sh
+% arcres-cli iiif 77333.json --quality bitonal --format pdf
+Uh-oh, this artwork is not available in 'pdf' format
+```
+
+If you pass in more than one JSON, you'll get more than one IIIF URL:
+
+```sh
+% acres-cli artwork 75644 \
+    | jq '.config.iiif_url as $iiif_url | .data.alt_image_ids[] as $alt_image_id | { config: { iiif_url: $iiif_url }, data: { image_id: $alt_image_id } }' \
+    | arcres-cli iiif -
+https://www.artic.edu/iiif/2/67df521-56d2-0b6c-a97b-ea6ec9448c22/full/843,/0/default.jpg
+https://www.artic.edu/iiif/2/87eb49a-7e5e-287f-3546-dd8626c2e912/full/843,/0/default.jpg
+https://www.artic.edu/iiif/2/d59d547-aad0-50f5-ac1c-6e516eea146b/full/843,/0/default.jpg
+https://www.artic.edu/iiif/2/31a5bde-a7a9-1ddc-7768-f5772aedc91c/full/843,/0/default.jpg
+https://www.artic.edu/iiif/2/f8e8002-ebd5-f21a-ba8b-ba8061db4f17/full/843,/0/default.jpg
+https://www.artic.edu/iiif/2/da43b7b-cc3a-21a3-e408-21f72a17011b/full/843,/0/default.jpg
+```
+
+## Working with ASCII Art
+
+Once you have images, why not make ASCII art?
+It's this simple:
+
+```sh
+acres-cli ascii-art <image>
+```
+
+Following on from the previous examples,
+
+```sh
+% acres-cli ascii-art 77333.jpg
 @0WggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggWggggggggggg@
 @#*4###44##################44#############################44###########44444**C]
 @#4##4**?????????????#######s#s###?#????###???##???#?#??#??###????????##??###440
@@ -128,36 +227,40 @@ Render a piece of artwork as an ASCII image with
 @g55SSSSSSSSSS555555$$5$$$$$5$55N55555$$$$$$$$$$$$$$$$$$$$$$$$$$$N$$NNNNNNNNNNg@
 ```
 
-You can control how wide it is by setting `--width` like so
+By default, this will match the width of your terminal.
+But you can control how wide it is by setting `--width` like so
 
 ```sh
-% acres-cli artwork 77333 --as ascii --width 256
+% acres-cli ascii-art 77333.jpg --width 32
+@AAAAAAAAAAZZZAAZZZZAAAAAAAAAAZW
+Q?cs????#?##44Y???????????????#o
+]44?????4}}/L*c*???????????????o
+]#4??V?}!!--"+c*C*#????????????o
+QfC?47Y#*\!-!rl}c**#?????VVVV??o
+]*cLl*j}L+L!=+/l\L}}4#???VVVV?#o
+]L+:=///+!;\!++//lLL}*#??V?Cs#Ls
+Q///\++:+C?s?\\llllc}}*4#}LY}/+s
+]LlLcJ}sY4*f*f4}LllL}}c}*}}llc}C
+]4*LLc}*44j*L=l\/:/}}*}LL+rj}+:s
+Q!:!=++r}Ll/Ll!=l\r\ll\rrL//\l+o
+]\\\+++;Lcj*cLjJjc*JJC4*jjC#JJ*S
 ```
 
-If you want to actual image, you can get the IIIF URL for the downloading the piece with `--as iiif`:
+As before, you can pipe bytes into this:
 
 ```sh
-% acres-cli artwork 77333 --as iiif
-https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/default.jpg
-
-# Generate IIIF from artwork description
-% acres-cli artwork 77333 | acres-cli iiif --quality bitonal
-
-# Generate bi-tonal image (not just the URI)
 % acres-cli artwork 77333 \
-    | acres-cli iiif image - --quality bitonal --format png --as bytes > 77333.png
-# Or, without piping
-% acres-cli artwork 77333 > 77333.json
-% acres-cli iiif image 77333.json --quality bitonal --format png --as bytes > 77333.png
-
-# Generate ASCII art
-% acres-cli artwork 77333 \
-    | acres-cli iiif image - --quality bitonal --format png --as bytes \
-    | acres-cli ascii-art - --width 512
+    | acres-cli iiif - --to bytes \
+    | acres-cli ascii-art - --width 32
+[...]
 ```
 
-Or download a JPEG representation directly with `--as jpeg`:
+Or, equivalently,
 
 ```sh
-% acres-cli artwork 77333 --as jpeg > 77333.jpg
+% acres-cli artwork 77333 \
+    | acres-cli iiif - \
+    | acres-cli ascii-art - --from url --width 32
+[...]
 ```
+

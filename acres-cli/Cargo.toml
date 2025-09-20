@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 acres = { path = "../acres", features = ["ascii-art"] }
 clap = { version = "4.5.37", features = ["cargo", "derive"] }
+clap-stdin = "0.7.0"
 color-eyre = "0.6.4"
 crossterm = "0.29.0"
 eyre = "0.6.12"

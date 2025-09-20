@@ -2,20 +2,13 @@
 
 //! acres-cli is a simple CLI for accessing the Art Institute of Chicago's [public APIs].
 //!
-//! You can list artworks with `acres-cli artworks`.
-//! The output is just JSON, so you can pipe to `jq` for easier consumption.
-//!
-//! If you know the `id` of a particular artwork, you can get it with `acres-cli
-//! artwork <id>`.
-//! The output is just JSON, by default, but you can get the image bytes by setting `--as=image` or
-//! an ASCII art representation with `--as=ascii`.
-//!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
 use std::io::Write;
 
 use acres::artworks;
 use clap::{Arg, Command, command, value_parser};
+use clap_stdin::FileOrStdin;
 use color_eyre::Result;
 use crossterm::terminal;
 use eyre::Context;
@@ -43,31 +36,20 @@ async fn main() -> Result<()> {
         .subcommand_required(true)
         .subcommand(
             Command::new("artwork")
-                .about("An artwork")
+                .about("Retrieve a piece of artwork")
                 .arg(
                     Arg::new("id")
                         .help("the id of the artwork")
                         .required(true)
                         .value_parser(value_parser!(u32)),
                 )
-                .arg(
-                    Arg::new("width")
-                        .long("width")
-                        .help("width in chars; disregarded if not outputting as ASCII")
-                        .required(false)
-                        .value_parser(value_parser!(usize)),
-                )
-                .arg(
-                    Arg::new("as")
-                        .long("as")
-                        .help("how to format the output")
-                        .value_parser(value_parser!(AsOption))
-                        .default_value("json"),
+                .subcommand(
+                    Command::new("manifest").about("Retrieve the manifest for this artwork"),
                 ),
         )
         .subcommand(
             Command::new("artworks")
-                .about("The artworks collection")
+                .about("List artworks collection")
                 .arg(
                     Arg::new("ids")
                         .long("ids")
@@ -99,6 +81,86 @@ async fn main() -> Result<()> {
                         .help("comma-separated list of sub-resources to include")
                         .value_parser(value_parser!(String)),
                 ),
+        )
+        .subcommand(
+            Command::new("artworks-search")
+                .about("Search the artworks collection")
+                .arg(Arg::new("q").long("q").help("search query"))
+                .arg(
+                    Arg::new("query")
+                        .long("query")
+                        .help("complex query (in Elasticsearch domain syntax)"),
+                )
+                .arg(
+                    Arg::new("sort")
+                        .long("sort")
+                        .help("sort one or more fields"),
+                )
+                .arg(
+                    Arg::new("from")
+                        .long("from")
+                        .help("starting point of results"),
+                )
+                .arg(
+                    Arg::new("size")
+                        .long("size")
+                        .help("number of results to return"),
+                )
+                .arg(Arg::new("facets").long("facets").help(
+                    "comman-separated list of 'count' aggregation facets to include in results",
+                )),
+        )
+        .subcommand(
+            Command::new("ascii-art")
+                .about("Work with ASCII art")
+                .arg(
+                    Arg::new("image")
+                        .required(true)
+                        .help("image file or '-' to read JSON from stdin")
+                        .value_parser(value_parser!(FileOrStdin)),
+                )
+                .arg(
+                    Arg::new("width")
+                        .long("width")
+                        .help("how many characters wide"),
+                )
+                .arg(Arg::new("from").long("from").help("type of input")),
+        )
+        .subcommand(
+            Command::new("iiif")
+                .about("Work with IIIF URLs")
+                .arg(
+                    Arg::new("artwork")
+                        .required(true)
+                        .help("artwork JSON file or '-' to read JSON from stdin")
+                        .value_parser(value_parser!(FileOrStdin)),
+                )
+                .arg(
+                    Arg::new("region")
+                        .long("region")
+                        .help("rectangular portion of the full image to be returned"),
+                )
+                .arg(
+                    Arg::new("size")
+                        .long("size")
+                        .help("dimensions to which the extracted region is to be scaled"),
+                )
+                .arg(
+                    Arg::new("rotation")
+                        .long("rotation")
+                        .help("mirroring and rotation"),
+                )
+                .arg(
+                    Arg::new("quality")
+                        .long("quality")
+                        .help("whether image is delivered in color, grayscale, or black-and-white"),
+                )
+                .arg(
+                    Arg::new("format")
+                        .long("format")
+                        .help("format of the returned image"),
+                )
+                .arg(Arg::new("to").long("to").help("type of output")),
         )
         .get_matches();
 
@@ -184,6 +246,13 @@ async fn main() -> Result<()> {
             Ok(collection) => println!("{}", collection),
             Err(error) => return Err(error).wrap_err("We couldn't get that list ..."),
         }
+    }
+
+    if let Some(matches) = matches.subcommand_matches("iiif") {
+        let artwork = matches
+            .get_one::<FileOrStdin>("artwork")
+            .expect("clap ensures this is a string");
+        println!("{:?}", artwork.clone().contents())
     }
 
     Ok(())

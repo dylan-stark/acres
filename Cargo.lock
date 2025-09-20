@@ -30,6 +30,7 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "clap 4.5.37",
+ "clap-stdin",
  "color-eyre",
  "crossterm",
  "eyre",
@@ -442,6 +443,15 @@ checksum = "eccb054f56cbd38340b380d4a8e69ef1f02f1af43db2f0cc817a4774d80ae071"
 dependencies = [
  "clap_builder",
  "clap_derive 4.5.32",
+]
+
+[[package]]
+name = "clap-stdin"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce9eaafece93d07ba62941de901e54d8df03800b7d775000d0d8cd5f876a592d"
+dependencies = [
+ "thiserror 2.0.12",
 ]
 
 [[package]]
