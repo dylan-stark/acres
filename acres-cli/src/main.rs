@@ -4,13 +4,10 @@
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
-use std::io::Write;
-
 use acres::artworks;
 use clap::{Arg, Command, command, value_parser};
 use clap_stdin::FileOrStdin;
 use color_eyre::Result;
-use crossterm::terminal;
 use eyre::Context;
 
 #[doc(hidden)]
@@ -170,43 +167,7 @@ async fn main() -> Result<()> {
             .expect("clap `required` ensures its present");
         let artwork = artworks::Artwork::builder().id(*id);
         match artwork.build().await {
-            Ok(artwork) => match matches
-                .get_one::<AsOption>("as")
-                .expect("clap ensures this is a string")
-            {
-                AsOption::Ascii => {
-                    let chars_wide = match matches.get_one::<usize>("width") {
-                        Some(&width) => width,
-                        None => match terminal::size() {
-                            Ok((columns, _)) => columns.into(),
-                            Err(_) => 80,
-                        },
-                    };
-                    match artwork.to_ascii(chars_wide).await {
-                        Ok(ascii) => std::io::stdout()
-                            .write_all((ascii + "\n").as_bytes())
-                            .wrap_err("We failed writing out the ASCII ...")?,
-                        Err(error) => {
-                            return Err(error).wrap_err("We couldn't generate that ASCII art ...");
-                        }
-                    }
-                }
-                AsOption::Iiif => match artwork.to_iiif() {
-                    Ok(iiif_url) => println!("{}", iiif_url),
-                    Err(error) => {
-                        return Err(error).wrap_err("We couldn't generate that IIIF url ...");
-                    }
-                },
-                AsOption::Jpeg => match artwork.to_image().await {
-                    Ok(image) => std::io::stdout()
-                        .write_all(&image)
-                        .wrap_err("We failed writing out the image ...")?,
-                    Err(error) => {
-                        return Err(error).wrap_err("We couldn't get that image ...");
-                    }
-                },
-                AsOption::Json => println!("{}", artwork),
-            },
+            Ok(artwork) => println!("{}", artwork),
             Err(error) => return Err(error).wrap_err("We couldn't get that artwork ..."),
         }
     }
