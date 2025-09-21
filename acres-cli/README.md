@@ -61,7 +61,7 @@ We're using `jq` here to pare down the results and pretty-print them.
 [Search the collection](https://api.artic.edu/docs/#get-artworks-search-2) with
 
 ```
-acres-cli artwork-search
+acres-cli artworks-search
 ```
 
 > ***Coming soon!***

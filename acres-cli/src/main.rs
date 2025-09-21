@@ -161,60 +161,61 @@ async fn main() -> Result<()> {
         )
         .get_matches();
 
-    if let Some(matches) = matches.subcommand_matches("artwork") {
-        let id = matches
-            .get_one::<u32>("id")
-            .expect("clap `required` ensures its present");
-        let artwork = artworks::Artwork::builder().id(*id);
-        match artwork.build().await {
-            Ok(artwork) => println!("{}", artwork),
-            Err(error) => return Err(error).wrap_err("We couldn't get that artwork ..."),
-        }
-    }
-
-    if let Some(matches) = matches.subcommand_matches("artworks") {
-        let collection = artworks::Collection::builder();
-        let collection = match matches.get_many::<u32>("ids") {
-            Some(ids) => collection.ids(ids.copied().collect()),
-            None => collection,
-        };
-        let collection = match matches.get_one::<u32>("limit") {
-            Some(limit) => collection.limit(*limit),
-            None => collection,
-        };
-        let collection = match matches.get_one::<u32>("page") {
-            Some(page) => collection.page(*page),
-            None => collection,
-        };
-        let collection = match matches.get_many::<String>("fields") {
-            Some(fields) => {
-                collection.fields(fields.into_iter().map(|field| field.to_string()).collect())
+    match matches.subcommand() {
+        Some(("artwork", matches)) => {
+            match artworks::Artwork::builder()
+                .id(matches.get_one::<u32>("id").copied())
+                .build()
+                .await
+            {
+                Ok(artwork) => println!("{}", artwork),
+                Err(error) => return Err(error).wrap_err("We couldn't get that artwork ..."),
             }
-            None => collection,
-        };
-        let collection = match matches.get_many::<String>("include") {
-            Some(include) => collection.include(
-                include
-                    .into_iter()
-                    .map(|include| include.to_string())
-                    .collect(),
-            ),
-            None => collection,
-        };
-        tracing::debug!(?collection);
-
-        match collection.build().await {
-            Ok(collection) => println!("{}", collection),
-            Err(error) => return Err(error).wrap_err("We couldn't get that list ..."),
         }
-    }
-
-    if let Some(matches) = matches.subcommand_matches("iiif") {
-        let artwork = matches
-            .get_one::<FileOrStdin>("artwork")
-            .expect("clap ensures this is a string");
-        println!("{:?}", artwork.clone().contents())
-    }
+        Some(("artworks", matches)) => {
+            match artworks::Collection::builder()
+                .ids(
+                    matches
+                        .get_many::<u32>("ids")
+                        .map(|ids| ids.copied().collect::<Vec<u32>>()),
+                )
+                .limit(matches.get_one::<u32>("limit").copied())
+                .page(matches.get_one::<u32>("page").copied())
+                .fields(
+                    matches
+                        .get_many::<String>("fields")
+                        .map(|fields| fields.cloned().collect()),
+                )
+                .include(
+                    matches
+                        .get_many::<String>("include")
+                        .map(|include| include.cloned().collect()),
+                )
+                .build()
+                .await
+            {
+                Ok(collection) => println!("{}", collection),
+                Err(error) => return Err(error).wrap_err("We couldn't get that list ..."),
+            }
+        }
+        Some(("artworks-search", matches)) => {
+            match artworks::Search::builder()
+                .q(matches.get_one::<String>("q").cloned())
+                .build()
+                .await
+            {
+                Ok(search) => println!("{}", search),
+                Err(error) => return Err(error).wrap_err("We couldn't complete that search ..."),
+            }
+        }
+        Some(("iiif", matches)) => {
+            let artwork = matches
+                .get_one::<FileOrStdin>("artwork")
+                .expect("clap ensures this is a string");
+            println!("{:?}", artwork.clone().contents())
+        }
+        _ => unreachable!("clap should ensure we don't get here"),
+    };
 
     Ok(())
 }

@@ -15,8 +15,10 @@ pub struct ArtworkBuilder {
 
 impl ArtworkBuilder {
     /// The artwork identifier.
-    pub fn id(mut self, id: u32) -> Self {
-        self.id = id;
+    pub fn id(mut self, id: Option<u32>) -> Self {
+        if let Some(id) = id {
+            self.id = id;
+        }
         self
     }
 

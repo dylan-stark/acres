@@ -51,11 +51,11 @@ impl CollectionBuilder {
     /// ```
     /// use acres::artworks::CollectionBuilder;
     ///
-    /// CollectionBuilder::new().ids(vec![256, 1024, 4096]);
+    /// CollectionBuilder::new().ids(Some(vec![256, 1024, 4096]));
     /// ```
-    pub fn ids(mut self, ids: Vec<u32>) -> Self {
+    pub fn ids(mut self, ids: Option<Vec<u32>>) -> Self {
         tracing::info!(msg = "Settings ids", ?ids);
-        self.ids = Some(ids);
+        self.ids = ids;
         self
     }
 
@@ -69,13 +69,13 @@ impl CollectionBuilder {
     /// ```
     /// use acres::artworks::CollectionBuilder;
     ///
-    /// CollectionBuilder::new().limit(10);
+    /// CollectionBuilder::new().limit(Some(10));
     /// ```
     ///
     /// [pagination section]: https://api.artic.edu/docs/#pagination
-    pub fn limit(mut self, limit: u32) -> Self {
+    pub fn limit(mut self, limit: Option<u32>) -> Self {
         tracing::info!(msg = "Settings limit", limit);
-        self.limit = Some(limit);
+        self.limit = limit;
         self
     }
 
@@ -89,13 +89,13 @@ impl CollectionBuilder {
     /// ```
     /// use acres::artworks::CollectionBuilder;
     ///
-    /// CollectionBuilder::new().page(2);
+    /// CollectionBuilder::new().page(Some(2));
     /// ```
     ///
     /// [pagination section]: https://api.artic.edu/docs/#pagination
-    pub fn page(mut self, page: u32) -> Self {
+    pub fn page(mut self, page: Option<u32>) -> Self {
         tracing::info!(msg = "Settings page", page);
-        self.page = Some(page);
+        self.page = page;
         self
     }
 
@@ -106,11 +106,13 @@ impl CollectionBuilder {
     /// ```
     /// use acres::artworks::CollectionBuilder;
     ///
-    /// CollectionBuilder::new().fields(vec!["title".into(), "description".into()]);
+    /// CollectionBuilder::new().fields(Some(vec!["title".into(), "description".into()]));
     /// ```
-    pub fn fields(mut self, fields: Vec<String>) -> Self {
+    pub fn fields(mut self, fields: Option<Vec<String>>) -> Self {
         tracing::info!(msg = "Settings fields", ?fields);
-        self.fields = fields;
+        if let Some(fields) = fields {
+            self.fields = fields;
+        }
         self
     }
 
@@ -121,11 +123,13 @@ impl CollectionBuilder {
     /// ```
     /// use acres::artworks::CollectionBuilder;
     ///
-    /// CollectionBuilder::new().include(vec!["place_pivots".into()]);
+    /// CollectionBuilder::new().include(Some(vec!["place_pivots".into()]));
     /// ```
-    pub fn include(mut self, include: Vec<String>) -> Self {
+    pub fn include(mut self, include: Option<Vec<String>>) -> Self {
         tracing::info!(msg = "Settings include", ?include);
-        self.include = include;
+        if let Some(include) = include {
+            self.include = include;
+        }
         self
     }
 
@@ -284,7 +288,7 @@ mod tests {
 
         let collection: Collection = CollectionBuilder::new()
             .api(api)
-            .ids(vec![1, 3])
+            .ids(Some(vec![1, 3]))
             .build()
             .await
             .unwrap();
@@ -309,7 +313,7 @@ mod tests {
 
         let collection: Collection = CollectionBuilder::new()
             .api(api)
-            .limit(2)
+            .limit(Some(2))
             .build()
             .await
             .unwrap();
@@ -335,7 +339,7 @@ mod tests {
 
         let error = CollectionBuilder::new()
             .api(api)
-            .limit(1000)
+            .limit(Some(1000))
             .build()
             .await
             .err()
@@ -367,7 +371,7 @@ mod tests {
 
         CollectionBuilder::new()
             .api(api)
-            .page(2)
+            .page(Some(2))
             .build()
             .await
             .unwrap();
@@ -391,7 +395,7 @@ mod tests {
 
         CollectionBuilder::new()
             .api(api)
-            .fields(vec!["title".into(), "description".into()])
+            .fields(Some(vec!["title".into(), "description".into()]))
             .build()
             .await
             .unwrap();
@@ -415,7 +419,7 @@ mod tests {
 
         CollectionBuilder::new()
             .api(api)
-            .include(vec!["date".into(), "place_pivots".into()])
+            .include(Some(vec!["date".into(), "place_pivots".into()]))
             .build()
             .await
             .unwrap();

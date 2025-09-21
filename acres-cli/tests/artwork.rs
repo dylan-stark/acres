@@ -16,7 +16,7 @@ fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
         .arg("artwork")
         .arg(id.to_string());
 
-    // Then stdout has *only* the list
+    // Then stdout has *only* that JSON
     let output = cmd.output()?;
     let stdout = String::from_utf8(output.stdout)?;
     // And we're able to deserialize it so some valid JSON
@@ -68,7 +68,7 @@ fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
 //}
 
 fn cache_artwork(json: serde_json::Value) -> TempDir {
-    let filename = "artwork.0.json".to_string();
+    let filename = "artwork.42.json".to_string();
     let cache_dir = assert_fs::TempDir::new().expect("could get temp dir");
     let cache_path = cache_dir.path();
     fs::write(cache_path.join(filename), json.to_string()).expect("can write to cache");

@@ -5,8 +5,13 @@ mod artwork_builder;
 mod collection;
 mod collection_builder;
 mod collection_query_params;
+mod search;
+mod search_builder;
+mod search_query_params;
 
 pub use self::artwork::Artwork;
 pub use self::artwork_builder::ArtworkBuilder;
 pub use self::collection::Collection;
 pub use self::collection_builder::CollectionBuilder;
+pub use self::search::Search;
+pub use self::search_builder::SearchBuilder;
