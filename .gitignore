@@ -7,3 +7,5 @@
 .data/*.txt
 !.data/alphabet.txt
 !.data/bitocra-13.pdf
+scratch/
+!scratch/README.md
