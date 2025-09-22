@@ -1,8 +1,7 @@
 use assert_cmd::prelude::*;
-use assert_fs::TempDir;
 use eyre::Context;
 use serde_json::json;
-use std::{fs, process::Command};
+use std::process::Command;
 
 #[tokio::test]
 async fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,14 +17,10 @@ async fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>
         .mount(&mock_server)
         .await;
 
-    // Given we have a custom cache location
-    let cache_dir = cache_artwork(json!({"data": {"id": id}}));
-
     // When we run the CLI to get artworks list
     let mut cmd = Command::cargo_bin("acres-cli")?;
     cmd.env("ACRES_BASE_URI", mock_uri)
-        .env("ACRES_USE_CACHE", "false")
-        .env("ACRES_CACHE_DIR", cache_dir.path())
+        .env("ACRES_USE_CACHE", "false") // So it hits wiremock
         .arg("artwork")
         .arg(id.to_string());
 
@@ -80,11 +75,3 @@ async fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>
 //
 //    Ok(())
 //}
-
-fn cache_artwork(json: serde_json::Value) -> TempDir {
-    let filename = "artwork.42.json".to_string();
-    let cache_dir = assert_fs::TempDir::new().expect("could get temp dir");
-    let cache_path = cache_dir.path();
-    fs::write(cache_path.join(filename), json.to_string()).expect("can write to cache");
-    cache_dir
-}
