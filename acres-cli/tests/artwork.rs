@@ -4,7 +4,7 @@ use eyre::Context;
 use serde_json::json;
 use std::{fs, process::Command};
 
-#[test]
+#[tokio::test]
 async fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
     let id = 42;
     let body = json!({"data":{"id": id}});
@@ -12,7 +12,7 @@ async fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>
     let mock_server = wiremock::MockServer::start().await;
     let mock_uri = format!("{}/api/v1", mock_server.uri());
     wiremock::Mock::given(wiremock::matchers::any())
-        .and(wiremock::matchers::path("/api/v1/artworks"))
+        .and(wiremock::matchers::path(format!("/api/v1/artworks/{}", id)))
         .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(body))
         .expect(1)
         .mount(&mock_server)
@@ -23,13 +23,15 @@ async fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>
 
     // When we run the CLI to get artworks list
     let mut cmd = Command::cargo_bin("acres-cli")?;
-    cmd.env("ACRES_BASE_URI", mock_server.uri())
+    cmd.env("ACRES_BASE_URI", mock_uri)
+        .env("ACRES_USE_CACHE", "false")
         .env("ACRES_CACHE_DIR", cache_dir.path())
         .arg("artwork")
         .arg(id.to_string());
 
     // Then stdout has *only* that JSON
     let output = cmd.output()?;
+    println!("output={:?}", output);
     let stdout = String::from_utf8(output.stdout)?;
     // And we're able to deserialize it so some valid JSON
     let value: serde_json::Value =
