@@ -91,7 +91,7 @@ impl Api {
     pub async fn fetch<T>(
         &self,
         endpoint: String,
-        query_params: impl Serialize + Debug,
+        query_params: Option<impl Serialize + Debug>,
     ) -> Result<T, AcresError>
     where
         T: FromBytes<T>,
@@ -101,7 +101,7 @@ impl Api {
             Some(results) => Ok(results),
             None => Ok(fetch(&endpoint, &query_params).await?),
         };
-        let results = self.to_cache(&endpoint, &query_params, results.unwrap())?;
+        let results = self.to_cache(&endpoint, query_params, results.unwrap())?;
         T::from_bytes(results)
     }
 
@@ -143,7 +143,7 @@ impl Api {
     pub fn from_cache(
         &self,
         endpoint: &String,
-        query_params: impl Serialize + Debug,
+        query_params: &Option<impl Serialize + Debug>,
     ) -> Result<Option<Bytes>, AcresError> {
         if !self.use_cache {
             return Ok(None);
@@ -244,7 +244,7 @@ impl Default for ApiBuilder {
     }
 }
 
-async fn fetch(endpoint: &String, query_params: impl Serialize) -> Result<Bytes, AcresError> {
+async fn fetch(endpoint: &String, query_params: &Option<impl Serialize>) -> Result<Bytes, AcresError> {
     let client = reqwest::Client::new();
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
@@ -259,10 +259,13 @@ async fn fetch(endpoint: &String, query_params: impl Serialize) -> Result<Bytes,
             .parse()
             .context("failed constructing ACRES-User-Agent header")?,
     );
-    let response = client
+    let mut request = client
         .get(endpoint)
-        .headers(headers)
-        .query(&query_params)
+        .headers(headers);
+    if query_params.is_some() {
+        request = request.query(&query_params);
+    }
+    let response = request
         .send()
         .await
         .with_context(|| format!("GET {}", endpoint))?;

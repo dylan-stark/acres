@@ -60,6 +60,6 @@ impl SearchBuilder {
         tracing::info!(msg = "Searching artworks collection", ?self);
         let endpoint = format!("{}/artworks/search", self.api.base_uri);
         let query_params = SearchQueryParams { q: self.q.clone() };
-        self.api.fetch::<Search>(endpoint, query_params).await
+        self.api.fetch::<Search>(endpoint, Some(query_params)).await
     }
 }
