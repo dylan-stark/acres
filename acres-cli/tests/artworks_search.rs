@@ -37,6 +37,7 @@ async fn artworks_search_with_q() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
 #[tokio::test]
 async fn artworks_search_with_query() -> Result<(), Box<dyn std::error::Error>> {
     let query = json!({
@@ -68,6 +69,50 @@ async fn artworks_search_with_query() -> Result<(), Box<dyn std::error::Error>> 
         .env("ACRES_USE_CACHE", "false") // So it hits wiremock
         .arg("artworks-search")
         .args(["--query", &query.to_string()]);
+
+    // Then stdout has *only* the list
+    let stdout = String::from_utf8(cmd.output()?.stdout)?;
+    // And we're able to deserialize it so some valid JSON
+    let value: serde_json::Value = serde_json::from_str(&stdout)?;
+    assert_eq!(value["data"][0]["id"], 129884);
+    assert_eq!(value["data"][1]["title"], "The Bedroom");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn artworks_search_with_query_sort() -> Result<(), Box<dyn std::error::Error>> {
+    let query = json!({
+        "query": {
+          "multi_match": {
+            "query": "Under the Wave off Kanagawa",
+            "fields": ["title", "description"]
+          }
+        }
+    });
+    let sort_field = "id".to_string();
+
+    let body = response_for_query_under_wave(); // Close enough
+
+    let mock_server = wiremock::MockServer::start().await;
+    let mock_uri = format!("{}/api/v1", mock_server.uri());
+    wiremock::Mock::given(wiremock::matchers::any())
+        .and(wiremock::matchers::path(
+            "/api/v1/artworks/search".to_string(),
+        ))
+        .and(wiremock::matchers::query_param("query", query.to_string()))
+        .and(wiremock::matchers::query_param("sort", sort_field.clone()))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(body))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    // When we run the CLI to get artworks list
+    let mut cmd = Command::cargo_bin("acres-cli")?;
+    cmd.env("ACRES_BASE_URI", mock_uri)
+        .env("ACRES_USE_CACHE", "false") // So it hits wiremock
+        .arg("artworks-search")
+        .args(["--query", &query.to_string(), "--sort", &sort_field]);
 
     // Then stdout has *only* the list
     let stdout = String::from_utf8(cmd.output()?.stdout)?;

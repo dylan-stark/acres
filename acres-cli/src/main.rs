@@ -208,6 +208,7 @@ async fn main() -> Result<()> {
             match artworks::Search::builder()
                 .q(matches.get_one::<String>("q").cloned())
                 .query(matches.get_one::<String>("query").cloned())
+                .sort(matches.get_one::<String>("sort").cloned())
                 .build()
                 .await
             {

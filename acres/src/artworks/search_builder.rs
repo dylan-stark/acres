@@ -14,6 +14,7 @@ pub struct SearchBuilder {
     api: Api,
     q: Option<String>,
     query: Option<String>,
+    sort: Option<String>,
 }
 
 impl SearchBuilder {
@@ -63,6 +64,13 @@ impl SearchBuilder {
         self
     }
 
+    /// Sets the sort field.
+    pub fn sort(mut self, field: Option<String>) -> Self {
+        tracing::info!(msg = "Setting sort", ?field);
+        self.sort = field;
+        self
+    }
+
     /// Builds artworks search.
     pub async fn build(&self) -> Result<Search, AcresError> {
         tracing::info!(msg = "Searching artworks collection", ?self);
@@ -70,6 +78,7 @@ impl SearchBuilder {
         let query_params = SearchQueryParams {
             q: self.q.clone(),
             query: self.query.clone(),
+            sort: self.sort.clone(),
         };
         self.api.fetch::<Search>(endpoint, Some(query_params)).await
     }
