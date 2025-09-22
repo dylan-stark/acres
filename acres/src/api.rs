@@ -244,7 +244,10 @@ impl Default for ApiBuilder {
     }
 }
 
-async fn fetch(endpoint: &String, query_params: &Option<impl Serialize>) -> Result<Bytes, AcresError> {
+async fn fetch(
+    endpoint: &String,
+    query_params: &Option<impl Serialize>,
+) -> Result<Bytes, AcresError> {
     let client = reqwest::Client::new();
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
@@ -259,9 +262,7 @@ async fn fetch(endpoint: &String, query_params: &Option<impl Serialize>) -> Resu
             .parse()
             .context("failed constructing ACRES-User-Agent header")?,
     );
-    let mut request = client
-        .get(endpoint)
-        .headers(headers);
+    let mut request = client.get(endpoint).headers(headers);
     if query_params.is_some() {
         request = request.query(&query_params);
     }

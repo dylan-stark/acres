@@ -167,7 +167,9 @@ impl CollectionBuilder {
             fields: self.fields.clone(),
             include: self.include.clone(),
         };
-        self.api.fetch::<Collection>(endpoint, Some(query_params)).await
+        self.api
+            .fetch::<Collection>(endpoint, Some(query_params))
+            .await
         //// TODO: Move config into `Api`
         //let config = Config::new().context("failed to load config")?;
         //let artworks_json_path = config.cache_dir.join("artworks.json");

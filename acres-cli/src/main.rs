@@ -82,7 +82,12 @@ async fn main() -> Result<()> {
         .subcommand(
             Command::new("artworks-search")
                 .about("Search the artworks collection")
-                .arg(Arg::new("q").long("q").help("search query"))
+                .arg(
+                    Arg::new("q")
+                        .long("q")
+                        .help("search query")
+                        .value_parser(value_parser!(String)),
+                )
                 .arg(
                     Arg::new("query")
                         .long("query")

@@ -11,7 +11,7 @@ use bytes::Bytes;
 #[cfg(feature = "image")]
 use std::path::PathBuf;
 
-use crate::{common::FromBytes, AcresError};
+use crate::{AcresError, common::FromBytes};
 
 use super::artwork_builder::ArtworkBuilder;
 
