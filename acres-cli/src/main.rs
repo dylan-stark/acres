@@ -91,7 +91,8 @@ async fn main() -> Result<()> {
                 .arg(
                     Arg::new("query")
                         .long("query")
-                        .help("complex query (in Elasticsearch domain syntax)"),
+                        .help("complex query (in Elasticsearch domain syntax)")
+                        .value_parser(value_parser!(String)),
                 )
                 .arg(
                     Arg::new("sort")
@@ -206,6 +207,7 @@ async fn main() -> Result<()> {
         Some(("artworks-search", matches)) => {
             match artworks::Search::builder()
                 .q(matches.get_one::<String>("q").cloned())
+                .query(matches.get_one::<String>("query").cloned())
                 .build()
                 .await
             {

@@ -13,6 +13,7 @@ use crate::{
 pub struct SearchBuilder {
     api: Api,
     q: Option<String>,
+    query: Option<String>,
 }
 
 impl SearchBuilder {
@@ -55,11 +56,21 @@ impl SearchBuilder {
         self
     }
 
+    /// Sets the search more complex query.
+    pub fn query(mut self, query: Option<String>) -> Self {
+        tracing::info!(msg = "Setting query", ?query);
+        self.query = query;
+        self
+    }
+
     /// Builds artworks search.
     pub async fn build(&self) -> Result<Search, AcresError> {
         tracing::info!(msg = "Searching artworks collection", ?self);
         let endpoint = format!("{}/artworks/search", self.api.base_uri);
-        let query_params = SearchQueryParams { q: self.q.clone() };
+        let query_params = SearchQueryParams {
+            q: self.q.clone(),
+            query: self.query.clone(),
+        };
         self.api.fetch::<Search>(endpoint, Some(query_params)).await
     }
 }

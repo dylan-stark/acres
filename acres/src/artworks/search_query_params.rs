@@ -4,6 +4,7 @@ use serde::ser::SerializeSeq;
 #[derive(Debug)]
 pub(super) struct SearchQueryParams {
     pub(super) q: Option<String>,
+    pub(super) query: Option<String>,
 }
 
 impl Serialize for SearchQueryParams {
@@ -14,6 +15,9 @@ impl Serialize for SearchQueryParams {
         let mut seq = serializer.serialize_seq(None)?;
         if let Some(q) = &self.q {
             seq.serialize_element(&("q", q))?
+        }
+        if let Some(query) = &self.query {
+            seq.serialize_element(&("query", query))?
         }
         seq.end()
     }
