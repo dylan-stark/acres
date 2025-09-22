@@ -5,14 +5,26 @@ use serde_json::json;
 use std::{fs, process::Command};
 
 #[test]
-fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
-    // Given we have a custom cache location
+async fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
     let id = 42;
+    let body = json!({"data":{"id": id}});
+
+    let mock_server = wiremock::MockServer::start().await;
+    let mock_uri = format!("{}/api/v1", mock_server.uri());
+    wiremock::Mock::given(wiremock::matchers::any())
+        .and(wiremock::matchers::path("/api/v1/artworks"))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(body))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    // Given we have a custom cache location
     let cache_dir = cache_artwork(json!({"data": {"id": id}}));
 
     // When we run the CLI to get artworks list
     let mut cmd = Command::cargo_bin("acres-cli")?;
-    cmd.env("ACRES_CACHE_DIR", cache_dir.path())
+    cmd.env("ACRES_BASE_URI", mock_server.uri())
+        .env("ACRES_CACHE_DIR", cache_dir.path())
         .arg("artwork")
         .arg(id.to_string());
 

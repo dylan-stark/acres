@@ -2,6 +2,11 @@
 
 use std::fmt::Display;
 
+use bytes::{Buf, Bytes};
+use serde::{Deserialize, Serialize};
+
+use crate::{AcresError, common::FromBytes};
+
 use super::collection_builder::CollectionBuilder;
 
 /// A collection of artworks.
@@ -9,13 +14,21 @@ use super::collection_builder::CollectionBuilder;
 /// This is the response from the [`GET /artworks`].
 ///
 /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Collection(serde_json::Value);
 
 impl Display for Collection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let json = serde_json::to_string(&self.0).map_err(|_| std::fmt::Error)?;
         f.write_str(json.as_str())
+    }
+}
+
+impl FromBytes<Collection> for Collection {
+    fn from_bytes(data: Bytes) -> Result<Collection, AcresError> {
+        let reader = data.reader();
+        let collection = serde_json::from_reader(reader).unwrap();
+        Ok(collection)
     }
 }
 

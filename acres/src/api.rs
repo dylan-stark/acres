@@ -84,29 +84,7 @@ impl Api {
     pub fn use_cache(&self) -> bool {
         self.use_cache
     }
-
-    /// Returns an item from the cache.
-    pub fn from_cache2(&self, id: String) -> Result<Option<Vec<u8>>, AcresError> {
-        if !self.use_cache {
-            return Ok(None);
-        }
-        let cache_file_path = match Config::new() {
-            Ok(config) => config.cache_dir.join(id),
-            Err(_) => return Ok(None),
-        };
-        if !cache_file_path.is_file() {
-            return Ok(None);
-        }
-        let data =
-            std::fs::read(cache_file_path).with_context(|| "failed to read cached file from")?;
-        Ok(Some(data))
-    }
 }
-
-//impl<T> Option<T>
-//pub fn and_then<U, F>(self, f: F) -> Option<U>
-//where
-//    F: FnOnce(T) -> Option<U>,
 
 impl Api {
     /// Fetch
@@ -257,9 +235,11 @@ impl ApiBuilder {
 
 impl Default for ApiBuilder {
     fn default() -> Self {
+        // TODO: Check ACRES_* for overrides
+        let config = Config::new().unwrap_or_default();
         ApiBuilder {
-            base_uri: String::from("https://api.artic.edu/api/v1"),
-            use_cache: true,
+            base_uri: config.base_uri,
+            use_cache: config.use_cache,
         }
     }
 }

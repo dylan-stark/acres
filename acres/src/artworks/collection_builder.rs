@@ -1,8 +1,5 @@
-use anyhow::{Context, anyhow};
-use reqwest::StatusCode;
-
 use crate::artworks::collection_query_params::CollectionQueryParams;
-use crate::{AcresError, api::Api, artworks::Collection, config::Config};
+use crate::{AcresError, api::Api, artworks::Collection};
 
 /// An artworks collection collection operation.
 ///
@@ -162,83 +159,92 @@ impl CollectionBuilder {
     /// ```
     pub async fn build(&self) -> Result<Collection, AcresError> {
         tracing::info!(msg = "Getting artworks collection", ?self);
-        // TODO: Move config into `Api`
-        let config = Config::new().context("failed to load config")?;
-        let artworks_json_path = config.cache_dir.join("artworks.json");
-        if config.use_cache && self.api.use_cache && artworks_json_path.is_file() {
-            tracing::info!(msg = "Using cached file", ?artworks_json_path);
-            let json = std::fs::read_to_string(&artworks_json_path).with_context(|| {
-                format!(
-                    "failed to read cached file from {}",
-                    artworks_json_path.display()
-                )
-            })?;
-            Ok(Collection::new(
-                serde_json::from_str(&json).context("failed to serialie JSON")?,
-            ))
-        } else {
-            tracing::info!(msg = "Not using cache");
-            let artworks_path = format!("{}/artworks", self.api.base_uri);
-            let client = reqwest::Client::new();
-            let mut headers = reqwest::header::HeaderMap::new();
-            headers.insert(
-                "user-agent",
-                format!("ACRES/{}", env!("CARGO_PKG_VERSION"),)
-                    .parse()
-                    .context("failed constructing user-agent header")?,
-            );
-            headers.insert(
-                "ACRES-User-Agent",
-                "ACRES (dylan.stark@gmail.com)"
-                    .parse()
-                    .context("failed constructing ACRES-User-Agent header")?,
-            );
-            tracing::debug!(?headers);
-            let query_params = CollectionQueryParams {
-                ids: self.ids.clone(),
-                limit: self.limit,
-                page: self.page,
-                fields: self.fields.clone(),
-                include: self.include.clone(),
-            };
-            tracing::debug!(?query_params);
+        let endpoint = format!("{}/artworks", self.api.base_uri);
+        let query_params = CollectionQueryParams {
+            ids: self.ids.clone(),
+            limit: self.limit,
+            page: self.page,
+            fields: self.fields.clone(),
+            include: self.include.clone(),
+        };
+        self.api.fetch::<Collection>(endpoint, query_params).await
+        //// TODO: Move config into `Api`
+        //let config = Config::new().context("failed to load config")?;
+        //let artworks_json_path = config.cache_dir.join("artworks.json");
+        //if config.use_cache && self.api.use_cache && artworks_json_path.is_file() {
+        //    tracing::info!(msg = "Using cached file", ?artworks_json_path);
+        //    let json = std::fs::read_to_string(&artworks_json_path).with_context(|| {
+        //        format!(
+        //            "failed to read cached file from {}",
+        //            artworks_json_path.display()
+        //        )
+        //    })?;
+        //    Ok(Collection::new(
+        //        serde_json::from_str(&json).context("failed to serialie JSON")?,
+        //    ))
+        //} else {
+        //    tracing::info!(msg = "Not using cache");
+        //    let artworks_path = format!("{}/artworks", self.api.base_uri);
+        //    let client = reqwest::Client::new();
+        //    let mut headers = reqwest::header::HeaderMap::new();
+        //    headers.insert(
+        //        "user-agent",
+        //        format!("ACRES/{}", env!("CARGO_PKG_VERSION"),)
+        //            .parse()
+        //            .context("failed constructing user-agent header")?,
+        //    );
+        //    headers.insert(
+        //        "ACRES-User-Agent",
+        //        "ACRES (dylan.stark@gmail.com)"
+        //            .parse()
+        //            .context("failed constructing ACRES-User-Agent header")?,
+        //    );
+        //    tracing::debug!(?headers);
+        //    let query_params = CollectionQueryParams {
+        //        ids: self.ids.clone(),
+        //        limit: self.limit,
+        //        page: self.page,
+        //        fields: self.fields.clone(),
+        //        include: self.include.clone(),
+        //    };
+        //    tracing::debug!(?query_params);
 
-            let response = client
-                .get(&artworks_path)
-                .headers(headers)
-                .query(&query_params)
-                .send()
-                .await
-                .with_context(|| format!("failed to GET {}", artworks_path))?;
-            let collection = match response.status() {
-                StatusCode::OK => Ok(response
-                    .json::<serde_json::Value>()
-                    .await
-                    .with_context(|| format!("failed to get JSON from GET {}", artworks_path))?),
-                _ => Err(response
-                    .json::<serde_json::Value>()
-                    .await
-                    .map(|value| anyhow!("{}: {}", value["error"], value["detail"]))
-                    .with_context(|| format!("failed to get JSON from GET {}", artworks_path))?),
-            };
+        //    let response = client
+        //        .get(&artworks_path)
+        //        .headers(headers)
+        //        .query(&query_params)
+        //        .send()
+        //        .await
+        //        .with_context(|| format!("failed to GET {}", artworks_path))?;
+        //    let collection = match response.status() {
+        //        StatusCode::OK => Ok(response
+        //            .json::<serde_json::Value>()
+        //            .await
+        //            .with_context(|| format!("failed to get JSON from GET {}", artworks_path))?),
+        //        _ => Err(response
+        //            .json::<serde_json::Value>()
+        //            .await
+        //            .map(|value| anyhow!("{}: {}", value["error"], value["detail"]))
+        //            .with_context(|| format!("failed to get JSON from GET {}", artworks_path))?),
+        //    };
 
-            if let Ok(collection) = &collection {
-                std::fs::create_dir_all(artworks_json_path.parent().expect("path has parent"))
-                    .with_context(|| {
-                        format!(
-                            "failed to create parent directory for {}",
-                            artworks_json_path.display()
-                        )
-                    })?;
-                std::fs::write(&artworks_json_path, collection.to_string())
-                    .with_context(|| format!("failed to write {}", artworks_json_path.display()))?;
-            }
+        //    if let Ok(collection) = &collection {
+        //        std::fs::create_dir_all(artworks_json_path.parent().expect("path has parent"))
+        //            .with_context(|| {
+        //                format!(
+        //                    "failed to create parent directory for {}",
+        //                    artworks_json_path.display()
+        //                )
+        //            })?;
+        //        std::fs::write(&artworks_json_path, collection.to_string())
+        //            .with_context(|| format!("failed to write {}", artworks_json_path.display()))?;
+        //    }
 
-            match collection {
-                Ok(collection) => Ok(Collection::new(collection)),
-                Err(error) => Err(error.into()),
-            }
-        }
+        //    match collection {
+        //        Ok(collection) => Ok(Collection::new(collection)),
+        //        Err(error) => Err(error.into()),
+        //    }
+        //}
     }
 }
 
