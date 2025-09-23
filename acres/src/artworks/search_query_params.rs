@@ -8,6 +8,8 @@ pub(super) struct SearchQueryParams {
     pub(super) q: Option<String>,
     pub(super) query: Option<String>,
     pub(super) sort: Option<String>,
+    pub(super) from: Option<u32>,
+    pub(super) size: Option<u32>,
 }
 
 impl SearchQueryParams {
@@ -36,6 +38,12 @@ impl Serialize for SearchQueryParams {
         if let Some(sort) = &self.sort {
             seq.serialize_element(&("sort", sort))?
         }
+        if let Some(from) = &self.from {
+            seq.serialize_element(&("from", from))?
+        }
+        if let Some(size) = &self.size {
+            seq.serialize_element(&("size", size))?
+        }
         seq.end()
     }
 }
@@ -50,6 +58,8 @@ mod tests {
             q: None,
             query: None,
             sort: Some("field".to_string()),
+            from: None,
+            size: None,
         };
 
         let result = params.valid();

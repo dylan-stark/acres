@@ -124,6 +124,44 @@ async fn artworks_search_with_query_sort() -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
+#[tokio::test]
+async fn artworks_search_with_from_and_size() -> Result<(), Box<dyn std::error::Error>> {
+    let from = 147;
+    let size = 1;
+
+    let body = response_for_from_147_size_1(); // Close enough
+
+    let mock_server = wiremock::MockServer::start().await;
+    let mock_uri = format!("{}/api/v1", mock_server.uri());
+    wiremock::Mock::given(wiremock::matchers::any())
+        .and(wiremock::matchers::path(
+            "/api/v1/artworks/search".to_string(),
+        ))
+        .and(wiremock::matchers::query_param("from", from.to_string()))
+        .and(wiremock::matchers::query_param("size", size.to_string()))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(body))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    // When we run the CLI to get artworks list
+    let mut cmd = Command::cargo_bin("acres-cli")?;
+    cmd.env("ACRES_BASE_URI", mock_uri)
+        .env("ACRES_USE_CACHE", "false") // So it hits wiremock
+        .arg("artworks-search")
+        .args(["--from", &from.to_string(), "--size", &size.to_string()]);
+
+    // Then stdout has *only* the list
+    let stdout = String::from_utf8(cmd.output()?.stdout)?;
+    // And we're able to deserialize it so some valid JSON
+    let value: serde_json::Value = serde_json::from_str(&stdout)?;
+    assert_eq!(value["pagination"]["offset"], from);
+    assert_eq!(value["pagination"]["current_page"], from + 1);
+    assert_eq!(value["pagination"]["limit"], size);
+
+    Ok(())
+}
+
 fn response_for_q_monet() -> Value {
     json!({
         "preference": null,
@@ -238,6 +276,49 @@ fn response_for_query_under_wave() -> Value {
           "timestamp": "2025-09-22T09:25:26-05:00"
         },
           ],
+      "info": {
+        "license_text": "The `description` field in this response is licensed under a Creative Commons Attribution 4.0 Generic License (CC-By) and the Terms and Conditions of artic.edu. All other data in this response is licensed under a Creative Commons Zero (CC0) 1.0 designation and the Terms and Conditions of artic.edu.",
+        "license_links": [
+          "https://creativecommons.org/publicdomain/zero/1.0/",
+          "https://www.artic.edu/terms"
+        ],
+        "version": "1.13"
+      },
+      "config": {
+        "iiif_url": "https://www.artic.edu/iiif/2",
+        "website_url": "http://www.artic.edu"
+      }
+    })
+}
+
+fn response_for_from_147_size_1() -> Value {
+    json!(
+            {
+      "preference": null,
+      "pagination": {
+        "total": 129574,
+        "limit": 1,
+        "offset": 147,
+        "total_pages": 129574,
+        "current_page": 148
+      },
+      "data": [
+        {
+          "_score": 43.392433,
+          "id": 23972,
+          "api_model": "artworks",
+          "api_link": "https://api.artic.edu/api/v1/artworks/23972",
+          "is_boosted": true,
+          "title": "Virgin and Child with the Young Saint John the Baptist",
+          "thumbnail": {
+            "lqip": "data:image/gif;base64,R0lGODlhBAAFAPQAACYPCko7HG8pEUMtIkU4IzxEGiBQNkZGGXBCM25hOGNfTn5ZU0RmWnNlU3t7XYdLP4hiS4J6YImtqq/HzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAEAAUAAAUR4BE4U9EkkrFATIQ8hDIIQAgAOw==",
+            "width": 3968,
+            "height": 5096,
+            "alt_text": "Vividly colored painting of Virgin Mary with baby Jesus and baby John the Baptist."
+          },
+          "timestamp": "2025-09-22T22:15:09-05:00"
+        }
+      ],
       "info": {
         "license_text": "The `description` field in this response is licensed under a Creative Commons Attribution 4.0 Generic License (CC-By) and the Terms and Conditions of artic.edu. All other data in this response is licensed under a Creative Commons Zero (CC0) 1.0 designation and the Terms and Conditions of artic.edu.",
         "license_links": [

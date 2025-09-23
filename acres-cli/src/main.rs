@@ -97,17 +97,20 @@ async fn main() -> Result<()> {
                 .arg(
                     Arg::new("sort")
                         .long("sort")
-                        .help("sort one or more fields"),
+                        .help("sort one or more fields")
+                        .value_parser(value_parser!(String)),
                 )
                 .arg(
                     Arg::new("from")
                         .long("from")
-                        .help("starting point of results"),
+                        .help("starting point of results")
+                        .value_parser(value_parser!(u32)),
                 )
                 .arg(
                     Arg::new("size")
                         .long("size")
-                        .help("number of results to return"),
+                        .help("number of results to return")
+                        .value_parser(value_parser!(u32)),
                 )
                 .arg(Arg::new("facets").long("facets").help(
                     "comman-separated list of 'count' aggregation facets to include in results",
@@ -209,6 +212,8 @@ async fn main() -> Result<()> {
                 .q(matches.get_one::<String>("q").cloned())
                 .query(matches.get_one::<String>("query").cloned())
                 .sort(matches.get_one::<String>("sort").cloned())
+                .from(matches.get_one::<u32>("from").cloned())
+                .size(matches.get_one::<u32>("size").cloned())
                 .build()
                 .await
             {

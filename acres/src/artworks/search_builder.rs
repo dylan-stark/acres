@@ -15,6 +15,8 @@ pub struct SearchBuilder {
     q: Option<String>,
     query: Option<String>,
     sort: Option<String>,
+    from: Option<u32>,
+    size: Option<u32>,
 }
 
 impl SearchBuilder {
@@ -71,6 +73,20 @@ impl SearchBuilder {
         self
     }
 
+    /// Sets the from parameter.
+    pub fn from(mut self, from: Option<u32>) -> Self {
+        tracing::info!(msg = "Setting from", ?from);
+        self.from = from;
+        self
+    }
+
+    /// Sets the size parameter.
+    pub fn size(mut self, size: Option<u32>) -> Self {
+        tracing::info!(msg = "Setting size", ?size);
+        self.size = size;
+        self
+    }
+
     /// Builds artworks search.
     pub async fn build(&self) -> Result<Search, AcresError> {
         tracing::info!(msg = "Searching artworks collection", ?self);
@@ -79,6 +95,8 @@ impl SearchBuilder {
             q: self.q.clone(),
             query: self.query.clone(),
             sort: self.sort.clone(),
+            from: self.from,
+            size: self.size,
         };
         query_params.valid()?;
         self.api.fetch::<Search>(endpoint, Some(query_params)).await
