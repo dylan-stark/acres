@@ -28,6 +28,9 @@ pub use api::Api;
 /// An Acres error.
 #[derive(Debug, thiserror::Error)]
 pub enum AcresError {
+    /// A search query parameter error
+    #[error("Search query parameters error: {0}")]
+    SearchQueryParamsError(String),
     /// An unexpected error.
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),

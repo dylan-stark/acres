@@ -80,6 +80,7 @@ impl SearchBuilder {
             query: self.query.clone(),
             sort: self.sort.clone(),
         };
+        query_params.valid()?;
         self.api.fetch::<Search>(endpoint, Some(query_params)).await
     }
 }

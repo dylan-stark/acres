@@ -159,12 +159,16 @@ impl Api {
         if !cache_file_path.is_file() {
             return Ok(None);
         }
-        let data =
-            std::fs::read(&cache_file_path).with_context(|| "failed to read cached file from")?;
+        let data = std::fs::read(&cache_file_path).with_context(|| {
+            format!(
+                "failed to read cached file from {}",
+                cache_file_path.display()
+            )
+        })?;
         tracing::info!(
             "Loaded '{}' from cache at '{}'",
             id,
-            cache_file_path.to_str().unwrap_or("???")
+            cache_file_path.display()
         );
         Ok(Some(data.into()))
     }
