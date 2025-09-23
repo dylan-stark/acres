@@ -10,6 +10,7 @@ pub(super) struct SearchQueryParams {
     pub(super) sort: Option<String>,
     pub(super) from: Option<u32>,
     pub(super) size: Option<u32>,
+    pub(super) facets: Option<Vec<String>>,
 }
 
 impl SearchQueryParams {
@@ -44,6 +45,9 @@ impl Serialize for SearchQueryParams {
         if let Some(size) = &self.size {
             seq.serialize_element(&("size", size))?
         }
+        if let Some(facets) = &self.facets {
+            seq.serialize_element(&("facets", facets.join(",")))?
+        }
         seq.end()
     }
 }
@@ -60,6 +64,7 @@ mod tests {
             sort: Some("field".to_string()),
             from: None,
             size: None,
+            facets: None,
         };
 
         let result = params.valid();

@@ -17,6 +17,7 @@ pub struct SearchBuilder {
     sort: Option<String>,
     from: Option<u32>,
     size: Option<u32>,
+    facets: Option<Vec<String>>,
 }
 
 impl SearchBuilder {
@@ -87,6 +88,13 @@ impl SearchBuilder {
         self
     }
 
+    /// Sets the facets parameter.
+    pub fn facets(mut self, facets: Option<Vec<String>>) -> Self {
+        tracing::info!(msg = "Setting facets", ?facets);
+        self.facets = facets;
+        self
+    }
+
     /// Builds artworks search.
     pub async fn build(&self) -> Result<Search, AcresError> {
         tracing::info!(msg = "Searching artworks collection", ?self);
@@ -97,6 +105,7 @@ impl SearchBuilder {
             sort: self.sort.clone(),
             from: self.from,
             size: self.size,
+            facets: self.facets.clone(),
         };
         query_params.valid()?;
         self.api.fetch::<Search>(endpoint, Some(query_params)).await

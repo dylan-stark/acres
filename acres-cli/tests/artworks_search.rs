@@ -162,6 +162,42 @@ async fn artworks_search_with_from_and_size() -> Result<(), Box<dyn std::error::
     Ok(())
 }
 
+#[tokio::test]
+async fn artworks_search_with_facets() -> Result<(), Box<dyn std::error::Error>> {
+    let facets = "facet1,facet2";
+    let body = json!({ "success": true });
+
+    let mock_server = wiremock::MockServer::start().await;
+    let mock_uri = format!("{}/api/v1", mock_server.uri());
+    wiremock::Mock::given(wiremock::matchers::any())
+        .and(wiremock::matchers::path(
+            "/api/v1/artworks/search".to_string(),
+        ))
+        .and(wiremock::matchers::query_param(
+            "facets",
+            facets.to_string(),
+        ))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(body))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    // When we run the CLI to get artworks list
+    let mut cmd = Command::cargo_bin("acres-cli")?;
+    cmd.env("ACRES_BASE_URI", mock_uri)
+        .env("ACRES_USE_CACHE", "false") // So it hits wiremock
+        .arg("artworks-search")
+        .args(["--facets", facets]);
+
+    // Then stdout has *only* the list
+    let stdout = String::from_utf8(cmd.output()?.stdout)?;
+    // And we're able to deserialize it so some valid JSON
+    let value: serde_json::Value = serde_json::from_str(&stdout)?;
+    assert_eq!(value["success"], true);
+
+    Ok(())
+}
+
 fn response_for_q_monet() -> Value {
     json!({
         "preference": null,

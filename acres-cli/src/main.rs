@@ -112,9 +112,13 @@ async fn main() -> Result<()> {
                         .help("number of results to return")
                         .value_parser(value_parser!(u32)),
                 )
-                .arg(Arg::new("facets").long("facets").help(
-                    "comman-separated list of 'count' aggregation facets to include in results",
-                )),
+                .arg(
+                    Arg::new("facets")
+                    .long("facets")
+                    .help( "comman-separated list of 'count' aggregation facets to include in results")
+                    .value_delimiter(',')
+                    .value_parser(value_parser!(String))
+                ),
         )
         .subcommand(
             Command::new("ascii-art")
@@ -214,6 +218,11 @@ async fn main() -> Result<()> {
                 .sort(matches.get_one::<String>("sort").cloned())
                 .from(matches.get_one::<u32>("from").cloned())
                 .size(matches.get_one::<u32>("size").cloned())
+                .facets(
+                    matches
+                        .get_many::<String>("facets")
+                        .map(|facets| facets.cloned().collect()),
+                )
                 .build()
                 .await
             {
