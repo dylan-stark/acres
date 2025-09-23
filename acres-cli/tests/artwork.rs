@@ -36,6 +36,64 @@ async fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
+#[tokio::test]
+async fn artwork_manifest_command_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
+    let id = 42;
+    let body = json!(
+    {
+        "@context": "http://iiif.io/api/presentation/2/context.json",
+        "@id": "https://api.artic.edu/api/v1/artworks/4/manifest.json",
+        "@type": "sc:Manifest",
+        "label": "Priest and Boy",
+        "description": [
+            {
+                "value": "",
+                "language": "en"
+            }
+        ],
+        "metadata": [
+            {
+                "label": "Artist / Maker",
+                "value": "Lawrence Carmichael Earle\nAmerican, 1845-1921"
+            },
+            {
+                "label": "Medium",
+                "value": "Watercolor over graphite on cream wove paper"
+            },
+        ]
+    });
+
+    let mock_server = wiremock::MockServer::start().await;
+    let mock_uri = format!("{}/api/v1", mock_server.uri());
+    wiremock::Mock::given(wiremock::matchers::any())
+        .and(wiremock::matchers::path(format!(
+            "/api/v1/artworks/{}/manifest",
+            id
+        )))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(body))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    // When we run the CLI to get artworks list
+    let mut cmd = Command::cargo_bin("acres-cli")?;
+    cmd.env("ACRES_BASE_URI", mock_uri)
+        .env("ACRES_USE_CACHE", "false") // So it hits wiremock
+        .arg("artwork")
+        .arg(id.to_string())
+        .arg("manifest");
+
+    // Then stdout has *only* that JSON
+    let output = cmd.output()?;
+    let stdout = String::from_utf8(output.stdout)?;
+    // And we're able to deserialize it so some valid JSON
+    let value: serde_json::Value =
+        serde_json::from_str(&stdout).context(format!("failed to parse stdout: '{}'", &stdout))?;
+    assert_eq!(value["@type"], "sc:Manifest");
+
+    Ok(())
+}
+
 //#[test]
 //fn artwork_as_ascii_outputs_ascii_art() -> Result<(), Box<dyn std::error::Error>> {
 //    // Given we have a custom cache location

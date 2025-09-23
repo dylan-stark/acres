@@ -1,6 +1,6 @@
 use crate::{AcresError, Api};
 
-use super::Artwork;
+use super::{Artwork, Manifest};
 
 /// An artwork builder.
 #[derive(Debug, Default)]
@@ -107,4 +107,29 @@ impl ArtworkBuilder {
     //            .into()),
     //    }
     //}
+}
+
+/// An artwork builder.
+#[derive(Debug, Default)]
+pub struct ManifestBuilder {
+    api: Api,
+    id: u32,
+}
+
+impl ManifestBuilder {
+    /// The artwork identifier.
+    pub fn id(mut self, id: Option<u32>) -> Self {
+        if let Some(id) = id {
+            self.id = id;
+        }
+        self
+    }
+
+    /// Build the actual artwork.
+    pub async fn build(&self) -> Result<Manifest, AcresError> {
+        tracing::info!(msg = "Getting artwork manifest", ?self);
+        let endpoint = format!("{}/artworks/{}/manifest", self.api.base_uri, self.id);
+        // TODO: Clean up optional query params handling. Passing usize here is a hack.
+        self.api.fetch::<Manifest>(endpoint, None::<usize>).await
+    }
 }

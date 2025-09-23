@@ -175,16 +175,29 @@ async fn main() -> Result<()> {
         .get_matches();
 
     match matches.subcommand() {
-        Some(("artwork", matches)) => {
-            match artworks::Artwork::builder()
-                .id(matches.get_one::<u32>("id").copied())
-                .build()
-                .await
-            {
-                Ok(artwork) => println!("{}", artwork),
-                Err(error) => return Err(error).wrap_err("We couldn't get that artwork ..."),
+        Some(("artwork", matches)) => match matches.subcommand() {
+            None => {
+                match artworks::Artwork::builder()
+                    .id(matches.get_one::<u32>("id").copied())
+                    .build()
+                    .await
+                {
+                    Ok(artwork) => println!("{}", artwork),
+                    Err(error) => return Err(error).wrap_err("We couldn't get that artwork ..."),
+                }
             }
-        }
+            Some(("manifest", _matches)) => {
+                match artworks::Manifest::builder()
+                    .id(matches.get_one::<u32>("id").copied())
+                    .build()
+                    .await
+                {
+                    Ok(manifest) => println!("{}", manifest),
+                    Err(error) => return Err(error).wrap_err("We couldn't get that manifest ..."),
+                }
+            }
+            _ => panic!("should not be able to reach this point"),
+        },
         Some(("artworks", matches)) => {
             match artworks::Collection::builder()
                 .ids(

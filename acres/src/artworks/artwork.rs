@@ -13,7 +13,7 @@ use std::path::PathBuf;
 
 use crate::{AcresError, common::FromBytes};
 
-use super::artwork_builder::ArtworkBuilder;
+use super::artwork_builder::{ArtworkBuilder, ManifestBuilder};
 
 /// Artwork from the AIC collection.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -226,5 +226,36 @@ mod ascii_art {
             );
             Ok(char_rows_to_terminal_color_string(&char_rows, &dyn_img))
         }
+    }
+}
+
+/// Artwork manifest from the AIC collection.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct Manifest(serde_json::Value);
+
+impl Display for Manifest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string(&self.0).map_err(|_| std::fmt::Error)?;
+        f.write_str(json.as_str())
+    }
+}
+
+impl FromBytes<Manifest> for Manifest {
+    fn from_bytes(data: Bytes) -> Result<Manifest, AcresError> {
+        let reader = data.reader();
+        let manifest = serde_json::from_reader(reader).unwrap();
+        Ok(manifest)
+    }
+}
+
+impl Manifest {
+    #[doc(hidden)]
+    pub fn new(response: serde_json::Value) -> Self {
+        Manifest(response)
+    }
+
+    /// Returns a new manifest builder.
+    pub fn builder() -> ManifestBuilder {
+        ManifestBuilder::default()
     }
 }
