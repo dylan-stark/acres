@@ -4,7 +4,7 @@
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
-use acres::artworks;
+use acres::{artworks, iiif};
 use clap::{Arg, Command, command, value_parser};
 use clap_stdin::FileOrStdin;
 use color_eyre::Result;
@@ -148,7 +148,8 @@ async fn main() -> Result<()> {
                 .arg(
                     Arg::new("region")
                         .long("region")
-                        .help("rectangular portion of the full image to be returned"),
+                        .help("rectangular portion of the full image to be returned")
+                        .value_parser(iiif::try_from_str_region),
                 )
                 .arg(
                     Arg::new("size")
@@ -244,10 +245,23 @@ async fn main() -> Result<()> {
             }
         }
         Some(("iiif", matches)) => {
-            let artwork = matches
-                .get_one::<FileOrStdin>("artwork")
-                .expect("clap ensures this is a string");
-            println!("{:?}", artwork.clone().contents())
+            match iiif::Iiif::builder()
+                .artwork(
+                    matches
+                        .get_one::<FileOrStdin>("artwork")
+                        .expect("clap ensures this is a string")
+                        .clone()
+                        .contents()
+                        .expect("file or stdin can be read")
+                        .to_string(),
+                )
+                .region(matches.get_one::<iiif::Region>("region").cloned())
+                .build()
+                .await
+            {
+                Ok(iiif) => println!("{:?}", iiif),
+                Err(error) => return Err(error).wrap_err("Oops, something went wrong ..."),
+            }
         }
         _ => unreachable!("clap should ensure we don't get here"),
     };

@@ -22,6 +22,7 @@ mod api;
 pub mod artworks;
 mod common;
 mod config;
+pub mod iiif;
 
 pub use api::Api;
 

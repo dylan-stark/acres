@@ -19,6 +19,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "url",
  "wiremock",
  "xxhash-rust",
 ]
