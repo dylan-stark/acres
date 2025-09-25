@@ -149,31 +149,31 @@ async fn main() -> Result<()> {
                     Arg::new("region")
                         .long("region")
                         .help("rectangular portion of the full image to be returned")
-                        .value_parser(iiif::parse_region),
+                        .value_parser(iiif::Region::parse),
                 )
                 .arg(
                     Arg::new("size")
                         .long("size")
                         .help("dimensions to which the extracted region is to be scaled")
-                        .value_parser(iiif::parse_size),
+                        .value_parser(iiif::Size::parse),
                 )
                 .arg(
                     Arg::new("rotation")
                         .long("rotation")
                         .help("mirroring and rotation")
-                        .value_parser(iiif::parse_rotation),
+                        .value_parser(iiif::Rotation::parse),
                 )
                 .arg(
                     Arg::new("quality")
                         .long("quality")
                         .help("whether image is delivered in color, grayscale, or black-and-white")
-                        .value_parser(iiif::parse_quality),
+                        .value_parser(iiif::Quality::parse),
                 )
                 .arg(
                     Arg::new("format")
                         .long("format")
                         .help("format of the returned image")
-                        .value_parser(iiif::parse_format),
+                        .value_parser(iiif::Format::parse),
                 )
                 .arg(Arg::new("to").long("to").help("type of output")),
         )
@@ -260,6 +260,10 @@ async fn main() -> Result<()> {
                         .to_string(),
                 )
                 .region(matches.get_one::<iiif::Region>("region").cloned())
+                .size(matches.get_one::<iiif::Size>("size").cloned())
+                .rotation(matches.get_one::<iiif::Rotation>("rotation").cloned())
+                .quality(matches.get_one::<iiif::Quality>("quality").cloned())
+                .format(matches.get_one::<iiif::Format>("format").cloned())
                 .build()
                 .await
             {

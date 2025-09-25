@@ -28,40 +28,42 @@ impl Display for Region {
     }
 }
 
-/// Region parser.
-pub fn parse_region(value: &str) -> Result<Region, String> {
-    if value == "full" {
-        return Ok(Region::Full);
-    }
-
-    let is_pct = value.starts_with("pct:");
-    let xywh = if is_pct {
-        value.replacen("pct:", "", 1)
-    } else {
-        value.to_string()
-    };
-
-    let parts = xywh.split(",");
-    if is_pct {
-        let parts: Vec<f32> = parts
-            .filter_map(|part| part.trim().parse::<f32>().ok())
-            .collect();
-        if parts.len() == 4 {
-            return Ok(Region::Percentage(parts[0], parts[1], parts[2], parts[3]));
+impl Region {
+    /// Region parser.
+    pub fn parse(value: &str) -> Result<Region, String> {
+        if value == "full" {
+            return Ok(Region::Full);
         }
-    } else {
-        let parts: Vec<u32> = parts
-            .filter_map(|part| part.trim().parse::<u32>().ok())
-            .collect();
-        if parts.len() == 4 {
-            return Ok(Region::Absolute(parts[0], parts[1], parts[2], parts[3]));
-        }
-    }
 
-    Err(format!(
-        "could not understand region specification: {}",
-        value
-    ))
+        let is_pct = value.starts_with("pct:");
+        let xywh = if is_pct {
+            value.replacen("pct:", "", 1)
+        } else {
+            value.to_string()
+        };
+
+        let parts = xywh.split(",");
+        if is_pct {
+            let parts: Vec<f32> = parts
+                .filter_map(|part| part.trim().parse::<f32>().ok())
+                .collect();
+            if parts.len() == 4 {
+                return Ok(Region::Percentage(parts[0], parts[1], parts[2], parts[3]));
+            }
+        } else {
+            let parts: Vec<u32> = parts
+                .filter_map(|part| part.trim().parse::<u32>().ok())
+                .collect();
+            if parts.len() == 4 {
+                return Ok(Region::Absolute(parts[0], parts[1], parts[2], parts[3]));
+            }
+        }
+
+        Err(format!(
+            "could not understand region specification: {}",
+            value
+        ))
+    }
 }
 
 /// Size to scale to.
@@ -100,48 +102,50 @@ impl Display for Size {
     }
 }
 
-/// Size parser.
-pub fn parse_size(value: &str) -> Result<Size, String> {
-    if value == "full" {
-        return Ok(Size::Full);
-    } else if value.starts_with("pct:") {
-        let n = value.replacen("pct:", "", 1).parse::<f32>().ok();
-        if let Some(n) = n {
-            return Ok(Size::Percentage(n));
+impl Size {
+    /// Size parser.
+    pub fn parse(value: &str) -> Result<Size, String> {
+        if value == "full" {
+            return Ok(Size::Full);
+        } else if value.starts_with("pct:") {
+            let n = value.replacen("pct:", "", 1).parse::<f32>().ok();
+            if let Some(n) = n {
+                return Ok(Size::Percentage(n));
+            }
+        } else if value.starts_with("!") {
+            let parts = value
+                .replacen("!", "", 1)
+                .split(",")
+                .filter_map(|part| part.trim().parse::<u32>().ok())
+                .collect::<Vec<u32>>();
+            if parts.len() == 2 {
+                return Ok(Size::BestFit(parts[0], parts[1]));
+            }
+        } else if value.starts_with(",") {
+            let height = value.replacen(",", "", 1).parse::<u32>().ok();
+            if let Some(height) = height {
+                return Ok(Size::Height(height));
+            }
+        } else if value.ends_with(",") {
+            let width = value.replacen(",", "", 1).parse::<u32>().ok();
+            if let Some(width) = width {
+                return Ok(Size::Width(width));
+            }
+        } else {
+            let parts = value
+                .split(",")
+                .filter_map(|part| part.trim().parse::<u32>().ok())
+                .collect::<Vec<u32>>();
+            if parts.len() == 2 {
+                return Ok(Size::Exactly(parts[0], parts[1]));
+            }
         }
-    } else if value.starts_with("!") {
-        let parts = value
-            .replacen("!", "", 1)
-            .split(",")
-            .filter_map(|part| part.trim().parse::<u32>().ok())
-            .collect::<Vec<u32>>();
-        if parts.len() == 2 {
-            return Ok(Size::BestFit(parts[0], parts[1]));
-        }
-    } else if value.starts_with(",") {
-        let height = value.replacen(",", "", 1).parse::<u32>().ok();
-        if let Some(height) = height {
-            return Ok(Size::Height(height));
-        }
-    } else if value.ends_with(",") {
-        let width = value.replacen(",", "", 1).parse::<u32>().ok();
-        if let Some(width) = width {
-            return Ok(Size::Width(width));
-        }
-    } else {
-        let parts = value
-            .split(",")
-            .filter_map(|part| part.trim().parse::<u32>().ok())
-            .collect::<Vec<u32>>();
-        if parts.len() == 2 {
-            return Ok(Size::Exactly(parts[0], parts[1]));
-        }
-    }
 
-    Err(format!(
-        "could not understand size specification: {}",
-        value
-    ))
+        Err(format!(
+            "could not understand size specification: {}",
+            value
+        ))
+    }
 }
 
 /// Amount to rotate by.
@@ -168,19 +172,21 @@ impl Display for Rotation {
     }
 }
 
-/// Rotation parser.
-pub fn parse_rotation(value: &str) -> Result<Rotation, String> {
-    if let Ok(degrees) = value.parse::<f32>() {
-        return Ok(Rotation::Degrees(degrees));
-    }
-    if let Ok(degrees) = value.replacen("!", "", 1).parse::<f32>() {
-        return Ok(Rotation::Mirrored(degrees));
-    }
+impl Rotation {
+    /// Rotation parser.
+    pub fn parse(value: &str) -> Result<Rotation, String> {
+        if let Ok(degrees) = value.parse::<f32>() {
+            return Ok(Rotation::Degrees(degrees));
+        }
+        if let Ok(degrees) = value.replacen("!", "", 1).parse::<f32>() {
+            return Ok(Rotation::Mirrored(degrees));
+        }
 
-    Err(format!(
-        "could not understand rotation specification: {}",
-        value
-    ))
+        Err(format!(
+            "could not understand rotation specification: {}",
+            value
+        ))
+    }
 }
 
 /// Image quality.
@@ -208,17 +214,19 @@ impl Display for Quality {
     }
 }
 
-/// Quality parser.
-pub fn parse_quality(value: &str) -> Result<Quality, String> {
-    match value {
-        _ if value == "color" => Ok(Quality::Color),
-        _ if value == "gray" => Ok(Quality::Gray),
-        _ if value == "bitonal" => Ok(Quality::Bitonal),
-        _ if value == "default" => Ok(Quality::Default),
-        _ => Err(format!(
-            "could not understand quality specification: {}",
-            value
-        )),
+impl Quality {
+    /// Quality parser.
+    pub fn parse(value: &str) -> Result<Quality, String> {
+        match value {
+            _ if value == "color" => Ok(Quality::Color),
+            _ if value == "gray" => Ok(Quality::Gray),
+            _ if value == "bitonal" => Ok(Quality::Bitonal),
+            _ if value == "default" => Ok(Quality::Default),
+            _ => Err(format!(
+                "could not understand quality specification: {}",
+                value
+            )),
+        }
     }
 }
 
@@ -256,20 +264,22 @@ impl Display for Format {
     }
 }
 
-/// Format parser.
-pub fn parse_format(value: &str) -> Result<Format, String> {
-    match value {
-        _ if value == "jpg" => Ok(Format::Jpg),
-        _ if value == "tif" => Ok(Format::Tif),
-        _ if value == "png" => Ok(Format::Png),
-        _ if value == "gif" => Ok(Format::Gif),
-        _ if value == "jp2" => Ok(Format::Jp2),
-        _ if value == "pdf" => Ok(Format::Pdf),
-        _ if value == "webp" => Ok(Format::WebP),
-        _ => Err(format!(
-            "could not understand format specification: {}",
-            value
-        )),
+impl Format {
+    /// Parse format from string.
+    pub fn parse(value: &str) -> Result<Format, String> {
+        match value {
+            _ if value == "jpg" => Ok(Format::Jpg),
+            _ if value == "tif" => Ok(Format::Tif),
+            _ if value == "png" => Ok(Format::Png),
+            _ if value == "gif" => Ok(Format::Gif),
+            _ if value == "jp2" => Ok(Format::Jp2),
+            _ if value == "pdf" => Ok(Format::Pdf),
+            _ if value == "webp" => Ok(Format::WebP),
+            _ => Err(format!(
+                "could not understand format specification: {}",
+                value
+            )),
+        }
     }
 }
 
@@ -299,135 +309,138 @@ mod tests {
 
     #[test]
     fn region_parsing() {
-        assert_eq!(parse_region("full").unwrap(), Region::Full);
+        assert_eq!(Region::parse("full").unwrap(), Region::Full);
         assert_eq!(
-            parse_region("ful").unwrap_err(),
+            Region::parse("ful").unwrap_err(),
             "could not understand region specification: ful"
         );
         assert_eq!(
-            parse_region("Full").unwrap_err(),
+            Region::parse("Full").unwrap_err(),
             "could not understand region specification: Full"
         );
 
         assert_eq!(
-            parse_region("1,2,3,4").unwrap(),
+            Region::parse("1,2,3,4").unwrap(),
             Region::Absolute(1, 2, 3, 4)
         );
         assert_eq!(
-            parse_region("1,2,4").unwrap_err(),
+            Region::parse("1,2,4").unwrap_err(),
             "could not understand region specification: 1,2,4"
         );
         assert_eq!(
-            parse_region("1,2,,4").unwrap_err(),
+            Region::parse("1,2,,4").unwrap_err(),
             "could not understand region specification: 1,2,,4"
         );
         assert_eq!(
-            parse_region("1,2,a,4").unwrap_err(),
+            Region::parse("1,2,a,4").unwrap_err(),
             "could not understand region specification: 1,2,a,4"
         );
         assert_eq!(
-            parse_region("1,2,3,4,5").unwrap_err(),
+            Region::parse("1,2,3,4,5").unwrap_err(),
             "could not understand region specification: 1,2,3,4,5"
         );
 
         assert_eq!(
-            parse_region("pct:1,2,3,4").unwrap(),
+            Region::parse("pct:1,2,3,4").unwrap(),
             Region::Percentage(1.0, 2.0, 3.0, 4.0)
         );
         assert_eq!(
-            parse_region("pct:1.2,2.37,3.4,4.513").unwrap(),
+            Region::parse("pct:1.2,2.37,3.4,4.513").unwrap(),
             Region::Percentage(1.2, 2.37, 3.4, 4.513)
         );
         assert_eq!(
-            parse_region("pct:1.2,3.4,4.513").unwrap_err(),
+            Region::parse("pct:1.2,3.4,4.513").unwrap_err(),
             "could not understand region specification: pct:1.2,3.4,4.513"
         );
     }
 
     #[test]
     fn size_parsing() {
-        assert_eq!(parse_size("full").unwrap(), Size::Full);
+        assert_eq!(Size::parse("full").unwrap(), Size::Full);
         assert_eq!(
-            parse_size("FULL").unwrap_err(),
+            Size::parse("FULL").unwrap_err(),
             "could not understand size specification: FULL"
         );
 
-        assert_eq!(parse_size("42,").unwrap(), Size::Width(42));
+        assert_eq!(Size::parse("42,").unwrap(), Size::Width(42));
         assert_eq!(
-            parse_size("42.0,").unwrap_err(),
+            Size::parse("42.0,").unwrap_err(),
             "could not understand size specification: 42.0,"
         );
 
-        assert_eq!(parse_size(",42").unwrap(), Size::Height(42));
+        assert_eq!(Size::parse(",42").unwrap(), Size::Height(42));
         assert_eq!(
-            parse_size(",42.0").unwrap_err(),
+            Size::parse(",42.0").unwrap_err(),
             "could not understand size specification: ,42.0"
         );
 
-        assert_eq!(parse_size("pct:42").unwrap(), Size::Percentage(42.));
-        assert_eq!(parse_size("pct:42.3").unwrap(), Size::Percentage(42.3));
+        assert_eq!(Size::parse("pct:42").unwrap(), Size::Percentage(42.));
+        assert_eq!(Size::parse("pct:42.3").unwrap(), Size::Percentage(42.3));
         assert_eq!(
-            parse_size("pct:").unwrap_err(),
+            Size::parse("pct:").unwrap_err(),
             "could not understand size specification: pct:"
         );
 
-        assert_eq!(parse_size("42,24").unwrap(), Size::Exactly(42, 24));
+        assert_eq!(Size::parse("42,24").unwrap(), Size::Exactly(42, 24));
         assert_eq!(
-            parse_size("42.0,24.0").unwrap_err(),
+            Size::parse("42.0,24.0").unwrap_err(),
             "could not understand size specification: 42.0,24.0"
         );
 
-        assert_eq!(parse_size("!42,24").unwrap(), Size::BestFit(42, 24));
+        assert_eq!(Size::parse("!42,24").unwrap(), Size::BestFit(42, 24));
         assert_eq!(
-            parse_size("!42.0,24.0").unwrap_err(),
+            Size::parse("!42.0,24.0").unwrap_err(),
             "could not understand size specification: !42.0,24.0"
         );
     }
 
     #[test]
     fn rotation_parsing() {
-        assert_eq!(parse_rotation("42").unwrap(), Rotation::Degrees(42.0));
-        assert_eq!(parse_rotation("42").unwrap().to_string(), "42");
-        assert_eq!(parse_rotation("42.24").unwrap(), Rotation::Degrees(42.24));
-        assert_eq!(parse_rotation("42.24").unwrap().to_string(), "42.24");
+        assert_eq!(Rotation::parse("42").unwrap(), Rotation::Degrees(42.0));
+        assert_eq!(Rotation::parse("42").unwrap().to_string(), "42");
+        assert_eq!(Rotation::parse("42.24").unwrap(), Rotation::Degrees(42.24));
+        assert_eq!(Rotation::parse("42.24").unwrap().to_string(), "42.24");
         assert_eq!(
-            parse_rotation("forty-two").unwrap_err(),
+            Rotation::parse("forty-two").unwrap_err(),
             "could not understand rotation specification: forty-two"
         );
 
-        assert_eq!(parse_rotation("!42").unwrap(), Rotation::Mirrored(42.0));
-        assert_eq!(parse_rotation("!42").unwrap().to_string(), "!42");
-        assert_eq!(parse_rotation("!42.24").unwrap(), Rotation::Mirrored(42.24));
-        assert_eq!(parse_rotation("!42.24").unwrap().to_string(), "!42.24");
+        assert_eq!(Rotation::parse("!42").unwrap(), Rotation::Mirrored(42.0));
+        assert_eq!(Rotation::parse("!42").unwrap().to_string(), "!42");
         assert_eq!(
-            parse_rotation("").unwrap_err(),
+            Rotation::parse("!42.24").unwrap(),
+            Rotation::Mirrored(42.24)
+        );
+        assert_eq!(Rotation::parse("!42.24").unwrap().to_string(), "!42.24");
+        assert_eq!(
+            Rotation::parse("").unwrap_err(),
             "could not understand rotation specification: "
         );
     }
 
     #[test]
     fn quality_parsing() {
-        assert_eq!(parse_quality("color").unwrap(), Quality::Color);
-        assert_eq!(parse_quality("gray").unwrap(), Quality::Gray);
-        assert_eq!(parse_quality("bitonal").unwrap(), Quality::Bitonal);
-        assert_eq!(parse_quality("default").unwrap(), Quality::Default);
+        assert_eq!(Quality::parse("color").unwrap(), Quality::Color);
+        assert_eq!(Quality::parse("gray").unwrap(), Quality::Gray);
+        assert_eq!(Quality::parse("bitonal").unwrap(), Quality::Bitonal);
+        assert_eq!(Quality::parse("default").unwrap(), Quality::Default);
         assert_eq!(
-            parse_quality("11").unwrap_err(),
+            Quality::parse("11").unwrap_err(),
             "could not understand quality specification: 11"
         );
     }
 
     #[test]
     fn format_parsing() {
-        assert_eq!(parse_format("jpg").unwrap(), Format::Jpg);
-        assert_eq!(parse_format("tif").unwrap(), Format::Tif);
-        assert_eq!(parse_format("png").unwrap(), Format::Png);
-        assert_eq!(parse_format("gif").unwrap(), Format::Gif);
-        assert_eq!(parse_format("jp2").unwrap(), Format::Jp2);
-        assert_eq!(parse_format("pdf").unwrap(), Format::Pdf);
-        assert_eq!(parse_format("webp").unwrap(), Format::WebP);
+        assert_eq!(Format::parse("jpg").unwrap(), Format::Jpg);
+        assert_eq!(Format::parse("tif").unwrap(), Format::Tif);
+        assert_eq!(Format::parse("png").unwrap(), Format::Png);
+        assert_eq!(Format::parse("gif").unwrap(), Format::Gif);
+        assert_eq!(Format::parse("jp2").unwrap(), Format::Jp2);
+        assert_eq!(Format::parse("pdf").unwrap(), Format::Pdf);
+        assert_eq!(Format::parse("webp").unwrap(), Format::WebP);
         assert_eq!(
-            parse_format("11").unwrap_err(),
+            Format::parse("11").unwrap_err(),
             "could not understand format specification: 11"
         );
     }
