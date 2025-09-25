@@ -1,6 +1,6 @@
 use crate::{
     AcresError,
-    iiif::{Iiif, Region},
+    iiif::{Format, Iiif, Quality, Region, Rotation, Size},
 };
 use anyhow::Context;
 use serde::Deserialize;
@@ -10,6 +10,10 @@ use serde::Deserialize;
 pub struct IiifBuilder {
     artwork: String,
     region: Option<Region>,
+    size: Option<Size>,
+    rotation: Option<Rotation>,
+    quality: Option<Quality>,
+    format: Option<Format>,
 }
 
 #[derive(Deserialize)]
@@ -41,6 +45,30 @@ impl IiifBuilder {
         self
     }
 
+    /// Size of the image to return.
+    pub fn size(mut self, size: Option<Size>) -> Self {
+        self.size = size;
+        self
+    }
+
+    /// Rotation of the image to return.
+    pub fn rotation(mut self, rotation: Option<Rotation>) -> Self {
+        self.rotation = rotation;
+        self
+    }
+
+    /// Quality of the image to return.
+    pub fn quality(mut self, quality: Option<Quality>) -> Self {
+        self.quality = quality;
+        self
+    }
+
+    /// Format of the image to return.
+    pub fn format(mut self, format: Option<Format>) -> Self {
+        self.format = format;
+        self
+    }
+
     /// Build the IIIF instance.
     pub async fn build(&self) -> Result<Iiif, AcresError> {
         tracing::info!(msg = "Building IIIF instance", ?self);
@@ -57,7 +85,14 @@ impl IiifBuilder {
         let identifier = artwork.data.image_id;
 
         let region = self.region.as_ref().unwrap_or(&Region::Full);
+        let size = self.size.as_ref().unwrap_or(&Size::Width(843));
+        let rotation = self.rotation.as_ref().unwrap_or(&Rotation::Degrees(0.0));
+        let quality = self.quality.as_ref().unwrap_or(&Quality::Default);
+        let format = self.format.as_ref().unwrap_or(&Format::Jpg);
 
-        Ok(Iiif(format!("{}://{}{}/{}/{}", scheme, server, prefix, identifier, region)))
+        Ok(Iiif(format!(
+            "{}://{}{}/{}/{}/{}/{}/{}.{}",
+            scheme, server, prefix, identifier, region, size, rotation, quality, format
+        )))
     }
 }

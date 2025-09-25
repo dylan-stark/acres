@@ -149,27 +149,31 @@ async fn main() -> Result<()> {
                     Arg::new("region")
                         .long("region")
                         .help("rectangular portion of the full image to be returned")
-                        .value_parser(iiif::try_from_str_region),
+                        .value_parser(iiif::parse_region),
                 )
                 .arg(
                     Arg::new("size")
                         .long("size")
-                        .help("dimensions to which the extracted region is to be scaled"),
+                        .help("dimensions to which the extracted region is to be scaled")
+                        .value_parser(iiif::parse_size),
                 )
                 .arg(
                     Arg::new("rotation")
                         .long("rotation")
-                        .help("mirroring and rotation"),
+                        .help("mirroring and rotation")
+                        .value_parser(iiif::parse_rotation),
                 )
                 .arg(
                     Arg::new("quality")
                         .long("quality")
-                        .help("whether image is delivered in color, grayscale, or black-and-white"),
+                        .help("whether image is delivered in color, grayscale, or black-and-white")
+                        .value_parser(iiif::parse_quality),
                 )
                 .arg(
                     Arg::new("format")
                         .long("format")
-                        .help("format of the returned image"),
+                        .help("format of the returned image")
+                        .value_parser(iiif::parse_format),
                 )
                 .arg(Arg::new("to").long("to").help("type of output")),
         )
