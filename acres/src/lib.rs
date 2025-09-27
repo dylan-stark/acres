@@ -22,13 +22,18 @@ mod api;
 pub mod artworks;
 mod common;
 mod config;
-pub mod iiif;
 
 pub use api::Api;
 
 /// An Acres error.
 #[derive(Debug, thiserror::Error)]
 pub enum AcresError {
+    /// An artwork-related error
+    #[error("Artwork-related error: {0}")]
+    ArtworkError(String),
+    /// An IIIF-related error
+    #[error("IIIF-related error: {0}")]
+    IiifError(String),
     /// A search query parameter error
     #[error("Search query parameters error: {0}")]
     SearchQueryParamsError(String),

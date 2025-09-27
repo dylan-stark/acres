@@ -4,23 +4,14 @@
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
-use acres::{artworks, iiif};
+use acres::{AcresError, artworks};
 use clap::{Arg, Command, command, value_parser};
 use clap_stdin::FileOrStdin;
 use color_eyre::Result;
-use eyre::Context;
+use eyre::{Context, ContextCompat};
 
 #[doc(hidden)]
 mod logging;
-
-#[doc(hidden)]
-#[derive(clap::ValueEnum, Clone)]
-enum AsOption {
-    Iiif,
-    Jpeg,
-    Json,
-    Ascii,
-}
 
 #[doc(hidden)]
 #[tokio::main]
@@ -249,16 +240,34 @@ async fn main() -> Result<()> {
             }
         }
         Some(("iiif", matches)) => {
-            match iiif::Iiif::builder()
-                .artwork(
-                    matches
-                        .get_one::<FileOrStdin>("artwork")
-                        .expect("clap ensures this is a string")
-                        .clone()
-                        .contents()
-                        .expect("file or stdin can be read")
-                        .to_string(),
+            let artwork = artworks::ArtworkInfo::load(
+                matches
+                    .get_one::<FileOrStdin>("artwork")
+                    .expect("clap ensures this is a string")
+                    .clone()
+                    .into_reader()?,
+            )
+            .ok_or(AcresError::ArtworkError(
+                "not able to read that artwork info".to_string(),
+            ))?;
+            let base_uri = iiif::BaseUri::builder()
+                .scheme(
+                    iiif::Scheme::parse(artwork.config.iiif_url.scheme())
+                        .map_err(AcresError::IiifError)?,
                 )
+                .server(
+                    artwork
+                        .config
+                        .iiif_url
+                        .host_str()
+                        .context("failed to parse host from URL")?,
+                )
+                .prefix(artwork.config.iiif_url.path())
+                .identifier(&artwork.data.image_id)
+                .build()
+                .map_err(|error| AcresError::IiifError(error.to_string()))?;
+            match iiif::ImageRequest::builder()
+                .base_uri(base_uri)
                 .region(matches.get_one::<iiif::Region>("region").cloned())
                 .size(matches.get_one::<iiif::Size>("size").cloned())
                 .rotation(matches.get_one::<iiif::Rotation>("rotation").cloned())

@@ -1,14 +1,13 @@
 use crate::{
-    AcresError,
-    iiif::{Format, Iiif, Quality, Region, Rotation, Size},
+    BaseUri,
+    errors::IiifError,
+    image_request::{Format, ImageRequest, Quality, Region, Rotation, Size},
 };
-use anyhow::Context;
-use serde::Deserialize;
 
 /// An IIIF builder.
 #[derive(Debug, Default)]
-pub struct IiifBuilder {
-    artwork: String,
+pub struct ImageRequestBuilder {
+    base_uri: BaseUri,
     region: Option<Region>,
     size: Option<Size>,
     rotation: Option<Rotation>,
@@ -16,26 +15,10 @@ pub struct IiifBuilder {
     format: Option<Format>,
 }
 
-#[derive(Deserialize)]
-struct ArtworkConfig {
-    iiif_url: url::Url,
-}
-
-#[derive(Deserialize)]
-struct ArtworkData {
-    image_id: String,
-}
-
-#[derive(Deserialize)]
-struct Artwork {
-    config: ArtworkConfig,
-    data: ArtworkData,
-}
-
-impl IiifBuilder {
+impl ImageRequestBuilder {
     /// Artwork details.
-    pub fn artwork(mut self, artwork: String) -> Self {
-        self.artwork = artwork;
+    pub fn base_uri(mut self, base_uri: BaseUri) -> Self {
+        self.base_uri = base_uri;
         self
     }
 
@@ -70,29 +53,23 @@ impl IiifBuilder {
     }
 
     /// Build the IIIF instance.
-    pub async fn build(&self) -> Result<Iiif, AcresError> {
+    pub async fn build(&self) -> Result<ImageRequest, IiifError> {
         tracing::info!(msg = "Building IIIF instance", ?self);
 
-        let artwork: Artwork =
-            serde_json::from_str(self.artwork.as_str()).context("failed to serialize JSON")?;
-        let scheme = artwork.config.iiif_url.scheme();
-        let server = artwork
-            .config
-            .iiif_url
-            .host_str()
-            .context("failed to parse host from URL")?;
-        let prefix = artwork.config.iiif_url.path();
-        let identifier = artwork.data.image_id;
-
+        let base_uri = &self.base_uri;
         let region = self.region.as_ref().unwrap_or(&Region::Full);
         let size = self.size.as_ref().unwrap_or(&Size::Width(843));
         let rotation = self.rotation.as_ref().unwrap_or(&Rotation::Degrees(0.0));
         let quality = self.quality.as_ref().unwrap_or(&Quality::Default);
         let format = self.format.as_ref().unwrap_or(&Format::Jpg);
 
-        Ok(Iiif(format!(
-            "{}://{}{}/{}/{}/{}/{}/{}.{}",
-            scheme, server, prefix, identifier, region, size, rotation, quality, format
-        )))
+        Ok(ImageRequest::new(
+            base_uri.clone(),
+            region.clone(),
+            size.clone(),
+            rotation.clone(),
+            quality.clone(),
+            format.clone(),
+        ))
     }
 }

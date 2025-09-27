@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use anyhow::Context;
+use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
 use serde::Deserialize;
 use tracing::debug;
@@ -23,6 +23,13 @@ impl Display for Artwork {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let json = serde_json::to_string(&self.0).map_err(|_| std::fmt::Error)?;
         f.write_str(json.as_str())
+    }
+}
+
+impl Artwork {
+    /// Load from reader.
+    pub fn load<R: std::io::Read>(reader: R) -> Option<Self> {
+        serde_json::from_reader(reader).ok()
     }
 }
 
@@ -226,6 +233,36 @@ mod ascii_art {
             );
             Ok(char_rows_to_terminal_color_string(&char_rows, &dyn_img))
         }
+    }
+}
+
+/// Artwork config.
+#[derive(Debug, Deserialize)]
+pub struct ArtworkInfoConfig {
+    /// IIIF URL.
+    pub iiif_url: url::Url,
+}
+
+/// Artwork data.
+#[derive(Debug, Deserialize)]
+pub struct ArtworkInfoData {
+    /// Image ID.
+    pub image_id: String,
+}
+
+/// Artwork.
+#[derive(Debug, Deserialize)]
+pub struct ArtworkInfo {
+    /// Config.
+    pub config: ArtworkInfoConfig,
+    /// Data.
+    pub data: ArtworkInfoData,
+}
+
+impl ArtworkInfo {
+    /// Load from reader.
+    pub fn load<R: std::io::Read>(reader: R) -> Option<Self> {
+        serde_json::from_reader(reader).ok()
     }
 }
 

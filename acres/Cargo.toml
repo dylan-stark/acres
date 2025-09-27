@@ -8,6 +8,7 @@ anyhow = "1.0.98"
 bytes = "1.10.1"
 config = "0.15.11"
 directories = "6.0.0"
+iiif = { path = "../iiif" }
 image = { version = "0.24.9", optional = true }
 image-to-ascii = { version = "0.7.0", optional = true }
 reqwest = { version = "0.12.15", features = ["json"] }

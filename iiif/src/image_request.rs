@@ -1,10 +1,57 @@
 //! IIIF.
 
-mod iiif_builder;
-
 use std::fmt::Display;
 
-pub use self::iiif_builder::IiifBuilder;
+use crate::{base_uri::BaseUri, image_request_builder::ImageRequestBuilder};
+
+/// An IIIF instance.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ImageRequest {
+    base_uri: BaseUri,
+    region: Region,
+    size: Size,
+    rotation: Rotation,
+    quality: Quality,
+    format: Format,
+}
+
+impl ImageRequest {
+    /// Create a new image request.
+    pub fn new(
+        base_uri: BaseUri,
+        region: Region,
+        size: Size,
+        rotation: Rotation,
+        quality: Quality,
+        format: Format,
+    ) -> Self {
+        ImageRequest {
+            base_uri,
+            region,
+            size,
+            rotation,
+            quality,
+            format,
+        }
+    }
+}
+
+impl Display for ImageRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}/{}/{}/{}/{}.{}",
+            self.base_uri, self.region, self.size, self.rotation, self.quality, self.format
+        )
+    }
+}
+
+impl ImageRequest {
+    /// Returns a new builder.
+    pub fn builder() -> ImageRequestBuilder {
+        ImageRequestBuilder::default()
+    }
+}
 
 /// Region of an image.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -280,17 +327,6 @@ impl Format {
                 value
             )),
         }
-    }
-}
-
-/// An IIIF instance.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Iiif(pub String);
-
-impl Iiif {
-    /// Returns a new builder.
-    pub fn builder() -> IiifBuilder {
-        IiifBuilder::default()
     }
 }
 
