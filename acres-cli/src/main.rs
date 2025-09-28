@@ -187,6 +187,17 @@ async fn main() -> Result<(), Report> {
                         .value_parser(iiif::Format::parse),
                 )
                 .arg(Arg::new("to").long("to").help("type of output").default_value("url").value_parser(value_parser!(IiifTo)))
+        )
+        .subcommand(
+            Command::new("iiif-info")
+                .about("Get associated IIIF image information")
+                .arg(
+                    Arg::new("artwork")
+                        .required(true)
+                        .help("artwork JSON file or '-' to read JSON from stdin")
+                        .value_parser(value_parser!(FileOrStdin)),
+                )
+                .arg(Arg::new("to").long("to").help("type of output").default_value("url").value_parser(value_parser!(IiifTo)))
                 .subcommand(Command::new("info").about("Retrieve image information.")),
         )
         .get_matches();
@@ -282,61 +293,82 @@ async fn main() -> Result<(), Report> {
                 .identifier(&artwork.data.image_id)
                 .build()
                 .map_err(|error| AcresError::IiifError(error.to_string()))?;
-            match matches.subcommand() {
-                None => {
-                    match iiif::ImageRequest::builder()
-                        .base_uri(base_uri)
-                        .region(matches.get_one::<iiif::Region>("region").cloned())
-                        .size(matches.get_one::<iiif::Size>("size").cloned())
-                        .rotation(matches.get_one::<iiif::Rotation>("rotation").cloned())
-                        .quality(matches.get_one::<iiif::Quality>("quality").cloned())
-                        .format(matches.get_one::<iiif::Format>("format").cloned())
-                        .build()
-                        .await
-                    {
-                        Ok(iiif) => match matches.get_one::<IiifTo>("to") {
-                            Some(IiifTo::Url) => println!("{}", iiif),
-                            Some(IiifTo::Bytes) => {
-                                let bytes = reqwest::get(iiif.to_string())
-                                    .await
-                                    .wrap_err("Oh, no! Couldn't process that image request.")?
-                                    .error_for_status()
-                                    .wrap_err("Oh, no! Error status code returned.")
-                                    .suggestion(
-                                        "Make sure provided settings are supported \
+            match iiif::ImageRequest::builder()
+                .base_uri(base_uri)
+                .region(matches.get_one::<iiif::Region>("region").cloned())
+                .size(matches.get_one::<iiif::Size>("size").cloned())
+                .rotation(matches.get_one::<iiif::Rotation>("rotation").cloned())
+                .quality(matches.get_one::<iiif::Quality>("quality").cloned())
+                .format(matches.get_one::<iiif::Format>("format").cloned())
+                .build()
+                .await
+            {
+                Ok(iiif) => match matches.get_one::<IiifTo>("to") {
+                    Some(IiifTo::Url) => println!("{}", iiif),
+                    Some(IiifTo::Bytes) => {
+                        let bytes = reqwest::get(iiif.to_string())
+                            .await
+                            .wrap_err("Oh, no! Couldn't process that image request.")?
+                            .error_for_status()
+                            .wrap_err("Oh, no! Error status code returned.")
+                            .suggestion(
+                                "Make sure provided settings are supported \
                                 for this image. Try rerunning with `acres iiif [...] \
                                 info` to find out what's supported.",
-                                    )?
-                                    .bytes()
-                                    .await
-                                    .wrap_err("Oh, no! Couldn't get them image bytes.")?;
-                                let mut stdout = io::stdout();
-                                stdout
-                                    .write_all(&bytes)
-                                    .context("failed to write image bytes")?;
-                            }
-                            None => unreachable!("default value means we shouldn't get here"),
-                        },
-                        Err(error) => return Err(error).wrap_err("Oops, something went wrong ..."),
+                            )?
+                            .bytes()
+                            .await
+                            .wrap_err("Oh, no! Couldn't get them image bytes.")?;
+                        let mut stdout = io::stdout();
+                        stdout
+                            .write_all(&bytes)
+                            .context("failed to write image bytes")?;
                     }
-                }
-                Some(("info", _)) => {
-                    let iiif = iiif::InformationRequest::new(base_uri);
-                    let json = reqwest::get(iiif.to_string())
-                        .await
-                        .wrap_err("Oh, no! Couldn't process that image request.")?
-                        .error_for_status()
-                        .wrap_err("Oh, no! Error status code returned.")?
-                        .bytes()
-                        .await
-                        .wrap_err("Oh, no! Couldn't get response data.")?;
-                    let mut stdout = io::stdout();
-                    stdout
-                        .write_all(&json)
-                        .context("failed to write json bytes")?;
-                }
-                _ => unreachable!("should not be able to reach this point"),
+                    None => unreachable!("default value means we shouldn't get here"),
+                },
+                Err(error) => return Err(error).wrap_err("Oops, something went wrong ..."),
             }
+        }
+        Some(("iiif-info", matches)) => {
+            let artwork = artworks::ArtworkInfo::load(
+                matches
+                    .get_one::<FileOrStdin>("artwork")
+                    .expect("clap ensures this is a string")
+                    .clone()
+                    .into_reader()?,
+            )
+            .ok_or(AcresError::ArtworkError(
+                "not able to read that artwork info".to_string(),
+            ))?;
+            let base_uri = iiif::BaseUri::builder()
+                .scheme(
+                    iiif::Scheme::parse(artwork.config.iiif_url.scheme())
+                        .map_err(AcresError::IiifError)?,
+                )
+                .server(
+                    artwork
+                        .config
+                        .iiif_url
+                        .host_str()
+                        .context("failed to parse host from URL")?,
+                )
+                .prefix(artwork.config.iiif_url.path())
+                .identifier(&artwork.data.image_id)
+                .build()
+                .map_err(|error| AcresError::IiifError(error.to_string()))?;
+            let iiif = iiif::InformationRequest::new(base_uri);
+            let json = reqwest::get(iiif.to_string())
+                .await
+                .wrap_err("Oh, no! Couldn't process that image request.")?
+                .error_for_status()
+                .wrap_err("Oh, no! Error status code returned.")?
+                .bytes()
+                .await
+                .wrap_err("Oh, no! Couldn't get response data.")?;
+            let mut stdout = io::stdout();
+            stdout
+                .write_all(&json)
+                .context("failed to write json bytes")?;
         }
         _ => unreachable!("clap should ensure we don't get here"),
     };
