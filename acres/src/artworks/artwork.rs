@@ -261,6 +261,29 @@ pub struct ArtworkInfo {
     pub data: ArtworkInfoData,
 }
 
+impl TryFrom<ArtworkInfo> for iiif::BaseUri {
+    type Error = AcresError;
+
+    fn try_from(artwork: ArtworkInfo) -> std::result::Result<Self, Self::Error> {
+        iiif::BaseUri::builder()
+            .scheme(
+                iiif::Scheme::parse(artwork.config.iiif_url.scheme())
+                    .map_err(AcresError::IiifError)?,
+            )
+            .server(
+                artwork
+                    .config
+                    .iiif_url
+                    .host_str()
+                    .context("failed to parse host from URL")?,
+            )
+            .prefix(artwork.config.iiif_url.path())
+            .identifier(&artwork.data.image_id)
+            .build()
+            .map_err(|error| AcresError::IiifError(error.to_string()))
+    }
+}
+
 impl ArtworkInfo {
     /// Load from reader.
     pub fn load<R: std::io::Read>(reader: R) -> Option<Self> {

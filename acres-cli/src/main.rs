@@ -13,7 +13,6 @@ use color_eyre::{
     Result, Section,
     eyre::{Report, WrapErr},
 };
-use eyre::ContextCompat;
 
 #[doc(hidden)]
 mod logging;
@@ -277,22 +276,7 @@ async fn main() -> Result<(), Report> {
             .ok_or(AcresError::ArtworkError(
                 "not able to read that artwork info".to_string(),
             ))?;
-            let base_uri = iiif::BaseUri::builder()
-                .scheme(
-                    iiif::Scheme::parse(artwork.config.iiif_url.scheme())
-                        .map_err(AcresError::IiifError)?,
-                )
-                .server(
-                    artwork
-                        .config
-                        .iiif_url
-                        .host_str()
-                        .context("failed to parse host from URL")?,
-                )
-                .prefix(artwork.config.iiif_url.path())
-                .identifier(&artwork.data.image_id)
-                .build()
-                .map_err(|error| AcresError::IiifError(error.to_string()))?;
+            let base_uri: iiif::BaseUri = artwork.try_into()?;
             match iiif::ImageRequest::builder()
                 .base_uri(base_uri)
                 .region(matches.get_one::<iiif::Region>("region").cloned())
@@ -340,22 +324,7 @@ async fn main() -> Result<(), Report> {
             .ok_or(AcresError::ArtworkError(
                 "not able to read that artwork info".to_string(),
             ))?;
-            let base_uri = iiif::BaseUri::builder()
-                .scheme(
-                    iiif::Scheme::parse(artwork.config.iiif_url.scheme())
-                        .map_err(AcresError::IiifError)?,
-                )
-                .server(
-                    artwork
-                        .config
-                        .iiif_url
-                        .host_str()
-                        .context("failed to parse host from URL")?,
-                )
-                .prefix(artwork.config.iiif_url.path())
-                .identifier(&artwork.data.image_id)
-                .build()
-                .map_err(|error| AcresError::IiifError(error.to_string()))?;
+            let base_uri: iiif::BaseUri = artwork.try_into()?;
             let iiif = iiif::InformationRequest::new(base_uri);
             let json = reqwest::get(iiif.to_string())
                 .await
