@@ -246,6 +246,8 @@ pub struct ArtworkInfoConfig {
 /// Artwork data.
 #[derive(Debug, Deserialize)]
 pub struct ArtworkInfoData {
+    /// ID.
+    pub id: u32,
     /// Image ID.
     pub image_id: String,
 }

@@ -4,18 +4,32 @@
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
+use std::io::{self, Write};
+
 use acres::{AcresError, artworks};
 use clap::{Arg, Command, command, value_parser};
 use clap_stdin::FileOrStdin;
-use color_eyre::Result;
-use eyre::{Context, ContextCompat};
+use color_eyre::{
+    Result, Section,
+    eyre::{Report, WrapErr},
+};
+use eyre::ContextCompat;
 
 #[doc(hidden)]
 mod logging;
 
+#[derive(clap::ValueEnum, Clone, Default)]
+enum IiifTo {
+    #[default]
+    #[value(name = "url")]
+    Url,
+    #[value(name = "bytes")]
+    Bytes,
+}
+
 #[doc(hidden)]
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Report> {
     crate::logging::init()?;
     color_eyre::install()?;
 
@@ -166,7 +180,7 @@ async fn main() -> Result<()> {
                         .help("format of the returned image")
                         .value_parser(iiif::Format::parse),
                 )
-                .arg(Arg::new("to").long("to").help("type of output")),
+                .arg(Arg::new("to").long("to").help("type of output").default_value("url").value_parser(value_parser!(IiifTo))),
         )
         .get_matches();
 
@@ -276,7 +290,27 @@ async fn main() -> Result<()> {
                 .build()
                 .await
             {
-                Ok(iiif) => println!("{:?}", iiif),
+                Ok(iiif) => match matches.get_one::<IiifTo>("to") {
+                    Some(IiifTo::Url) => println!("{}", iiif),
+                    Some(IiifTo::Bytes) => {
+                        let bytes = reqwest::get(iiif.to_string())
+                            .await
+                            .wrap_err("Oh, no! Couldn't process that image request.")?
+                            .error_for_status()
+                            .wrap_err("Oh, no! Error status code returned.")
+                            .suggestion("Make sure provided settings are supported \
+                                for this image. Try rerunning with `acres iiif [...] \
+                                info` to find out what's supported.")?
+                            .bytes()
+                            .await
+                            .wrap_err("Oh, no! Couldn't get them image bytes.")?;
+                        let mut stdout = io::stdout();
+                        stdout
+                            .write_all(&bytes)
+                            .context("failed to write image bytes")?;
+                    }
+                    None => unreachable!("default value means we shouldn't get here"),
+                },
                 Err(error) => return Err(error).wrap_err("Oops, something went wrong ..."),
             }
         }
