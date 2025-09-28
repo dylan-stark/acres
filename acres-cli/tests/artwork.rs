@@ -79,9 +79,8 @@ async fn artwork_manifest_command_outputs_json() -> Result<(), Box<dyn std::erro
     let mut cmd = Command::cargo_bin("acres-cli")?;
     cmd.env("ACRES_BASE_URI", mock_uri)
         .env("ACRES_USE_CACHE", "false") // So it hits wiremock
-        .arg("artwork")
-        .arg(id.to_string())
-        .arg("manifest");
+        .arg("artwork-manifest")
+        .arg(id.to_string());
 
     // Then stdout has *only* that JSON
     let output = cmd.output()?;

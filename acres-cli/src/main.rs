@@ -45,8 +45,14 @@ async fn main() -> Result<(), Report> {
                         .required(true)
                         .value_parser(value_parser!(u32)),
                 )
-                .subcommand(
-                    Command::new("manifest").about("Retrieve the manifest for this artwork"),
+        )
+        .subcommand(
+            Command::new("artwork-manifest").about("Retrieve the manifest for this artwork")
+                .arg(
+                    Arg::new("id")
+                        .help("the id of the artwork")
+                        .required(true)
+                        .value_parser(value_parser!(u32)),
                 ),
         )
         .subcommand(
@@ -186,29 +192,24 @@ async fn main() -> Result<(), Report> {
         .get_matches();
 
     match matches.subcommand() {
-        Some(("artwork", matches)) => match matches.subcommand() {
-            None => {
-                match artworks::Artwork::builder()
-                    .id(matches.get_one::<u32>("id").copied())
-                    .build()
-                    .await
-                {
-                    Ok(artwork) => println!("{}", artwork),
-                    Err(error) => return Err(error).wrap_err("We couldn't get that artwork ..."),
-                }
-            }
-            Some(("manifest", _)) => {
-                match artworks::Manifest::builder()
-                    .id(matches.get_one::<u32>("id").copied())
-                    .build()
-                    .await
-                {
-                    Ok(manifest) => println!("{}", manifest),
-                    Err(error) => return Err(error).wrap_err("We couldn't get that manifest ..."),
-                }
-            }
-            _ => unreachable!("should not be able to reach this point"),
+        Some(("artwork", matches)) => match artworks::Artwork::builder()
+            .id(matches.get_one::<u32>("id").copied())
+            .build()
+            .await
+        {
+            Ok(artwork) => println!("{}", artwork),
+            Err(error) => return Err(error).wrap_err("We couldn't get that artwork ..."),
         },
+        Some(("artwork-manifest", matches)) => {
+            match artworks::Manifest::builder()
+                .id(matches.get_one::<u32>("id").copied())
+                .build()
+                .await
+            {
+                Ok(manifest) => println!("{}", manifest),
+                Err(error) => return Err(error).wrap_err("We couldn't get that manifest ..."),
+            }
+        }
         Some(("artworks", matches)) => {
             match artworks::Collection::builder()
                 .ids(
