@@ -32,6 +32,7 @@ dependencies = [
  "acres",
  "assert_cmd",
  "assert_fs",
+ "bytes",
  "clap 4.5.48",
  "clap-stdin",
  "color-eyre",
@@ -319,6 +320,9 @@ name = "bytes"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "cc"
@@ -1431,6 +1435,7 @@ name = "iiif"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytes",
  "serde",
  "serde_json",
  "thiserror",

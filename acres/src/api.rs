@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{AcresError, common::FromBytes, config::Config};
+use crate::{AcresError, config::Config};
 use anyhow::{Context, anyhow};
 use bytes::Bytes;
 use reqwest::StatusCode;
@@ -94,7 +94,7 @@ impl Api {
         query_params: Option<impl Serialize + Debug>,
     ) -> Result<T, AcresError>
     where
-        T: FromBytes<T>,
+        T: From<Bytes>,
     {
         let cached: Option<Bytes> = self.from_cache(&endpoint, &query_params)?;
         let results: Result<Bytes, AcresError> = match cached {
@@ -102,7 +102,7 @@ impl Api {
             None => Ok(fetch(&endpoint, &query_params).await?),
         };
         let results = self.to_cache(&endpoint, query_params, results.unwrap())?;
-        T::from_bytes(results)
+        Ok(T::from(results))
     }
 
     /// Stores an item in cache.
@@ -248,7 +248,8 @@ impl Default for ApiBuilder {
     }
 }
 
-async fn fetch(
+/// Fetch.
+pub async fn fetch(
     endpoint: &String,
     query_params: &Option<impl Serialize>,
 ) -> Result<Bytes, AcresError> {

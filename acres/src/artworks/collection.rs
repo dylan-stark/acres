@@ -5,8 +5,6 @@ use std::fmt::Display;
 use bytes::{Buf, Bytes};
 use serde::{Deserialize, Serialize};
 
-use crate::{AcresError, common::FromBytes};
-
 use super::collection_builder::CollectionBuilder;
 
 /// A collection of artworks.
@@ -24,11 +22,10 @@ impl Display for Collection {
     }
 }
 
-impl FromBytes<Collection> for Collection {
-    fn from_bytes(data: Bytes) -> Result<Collection, AcresError> {
-        let reader = data.reader();
-        let collection = serde_json::from_reader(reader).unwrap();
-        Ok(collection)
+impl From<Bytes> for Collection {
+    fn from(value: Bytes) -> Self {
+        let reader = value.reader();
+        serde_json::from_reader(reader).unwrap()
     }
 }
 

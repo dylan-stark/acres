@@ -6,7 +6,7 @@ use anyhow::Context;
 use bytes::{Buf, Bytes};
 use serde::{Deserialize, Serialize};
 
-use crate::{AcresError, common::FromBytes};
+use crate::AcresError;
 
 use super::search_builder::SearchBuilder;
 
@@ -21,11 +21,10 @@ impl Display for Search {
     }
 }
 
-impl FromBytes<Search> for Search {
-    fn from_bytes(data: Bytes) -> Result<Search, AcresError> {
-        let reader = data.reader();
-        let search = serde_json::from_reader(reader).unwrap();
-        Ok(search)
+impl From<Bytes> for Search {
+    fn from(value: Bytes) -> Self {
+        let reader = value.reader();
+        serde_json::from_reader(reader).unwrap()
     }
 }
 

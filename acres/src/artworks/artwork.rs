@@ -11,7 +11,7 @@ use bytes::Bytes;
 #[cfg(feature = "image")]
 use std::path::PathBuf;
 
-use crate::{AcresError, common::FromBytes};
+use crate::AcresError;
 
 use super::artwork_builder::{ArtworkBuilder, ManifestBuilder};
 
@@ -33,11 +33,10 @@ impl Artwork {
     }
 }
 
-impl FromBytes<Artwork> for Artwork {
-    fn from_bytes(data: Bytes) -> Result<Artwork, AcresError> {
-        let reader = data.reader();
-        let artwork = serde_json::from_reader(reader).unwrap();
-        Ok(artwork)
+impl From<Bytes> for Artwork {
+    fn from(value: Bytes) -> Self {
+        let reader = value.reader();
+        serde_json::from_reader(reader).unwrap()
     }
 }
 
@@ -302,11 +301,10 @@ impl Display for Manifest {
     }
 }
 
-impl FromBytes<Manifest> for Manifest {
-    fn from_bytes(data: Bytes) -> Result<Manifest, AcresError> {
-        let reader = data.reader();
-        let manifest = serde_json::from_reader(reader).unwrap();
-        Ok(manifest)
+impl From<Bytes> for Manifest {
+    fn from(value: Bytes) -> Self {
+        let reader = value.reader();
+        serde_json::from_reader(reader).unwrap()
     }
 }
 

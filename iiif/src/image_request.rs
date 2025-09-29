@@ -2,6 +2,8 @@
 
 use std::fmt::Display;
 
+use bytes::Bytes;
+
 use crate::{base_uri::BaseUri, image_request_builder::ImageRequestBuilder};
 
 /// An IIIF instance.
@@ -50,6 +52,22 @@ impl ImageRequest {
     /// Returns a new builder.
     pub fn builder() -> ImageRequestBuilder {
         ImageRequestBuilder::default()
+    }
+}
+
+/// An IIIF image request response.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ImageResponse(Bytes);
+
+impl From<Bytes> for ImageResponse {
+    fn from(value: Bytes) -> Self {
+        ImageResponse(value)
+    }
+}
+
+impl From<ImageResponse> for Bytes {
+    fn from(value: ImageResponse) -> Self {
+        value.0
     }
 }
 

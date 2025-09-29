@@ -1,11 +1,3 @@
-use bytes::Bytes;
-
-use crate::AcresError;
-
-pub trait FromBytes<T> {
-    fn from_bytes(data: Bytes) -> Result<T, AcresError>;
-}
-
 #[cfg(test)]
 pub mod tests {
     use crate::artworks::Collection;

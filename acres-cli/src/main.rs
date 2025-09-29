@@ -6,11 +6,11 @@
 
 use std::io::{self, Write};
 
-use acres::{AcresError, artworks};
+use acres::{AcresError, Api, artworks};
 use clap::{Arg, Command, command, value_parser};
 use clap_stdin::FileOrStdin;
 use color_eyre::{
-    Result, Section,
+    Result,
     eyre::{Report, WrapErr},
 };
 
@@ -287,25 +287,14 @@ async fn main() -> Result<(), Report> {
                 .build()
                 .await
             {
-                Ok(iiif) => match matches.get_one::<IiifTo>("to") {
-                    Some(IiifTo::Url) => println!("{}", iiif),
+                Ok(request) => match matches.get_one::<IiifTo>("to") {
+                    Some(IiifTo::Url) => println!("{}", request),
                     Some(IiifTo::Bytes) => {
-                        let bytes = reqwest::get(iiif.to_string())
-                            .await
-                            .wrap_err("Oh, no! Couldn't process that image request.")?
-                            .error_for_status()
-                            .wrap_err("Oh, no! Error status code returned.")
-                            .suggestion(
-                                "Make sure provided settings are supported \
-                                for this image. Try rerunning with `acres iiif [...] \
-                                info` to find out what's supported.",
-                            )?
-                            .bytes()
-                            .await
-                            .wrap_err("Oh, no! Couldn't get them image bytes.")?;
-                        let mut stdout = io::stdout();
-                        stdout
-                            .write_all(&bytes)
+                        let response: iiif::ImageResponse = Api::new()
+                            .fetch(request.to_string(), None as Option<()>)
+                            .await?;
+                        io::stdout()
+                            .write_all(&bytes::Bytes::from(response))
                             .context("failed to write image bytes")?;
                     }
                     None => unreachable!("default value means we shouldn't get here"),
@@ -324,19 +313,12 @@ async fn main() -> Result<(), Report> {
             .ok_or(AcresError::ArtworkError(
                 "not able to read that artwork info".to_string(),
             ))?;
-            let base_uri: iiif::BaseUri = artwork.try_into()?;
-            let iiif = iiif::InformationRequest::new(base_uri);
-            let json = reqwest::get(iiif.to_string())
-                .await
-                .wrap_err("Oh, no! Couldn't process that image request.")?
-                .error_for_status()
-                .wrap_err("Oh, no! Error status code returned.")?
-                .bytes()
-                .await
-                .wrap_err("Oh, no! Couldn't get response data.")?;
-            let mut stdout = io::stdout();
-            stdout
-                .write_all(&json)
+            let request: iiif::InformationRequest = iiif::BaseUri::try_from(artwork)?.into();
+            let response: iiif::InformationResponse = Api::new()
+                .fetch(request.to_string(), None as Option<()>)
+                .await?;
+            io::stdout()
+                .write_all(&bytes::Bytes::from(response))
                 .context("failed to write json bytes")?;
         }
         _ => unreachable!("clap should ensure we don't get here"),

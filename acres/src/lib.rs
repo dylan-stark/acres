@@ -24,6 +24,7 @@ mod common;
 mod config;
 
 pub use api::Api;
+pub use api::fetch;
 
 /// An Acres error.
 #[derive(Debug, thiserror::Error)]
