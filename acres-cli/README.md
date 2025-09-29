@@ -160,28 +160,6 @@ For example, you can change the quality to retrieve the black-and-white variant 
 https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/bitonal.png
 ```
 
-If one or more of the options aren't available for that piece, you'll get an error message explaining as much.
-And, given the emphasis on chaining these tools, the error message will show up on `stderr` and CLI will stop with a non-zero exit code.
-
-```sh
-% arcres-cli iiif 77333.json --quality bitonal --format pdf
-Uh-oh, this artwork is not available in 'pdf' format
-```
-
-If you pass in more than one JSON, you'll get more than one IIIF URL:
-
-```sh
-% acres-cli artwork 75644 \
-    | jq '.config.iiif_url as $iiif_url | .data.alt_image_ids[] as $alt_image_id | { config: { iiif_url: $iiif_url }, data: { image_id: $alt_image_id } }' \
-    | arcres-cli iiif -
-https://www.artic.edu/iiif/2/67df521-56d2-0b6c-a97b-ea6ec9448c22/full/843,/0/default.jpg
-https://www.artic.edu/iiif/2/87eb49a-7e5e-287f-3546-dd8626c2e912/full/843,/0/default.jpg
-https://www.artic.edu/iiif/2/d59d547-aad0-50f5-ac1c-6e516eea146b/full/843,/0/default.jpg
-https://www.artic.edu/iiif/2/31a5bde-a7a9-1ddc-7768-f5772aedc91c/full/843,/0/default.jpg
-https://www.artic.edu/iiif/2/f8e8002-ebd5-f21a-ba8b-ba8061db4f17/full/843,/0/default.jpg
-https://www.artic.edu/iiif/2/da43b7b-cc3a-21a3-e408-21f72a17011b/full/843,/0/default.jpg
-```
-
 ## Working with ASCII Art
 
 Once you have images, why not make ASCII art?
