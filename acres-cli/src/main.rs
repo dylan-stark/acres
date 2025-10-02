@@ -4,7 +4,7 @@
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 
 use acres::{AcresError, Api, artworks};
 use clap::{Arg, Command, command, value_parser};
@@ -265,20 +265,21 @@ async fn main() -> Result<(), Report> {
             }
         }
         Some(("ascii-art", matches)) => {
-            let mut image = Vec::<u8>::new();
-            let n = matches
+            let image_reader = matches
                 .get_one::<FileOrStdin>("image")
                 .expect("clap ensures we get the bytes")
                 .clone()
                 .into_reader()
-                .context("failed to clone file-or-stdin")?
-                .read_to_end(&mut image)
-                .context("failed to read file-or-stdin")?;
-            let art = ascii_art::AsciiArt { chars_wide: 80 };
-            let ascii = art
-                .bytes_to_ascii(bytes::Bytes::from(image))
-                .context("failed to convert bytes to ascii")?;
-            println!("{}\n", ascii);
+                .context("failed to clone file-or-stdin")?;
+            let width = 80;
+            let art = ascii_art::AsciiArt::builder()
+                .input_reader(image_reader)
+                .context("failed to read input image")?
+                .alphabet(ascii_art::Alphabet::ALPHABET)
+                .chars_wide(width)
+                .build()
+                .context("failed to build art")?;
+            println!("{}\n", art);
         }
         Some(("iiif", matches)) => {
             let artwork = artworks::ArtworkInfo::load(

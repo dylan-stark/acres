@@ -3,9 +3,12 @@
 //! Simple ASCII art generator.
 
 use anyhow::Context;
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 
-use std::io::Cursor;
+use std::{
+    fmt::Display,
+    io::{Cursor, Read},
+};
 
 use anyhow::Result;
 use image::io::Reader;
@@ -18,6 +21,37 @@ use img_to_ascii::{
     image::LumaImage,
 };
 
+/// Built-in alphabets.
+pub enum Alphabet {
+    /// The alphabet alphabet.
+    ALPHABET,
+    /// The letters alphabet.
+    LETTERS,
+    /// The lowercase alphabet.
+    LOWERCASE,
+    /// The minimal alphabet.
+    MINIMAL,
+    /// The symbols alphabet.
+    SYMBOLS,
+    /// The uppercase alphabet.
+    UPPERCASE,
+}
+
+impl From<Alphabet> for Bytes {
+    fn from(value: Alphabet) -> Self {
+        match value {
+            Alphabet::ALPHABET => Bytes::from_static(include_bytes!("../.data/alphabet.txt")),
+            Alphabet::LETTERS => Bytes::from_static(include_bytes!("../.data/letters.txt")),
+            Alphabet::LOWERCASE => Bytes::from_static(include_bytes!("../.data/lowercase.txt")),
+            Alphabet::MINIMAL => Bytes::from_static(include_bytes!("../.data/minimal.txt")),
+            Alphabet::SYMBOLS => Bytes::from_static(include_bytes!("../.data/symbols.txt")),
+            Alphabet::UPPERCASE => Bytes::from_static(include_bytes!("../.data/uppercase.txt")),
+        }
+    }
+}
+
+const BITOCRA_13: &[u8] = include_bytes!("../.data/bitocra-13.bdf");
+
 /// An ASCII Art error.
 #[derive(Debug, thiserror::Error)]
 pub enum AsciiArtError {
@@ -28,25 +62,77 @@ pub enum AsciiArtError {
 
 /// ASCII Art.
 #[derive(Debug)]
-pub struct AsciiArt {
-    /// How many characters wide you want
-    pub chars_wide: usize,
+pub struct AsciiArt(String);
+
+impl Display for AsciiArt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}", self.0))
+    }
 }
 
 impl AsciiArt {
-    /// Converts bytes to ASCII.
-    pub fn bytes_to_ascii(self, bytes: Bytes) -> Result<String, AsciiArtError> {
+    /// Creates a new ASCII art builder.
+    pub fn builder() -> AsciiArtBuilder {
+        AsciiArtBuilder::default()
+    }
+}
+
+/// An ASCII art builder.
+#[derive(Default)]
+pub struct AsciiArtBuilder {
+    alphabet: Vec<char>,
+    chars_wide: usize,
+    input_bytes: Bytes,
+}
+
+impl AsciiArtBuilder {
+    /// Creates a new ASCII art builder.
+    pub fn new() -> Self {
+        AsciiArtBuilder::default()
+    }
+
+    /// Sets the alphabet from built-in.
+    pub fn alphabet(self, alphabet: Alphabet) -> Self {
+        self.alphabet_reader(Bytes::from(alphabet).reader())
+    }
+
+    /// Sets the alphabet from reader.
+    pub fn alphabet_reader(mut self, mut reader: impl Read) -> Self {
+        let mut bytes: Vec<u8> = Vec::new();
+        let _n = reader
+            .read_to_end(&mut bytes)
+            .context("failed to read to end of alphabet");
+        let chars = bytes.iter().map(|&c| c as char).collect();
+        self.alphabet = chars;
+        self
+    }
+
+    /// Sets the input image bytes from reader.
+    pub fn input_reader(mut self, mut reader: impl Read) -> Result<Self, AsciiArtError> {
+        let mut bytes: Vec<u8> = Vec::new();
+        let _n = reader
+            .read_to_end(&mut bytes)
+            .context("failed to read bytes from reader")?;
+        let bytes = Bytes::from(bytes);
+        self.input_bytes = bytes;
+        Ok(self)
+    }
+
+    /// Sets desired width in chars.
+    pub fn chars_wide(mut self, size: usize) -> Self {
+        self.chars_wide = size;
+        self
+    }
+
+    /// Builds ASCII art.
+    pub fn build(self) -> Result<AsciiArt, AsciiArtError> {
         tracing::info!("converting bytes to ascii");
-        tracing::debug!(?self);
-        const ALPHABET: &[u8] = include_bytes!("../.data/alphabet.txt");
-        const BITOCRA_13: &[u8] = include_bytes!("../.data/bitocra-13.bdf");
-        let dyn_img = Reader::new(Cursor::new(bytes))
+        let dyn_img = Reader::new(Cursor::new(self.input_bytes))
             .with_guessed_format()
             .context("image reader failed")?
             .decode()
             .context("image decode failed")?;
-        let alphabet = &ALPHABET.iter().map(|&c| c as char).collect::<Vec<char>>();
-        let font = Font::from_bdf_stream(BITOCRA_13, alphabet, false);
+        let font = Font::from_bdf_stream(BITOCRA_13, &self.alphabet, false);
         let luma_img = LumaImage::from(&dyn_img);
         let convert = get_converter("direction-and-intensity");
         let brightness_offset = 0.;
@@ -59,6 +145,8 @@ impl AsciiArt {
             brightness_offset,
             &algorithm,
         );
-        Ok(char_rows_to_terminal_color_string(&char_rows, &dyn_img))
+        Ok(AsciiArt(char_rows_to_terminal_color_string(
+            &char_rows, &dyn_img,
+        )))
     }
 }
