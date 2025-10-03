@@ -275,7 +275,7 @@ async fn main() -> Result<(), Report> {
             let art = ascii_art::AsciiArt::builder()
                 .input_reader(image_reader)
                 .context("failed to read input image")?
-                .alphabet(ascii_art::Alphabet::ALPHABET)
+                .alphabet(ascii_art::Alphabet::Alphabet)
                 .chars_wide(width)
                 .build()
                 .context("failed to build art")?;

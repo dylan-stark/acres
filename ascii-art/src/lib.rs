@@ -24,28 +24,28 @@ use img_to_ascii::{
 /// Built-in alphabets.
 pub enum Alphabet {
     /// The alphabet alphabet.
-    ALPHABET,
+    Alphabet,
     /// The letters alphabet.
-    LETTERS,
+    Letters,
     /// The lowercase alphabet.
-    LOWERCASE,
+    Lowercase,
     /// The minimal alphabet.
-    MINIMAL,
+    Minimal,
     /// The symbols alphabet.
-    SYMBOLS,
+    Symbols,
     /// The uppercase alphabet.
-    UPPERCASE,
+    Uppercase,
 }
 
 impl From<Alphabet> for Bytes {
     fn from(value: Alphabet) -> Self {
         match value {
-            Alphabet::ALPHABET => Bytes::from_static(include_bytes!("../.data/alphabet.txt")),
-            Alphabet::LETTERS => Bytes::from_static(include_bytes!("../.data/letters.txt")),
-            Alphabet::LOWERCASE => Bytes::from_static(include_bytes!("../.data/lowercase.txt")),
-            Alphabet::MINIMAL => Bytes::from_static(include_bytes!("../.data/minimal.txt")),
-            Alphabet::SYMBOLS => Bytes::from_static(include_bytes!("../.data/symbols.txt")),
-            Alphabet::UPPERCASE => Bytes::from_static(include_bytes!("../.data/uppercase.txt")),
+            Alphabet::Alphabet => Bytes::from_static(include_bytes!("../.data/alphabet.txt")),
+            Alphabet::Letters => Bytes::from_static(include_bytes!("../.data/letters.txt")),
+            Alphabet::Lowercase => Bytes::from_static(include_bytes!("../.data/lowercase.txt")),
+            Alphabet::Minimal => Bytes::from_static(include_bytes!("../.data/minimal.txt")),
+            Alphabet::Symbols => Bytes::from_static(include_bytes!("../.data/symbols.txt")),
+            Alphabet::Uppercase => Bytes::from_static(include_bytes!("../.data/uppercase.txt")),
         }
     }
 }
