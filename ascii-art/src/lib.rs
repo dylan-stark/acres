@@ -17,13 +17,15 @@ use img_to_ascii::{
         char_rows_to_terminal_color_string, get_conversion_algorithm, get_converter,
         img_to_char_rows,
     },
-    font::Font,
+    font,
     image::LumaImage,
 };
 
 /// Built-in alphabets.
+#[derive(Default)]
 pub enum Alphabet {
     /// The alphabet alphabet.
+    #[default]
     Alphabet,
     /// The letters alphabet.
     Letters,
@@ -50,7 +52,36 @@ impl From<Alphabet> for Bytes {
     }
 }
 
-const BITOCRA_13: &[u8] = include_bytes!("../.data/bitocra-13.bdf");
+/// Sets the alphabet from reader.
+impl From<Alphabet> for Vec<char> {
+    fn from(value: Alphabet) -> Self {
+        let mut reader = Bytes::from(value).reader();
+        let mut bytes: Vec<u8> = Vec::new();
+        let _n = reader
+            .read_to_end(&mut bytes)
+            .context("failed to read to end of alphabet");
+        bytes.iter().map(|&c| c as char).collect()
+    }
+}
+
+/// Built-in fonts.
+#[derive(Default)]
+pub enum Font {
+    /// The courier font
+    Courier,
+    /// The bitocra-13 font
+    #[default]
+    BitOcra13,
+}
+
+impl From<Font> for Bytes {
+    fn from(value: Font) -> Self {
+        match value {
+            Font::Courier => Bytes::from_static(include_bytes!("../.data/courier.bdf")),
+            Font::BitOcra13 => Bytes::from_static(include_bytes!("../.data/bitocra-13.bdf")),
+        }
+    }
+}
 
 /// An ASCII Art error.
 #[derive(Debug, thiserror::Error)]
@@ -80,7 +111,8 @@ impl AsciiArt {
 /// An ASCII art builder.
 #[derive(Default)]
 pub struct AsciiArtBuilder {
-    alphabet: Vec<char>,
+    alphabet: Alphabet,
+    font: Font,
     chars_wide: usize,
     input_bytes: Bytes,
 }
@@ -92,18 +124,15 @@ impl AsciiArtBuilder {
     }
 
     /// Sets the alphabet from built-in.
-    pub fn alphabet(self, alphabet: Alphabet) -> Self {
-        self.alphabet_reader(Bytes::from(alphabet).reader())
+    pub fn alphabet(mut self, alphabet: Alphabet) -> Self {
+        //self.alphabet_reader(Bytes::from(alphabet).reader())
+        self.alphabet = alphabet;
+        self
     }
 
-    /// Sets the alphabet from reader.
-    pub fn alphabet_reader(mut self, mut reader: impl Read) -> Self {
-        let mut bytes: Vec<u8> = Vec::new();
-        let _n = reader
-            .read_to_end(&mut bytes)
-            .context("failed to read to end of alphabet");
-        let chars = bytes.iter().map(|&c| c as char).collect();
-        self.alphabet = chars;
+    /// Sets the font from built-in.
+    pub fn font(mut self, font: Font) -> Self {
+        self.font = font;
         self
     }
 
@@ -132,7 +161,11 @@ impl AsciiArtBuilder {
             .context("image reader failed")?
             .decode()
             .context("image decode failed")?;
-        let font = Font::from_bdf_stream(BITOCRA_13, &self.alphabet, false);
+        let font = font::Font::from_bdf_stream(
+            Bytes::from(self.font).reader(),
+            &Vec::from(self.alphabet),
+            false,
+        );
         let luma_img = LumaImage::from(&dyn_img);
         let convert = get_converter("direction-and-intensity");
         let brightness_offset = 0.;

@@ -276,6 +276,7 @@ async fn main() -> Result<(), Report> {
                 .input_reader(image_reader)
                 .context("failed to read input image")?
                 .alphabet(ascii_art::Alphabet::Alphabet)
+                .font(ascii_art::Font::BitOcra13)
                 .chars_wide(width)
                 .build()
                 .context("failed to build art")?;
