@@ -1,4 +1,4 @@
 [workspace]
 resolver = "2"
-members = ["acres", "acres-cli", "iiif"]
-exclude = ["aic-tui", "ascii-art"]
+members = ["acres", "acres-cli", "ascii-art", "iiif"]
+exclude = ["aic-tui"]
