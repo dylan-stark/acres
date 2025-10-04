@@ -140,9 +140,36 @@ async fn main() -> Result<(), Report> {
                         .value_parser(value_parser!(FileOrStdin)),
                 )
                 .arg(
+                    Arg::new("alphabet")
+                        .help("alphabet to use")
+                        .value_parser(ascii_art::Alphabet::parse),
+                )
+                .arg(
+                    Arg::new("brightness-offset")
+                        .help("brightness offset")
+                        .value_parser(ascii_art::BrightnessOffset::parse),
+                )
+                .arg(
+                    Arg::new("conversion-algorithm")
+                        .help("alphabet to use")
+                        .value_parser(ascii_art::ConversionAlgorithm::parse),
+                )
+                .arg(
+                    Arg::new("font")
+                        .help("font to use")
+                        .value_parser(ascii_art::Font::parse),
+                )
+                .arg(
+                    Arg::new("metric")
+                        .long("metric")
+                        .help("the metric to use")
+                        .value_parser(ascii_art::Metric::parse),
+                )
+                .arg(
                     Arg::new("width")
                         .long("width")
-                        .help("how many characters wide"),
+                        .help("how many characters wide")
+                        .value_parser(ascii_art::CharWidth::parse),
                 ),
         )
         .subcommand(
@@ -271,13 +298,15 @@ async fn main() -> Result<(), Report> {
                 .clone()
                 .into_reader()
                 .context("failed to clone file-or-stdin")?;
-            let width = 80;
             let art = ascii_art::AsciiArt::builder()
                 .input_reader(image_reader)
                 .context("failed to read input image")?
-                .alphabet(ascii_art::Alphabet::Alphabet)
-                .font(ascii_art::Font::BitOcra13)
-                .chars_wide(width)
+                .alphabet(matches.get_one::<ascii_art::Alphabet>("alphabet").cloned())
+                .brightness_offset(matches.get_one::<ascii_art::BrightnessOffset>("brightness-offset").cloned())
+                .conversion_algorithm(matches.get_one::<ascii_art::ConversionAlgorithm>("conversion-algorithm").cloned())
+                .chars_wide(matches.get_one::<ascii_art::CharWidth>("width").cloned())
+                .font(matches.get_one::<ascii_art::Font>("font").cloned())
+                .metric(matches.get_one::<ascii_art::Metric>("metric").cloned())
                 .build()
                 .context("failed to build art")?;
             println!("{}\n", art);

@@ -21,8 +21,71 @@ use img_to_ascii::{
     image::LumaImage,
 };
 
+/// An ASCII Art error.
+#[derive(Debug, thiserror::Error)]
+pub enum AsciiArtError {
+    /// A validation error.
+    #[error("validation error: {0}")]
+    ValidationError(String),
+    /// An unexpected error.
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
+}
+
+/// Conversion algorithm.
+#[derive(Clone, Default)]
+pub enum ConversionAlgorithm {
+    /// Base.
+    Base,
+    /// Edge.
+    Edge,
+    /// EdgeAugmented.
+    #[default]
+    EdgeAugmented,
+    /// TwoPass.
+    TwoPass,
+}
+
+impl Display for ConversionAlgorithm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConversionAlgorithm::Base => f.write_str("base"),
+            ConversionAlgorithm::Edge => f.write_str("edge"),
+            ConversionAlgorithm::EdgeAugmented => f.write_str("edge-augmented"),
+            ConversionAlgorithm::TwoPass => f.write_str("two-pass"),
+        }
+    }
+}
+
+impl TryFrom<&str> for ConversionAlgorithm {
+    type Error = AsciiArtError;
+
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        match value {
+            _ if value == "base" => Ok(ConversionAlgorithm::Base),
+            _ if value == "edge" => Ok(ConversionAlgorithm::Edge),
+            _ if value == "edge-augmented" => Ok(ConversionAlgorithm::EdgeAugmented),
+            _ if value == "two-pass" => Ok(ConversionAlgorithm::TwoPass),
+            _ => Err(AsciiArtError::ValidationError(format!(
+                "{} is not a supported metric",
+                value
+            ))),
+        }
+    }
+}
+
+impl ConversionAlgorithm {
+    /// Conversion algorithm parser.
+    pub fn parse(value: &str) -> Result<ConversionAlgorithm, String> {
+        match value.try_into() {
+            Ok(algorithm) => Ok(algorithm),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+}
+
 /// Built-in alphabets.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub enum Alphabet {
     /// The alphabet alphabet.
     #[default]
@@ -37,6 +100,19 @@ pub enum Alphabet {
     Symbols,
     /// The uppercase alphabet.
     Uppercase,
+}
+
+impl Display for Alphabet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Alphabet::Alphabet => f.write_str("alphabet"),
+            Alphabet::Letters => f.write_str("letters"),
+            Alphabet::Lowercase => f.write_str("lowercase"),
+            Alphabet::Minimal => f.write_str("minimal"),
+            Alphabet::Symbols => f.write_str("symbols"),
+            Alphabet::Uppercase => f.write_str("uppercase"),
+        }
+    }
 }
 
 impl From<Alphabet> for Bytes {
@@ -64,7 +140,37 @@ impl From<Alphabet> for Vec<char> {
     }
 }
 
+impl TryFrom<&str> for Alphabet {
+    type Error = AsciiArtError;
+
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        match value {
+            _ if value == "alphabet" => Ok(Alphabet::Alphabet),
+            _ if value == "letters" => Ok(Alphabet::Letters),
+            _ if value == "lowercase" => Ok(Alphabet::Lowercase),
+            _ if value == "minimal" => Ok(Alphabet::Minimal),
+            _ if value == "symbols" => Ok(Alphabet::Symbols),
+            _ if value == "uppercase" => Ok(Alphabet::Uppercase),
+            _ => Err(AsciiArtError::ValidationError(format!(
+                "{} is not a supported alphabet",
+                value
+            ))),
+        }
+    }
+}
+
+impl Alphabet {
+    /// Alphabet parser.
+    pub fn parse(value: &str) -> Result<Alphabet, String> {
+        match value.try_into() {
+            Ok(alphabet) => Ok(alphabet),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+}
+
 /// Brightness offset.
+#[derive(Clone)]
 pub struct BrightnessOffset(f32);
 
 impl Default for BrightnessOffset {
@@ -79,6 +185,17 @@ impl From<BrightnessOffset> for f32 {
     }
 }
 
+impl TryFrom<&str> for BrightnessOffset {
+    type Error = AsciiArtError;
+
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        match value.parse::<f32>() {
+            Ok(offset) => Ok(BrightnessOffset(offset)),
+            Err(error) => Err(AsciiArtError::ValidationError(error.to_string())),
+        }
+    }
+}
+
 impl BrightnessOffset {
     /// Creates a new brightness offset value.
     pub fn new(offset: f32) -> Result<Self, AsciiArtError> {
@@ -89,10 +206,18 @@ impl BrightnessOffset {
             ))),
         }
     }
+
+    /// Brightness offset parser.
+    pub fn parse(value: &str) -> Result<BrightnessOffset, String> {
+        match BrightnessOffset::try_from(value) {
+            Ok(offset) => Ok(offset),
+            Err(error) => Err(error.to_string()),
+        }
+    }
 }
 
 /// Built-in fonts.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub enum Font {
     /// The courier font
     Courier,
@@ -110,15 +235,149 @@ impl From<Font> for Bytes {
     }
 }
 
-/// An ASCII Art error.
-#[derive(Debug, thiserror::Error)]
-pub enum AsciiArtError {
-    /// A validation error.
-    #[error("validation error: {0}")]
-    ValidationError(String),
-    /// An unexpected error.
-    #[error(transparent)]
-    UnexpectedError(#[from] anyhow::Error),
+impl TryFrom<&str> for Font {
+    type Error = AsciiArtError;
+
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        match value {
+            _ if value == "courier" => Ok(Font::Courier),
+            _ if value == "bitocra-13" => Ok(Font::BitOcra13),
+            _ => Err(AsciiArtError::ValidationError(format!(
+                "{} is not a supported font",
+                value
+            ))),
+        }
+    }
+}
+
+impl Font {
+    /// Font parser.
+    pub fn parse(value: &str) -> Result<Font, String> {
+        match value.try_into() {
+            Ok(font) => Ok(font),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+}
+
+/// Metrics.
+#[derive(Clone, Default)]
+pub enum Metric {
+    /// Dot.
+    Dot,
+    /// Jaccard.
+    Jaccard,
+    /// Occlusion.
+    Occlusion,
+    /// Color.
+    Color,
+    /// Clear.
+    Clear,
+    /// Fast.
+    Fast,
+    /// Intensity.
+    Intensity,
+    /// Grad.
+    Grad,
+    /// DirectionAndIntensity.
+    #[default]
+    DirectionAndIntensity,
+    /// Direction.
+    Direction,
+    /// IntensityJaccard.
+    IntensityJaccard,
+}
+
+impl Display for Metric {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Metric::Dot => f.write_str("dot"),
+            Metric::Jaccard => f.write_str("jaccard"),
+            Metric::Occlusion => f.write_str("occlusion"),
+            Metric::Color => f.write_str("color"),
+            Metric::Clear => f.write_str("clear"),
+            Metric::Fast => f.write_str("fast"),
+            Metric::Intensity => f.write_str("intensity"),
+            Metric::Grad => f.write_str("grad"),
+            Metric::DirectionAndIntensity => f.write_str("direction-and-intensity"),
+            Metric::Direction => f.write_str("direction"),
+            Metric::IntensityJaccard => f.write_str("intensity-jaccard"),
+        }
+    }
+}
+
+impl TryFrom<&str> for Metric {
+    type Error = AsciiArtError;
+
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        match value {
+            _ if value == "dot" => Ok(Metric::Dot),
+            _ if value == "jaccard" => Ok(Metric::Jaccard),
+            _ if value == "occlusion" => Ok(Metric::Occlusion),
+            _ if value == "color" => Ok(Metric::Color),
+            _ if value == "clear" => Ok(Metric::Clear),
+            _ if value == "fast" => Ok(Metric::Fast),
+            _ if value == "intensity" => Ok(Metric::Intensity),
+            _ if value == "grad" => Ok(Metric::Grad),
+            _ if value == "direction-and-intensity" => Ok(Metric::DirectionAndIntensity),
+            _ if value == "direction" => Ok(Metric::Direction),
+            _ if value == "intensity-jaccard" => Ok(Metric::IntensityJaccard),
+            _ => Err(AsciiArtError::ValidationError(format!(
+                "{} is not a supported metric",
+                value
+            ))),
+        }
+    }
+}
+
+impl Metric {
+    /// Metric parser.
+    pub fn parse(value: &str) -> Result<Metric, String> {
+        match Metric::try_from(value) {
+            Ok(metric) => Ok(metric),
+            Err(error) => Err(error.to_string()),
+        }
+    }
+}
+
+/// Width in characters.
+#[derive(Clone, Default)]
+pub enum CharWidth {
+    /// Use number of chars needed to cover image width
+    #[default]
+    ImageWidthInChars,
+    /// Use this many chars
+    CharsWide(usize),
+}
+
+impl From<CharWidth> for Option<usize> {
+    fn from(value: CharWidth) -> Self {
+        match value {
+            CharWidth::ImageWidthInChars => None,
+            CharWidth::CharsWide(width) => Some(width),
+        }
+    }
+}
+
+impl TryFrom<&str> for CharWidth {
+    type Error = AsciiArtError;
+
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        match value.parse::<usize>() {
+            Ok(width) => Ok(CharWidth::CharsWide(width)),
+            Err(error) => Err(AsciiArtError::ValidationError(error.to_string())),
+        }
+    }
+}
+
+impl CharWidth {
+    /// Character-width parser.
+    pub fn parse(value: &str) -> Result<CharWidth, String> {
+        match CharWidth::try_from(value) {
+            Ok(width) => Ok(width),
+            Err(error) => Err(error.to_string()),
+        }
+    }
 }
 
 /// ASCII Art.
@@ -143,9 +402,11 @@ impl AsciiArt {
 pub struct AsciiArtBuilder {
     alphabet: Alphabet,
     brightness_offset: BrightnessOffset,
+    chars_wide: CharWidth,
+    conversion_algorithm: ConversionAlgorithm,
     font: Font,
-    chars_wide: usize,
     input_bytes: Bytes,
+    metric: Metric,
 }
 
 impl AsciiArtBuilder {
@@ -155,21 +416,42 @@ impl AsciiArtBuilder {
     }
 
     /// Sets the alphabet from built-in.
-    pub fn alphabet(mut self, alphabet: Alphabet) -> Self {
-        //self.alphabet_reader(Bytes::from(alphabet).reader())
-        self.alphabet = alphabet;
+    pub fn alphabet(mut self, alphabet: Option<Alphabet>) -> Self {
+        if let Some(alphabet) = alphabet {
+            self.alphabet = alphabet;
+        }
         self
     }
 
     /// Sets the brightness-offset.
-    pub fn brightness_offset(mut self, offset: BrightnessOffset) -> Self {
-        self.brightness_offset = offset;
+    pub fn brightness_offset(mut self, offset: Option<BrightnessOffset>) -> Self {
+        if let Some(offset) = offset {
+            self.brightness_offset = offset;
+        }
+        self
+    }
+
+    /// Sets desired width in chars.
+    pub fn chars_wide(mut self, width: Option<CharWidth>) -> Self {
+        if let Some(width) = width {
+            self.chars_wide = width;
+        }
+        self
+    }
+
+    /// Sets conversion algorithm.
+    pub fn conversion_algorithm(mut self, algorithm: Option<ConversionAlgorithm>) -> Self {
+        if let Some(algorithm) = algorithm {
+            self.conversion_algorithm = algorithm;
+        }
         self
     }
 
     /// Sets the font from built-in.
-    pub fn font(mut self, font: Font) -> Self {
-        self.font = font;
+    pub fn font(mut self, font: Option<Font>) -> Self {
+        if let Some(font) = font {
+            self.font = font;
+        }
         self
     }
 
@@ -184,9 +466,11 @@ impl AsciiArtBuilder {
         Ok(self)
     }
 
-    /// Sets desired width in chars.
-    pub fn chars_wide(mut self, size: usize) -> Self {
-        self.chars_wide = size;
+    /// Sets the metric.
+    pub fn metric(mut self, metric: Option<Metric>) -> Self {
+        if let Some(metric) = metric {
+            self.metric = metric;
+        }
         self
     }
 
@@ -198,24 +482,20 @@ impl AsciiArtBuilder {
             .context("image reader failed")?
             .decode()
             .context("image decode failed")?;
-        let font = font::Font::from_bdf_stream(
-            Bytes::from(self.font).reader(),
-            &Vec::from(self.alphabet),
-            false,
-        );
-        let luma_img = LumaImage::from(&dyn_img);
-        let convert = get_converter("direction-and-intensity");
-        let algorithm = get_conversion_algorithm("edge-augmented");
-        let char_rows = img_to_char_rows(
-            &font,
-            &luma_img,
-            convert,
-            Some(self.chars_wide),
-            self.brightness_offset.into(),
-            &algorithm,
-        );
         Ok(AsciiArt(char_rows_to_terminal_color_string(
-            &char_rows, &dyn_img,
+            &img_to_char_rows(
+                &font::Font::from_bdf_stream(
+                    Bytes::from(self.font).reader(),
+                    &Vec::from(self.alphabet),
+                    false,
+                ),
+                &LumaImage::from(&dyn_img),
+                get_converter(&self.metric.to_string()),
+                self.chars_wide.into(),
+                self.brightness_offset.into(),
+                &get_conversion_algorithm(&self.conversion_algorithm.to_string()),
+            ),
+            &dyn_img,
         )))
     }
 }
