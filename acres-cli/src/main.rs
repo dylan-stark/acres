@@ -13,6 +13,9 @@ use color_eyre::{
     Result,
     eyre::{Report, WrapErr},
 };
+use image_to_ascii_builder::{
+    Alphabet, Ascii, BrightnessOffset, CharWidth, ConversionAlgorithm, Font, Metric,
+};
 
 #[doc(hidden)]
 mod logging;
@@ -142,34 +145,34 @@ async fn main() -> Result<(), Report> {
                 .arg(
                     Arg::new("alphabet")
                         .help("alphabet to use")
-                        .value_parser(ascii_art::Alphabet::parse),
+                        .value_parser(Alphabet::parse),
                 )
                 .arg(
                     Arg::new("brightness-offset")
                         .help("brightness offset")
-                        .value_parser(ascii_art::BrightnessOffset::parse),
+                        .value_parser(BrightnessOffset::parse),
                 )
                 .arg(
                     Arg::new("conversion-algorithm")
                         .help("alphabet to use")
-                        .value_parser(ascii_art::ConversionAlgorithm::parse),
+                        .value_parser(ConversionAlgorithm::parse),
                 )
                 .arg(
                     Arg::new("font")
                         .help("font to use")
-                        .value_parser(ascii_art::Font::parse),
+                        .value_parser(Font::parse),
                 )
                 .arg(
                     Arg::new("metric")
                         .long("metric")
                         .help("the metric to use")
-                        .value_parser(ascii_art::Metric::parse),
+                        .value_parser(Metric::parse),
                 )
                 .arg(
                     Arg::new("width")
                         .long("width")
                         .help("how many characters wide")
-                        .value_parser(ascii_art::CharWidth::parse),
+                        .value_parser(CharWidth::parse),
                 ),
         )
         .subcommand(
@@ -298,15 +301,23 @@ async fn main() -> Result<(), Report> {
                 .clone()
                 .into_reader()
                 .context("failed to clone file-or-stdin")?;
-            let art = ascii_art::AsciiArt::builder()
+            let art = Ascii::builder()
                 .input_reader(image_reader)
                 .context("failed to read input image")?
-                .alphabet(matches.get_one::<ascii_art::Alphabet>("alphabet").cloned())
-                .brightness_offset(matches.get_one::<ascii_art::BrightnessOffset>("brightness-offset").cloned())
-                .conversion_algorithm(matches.get_one::<ascii_art::ConversionAlgorithm>("conversion-algorithm").cloned())
-                .chars_wide(matches.get_one::<ascii_art::CharWidth>("width").cloned())
-                .font(matches.get_one::<ascii_art::Font>("font").cloned())
-                .metric(matches.get_one::<ascii_art::Metric>("metric").cloned())
+                .alphabet(matches.get_one::<Alphabet>("alphabet").cloned())
+                .brightness_offset(
+                    matches
+                        .get_one::<BrightnessOffset>("brightness-offset")
+                        .cloned(),
+                )
+                .conversion_algorithm(
+                    matches
+                        .get_one::<ConversionAlgorithm>("conversion-algorithm")
+                        .cloned(),
+                )
+                .chars_wide(matches.get_one::<CharWidth>("width").cloned())
+                .font(matches.get_one::<Font>("font").cloned())
+                .metric(matches.get_one::<Metric>("metric").cloned())
                 .build()
                 .context("failed to build art")?;
             println!("{}\n", art);

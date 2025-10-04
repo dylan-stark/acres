@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 acres = { path = "../acres" }
-ascii-art = { path = "../ascii-art" }
 bytes = { version = "1.10.1", features = ["serde"] }
 clap = { version = "4.5.37", features = ["cargo", "derive"] }
 clap-stdin = "0.7.0"
@@ -13,6 +12,7 @@ color-eyre = "0.6.4"
 crossterm = "0.29.0"
 eyre = "0.6.12"
 iiif = { path = "../iiif" }
+image-to-ascii-builder = { path = "../image-to-ascii-builder" }
 reqwest = "0.12.23"
 serde = "1.0.219"
 tokio = { version = "1.44.2", features = ["rt", "macros", "full"] }

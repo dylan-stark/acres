@@ -28,7 +28,6 @@ name = "acres-cli"
 version = "0.1.0"
 dependencies = [
  "acres",
- "ascii-art",
  "assert_cmd",
  "assert_fs",
  "bytes",
@@ -38,6 +37,7 @@ dependencies = [
  "crossterm",
  "eyre",
  "iiif",
+ "image-to-ascii-builder",
  "predicates",
  "reqwest",
  "serde",
@@ -134,19 +134,6 @@ name = "arraydeque"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236"
-
-[[package]]
-name = "ascii-art"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytes",
- "image",
- "image-to-ascii",
- "indicatif 0.18.0",
- "thiserror",
- "tracing",
-]
 
 [[package]]
 name = "assert-json-diff"
@@ -1490,6 +1477,19 @@ dependencies = [
  "indicatif 0.16.2",
  "log",
  "serde_json",
+]
+
+[[package]]
+name = "image-to-ascii-builder"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "image",
+ "image-to-ascii",
+ "indicatif 0.18.0",
+ "thiserror",
+ "tracing",
 ]
 
 [[package]]

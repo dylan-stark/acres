@@ -1,6 +1,6 @@
 #![deny(missing_docs)]
 
-//! Simple ASCII art generator.
+//! Ergonomic builder for the image-to-ascii crate.
 
 use anyhow::Context;
 use bytes::{Buf, Bytes};
@@ -21,9 +21,9 @@ use img_to_ascii::{
     image::LumaImage,
 };
 
-/// An ASCII Art error.
+/// Custom error for this crate.
 #[derive(Debug, thiserror::Error)]
-pub enum AsciiArtError {
+pub enum ImageToAsciiBuilderError {
     /// A validation error.
     #[error("validation error: {0}")]
     ValidationError(String),
@@ -58,7 +58,7 @@ impl Display for ConversionAlgorithm {
 }
 
 impl TryFrom<&str> for ConversionAlgorithm {
-    type Error = AsciiArtError;
+    type Error = ImageToAsciiBuilderError;
 
     fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -66,7 +66,7 @@ impl TryFrom<&str> for ConversionAlgorithm {
             _ if value == "edge" => Ok(ConversionAlgorithm::Edge),
             _ if value == "edge-augmented" => Ok(ConversionAlgorithm::EdgeAugmented),
             _ if value == "two-pass" => Ok(ConversionAlgorithm::TwoPass),
-            _ => Err(AsciiArtError::ValidationError(format!(
+            _ => Err(ImageToAsciiBuilderError::ValidationError(format!(
                 "{} is not a supported metric",
                 value
             ))),
@@ -141,7 +141,7 @@ impl From<Alphabet> for Vec<char> {
 }
 
 impl TryFrom<&str> for Alphabet {
-    type Error = AsciiArtError;
+    type Error = ImageToAsciiBuilderError;
 
     fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -151,7 +151,7 @@ impl TryFrom<&str> for Alphabet {
             _ if value == "minimal" => Ok(Alphabet::Minimal),
             _ if value == "symbols" => Ok(Alphabet::Symbols),
             _ if value == "uppercase" => Ok(Alphabet::Uppercase),
-            _ => Err(AsciiArtError::ValidationError(format!(
+            _ => Err(ImageToAsciiBuilderError::ValidationError(format!(
                 "{} is not a supported alphabet",
                 value
             ))),
@@ -186,22 +186,22 @@ impl From<BrightnessOffset> for f32 {
 }
 
 impl TryFrom<&str> for BrightnessOffset {
-    type Error = AsciiArtError;
+    type Error = ImageToAsciiBuilderError;
 
     fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
         match value.parse::<f32>() {
             Ok(offset) => Ok(BrightnessOffset(offset)),
-            Err(error) => Err(AsciiArtError::ValidationError(error.to_string())),
+            Err(error) => Err(ImageToAsciiBuilderError::ValidationError(error.to_string())),
         }
     }
 }
 
 impl BrightnessOffset {
     /// Creates a new brightness offset value.
-    pub fn new(offset: f32) -> Result<Self, AsciiArtError> {
+    pub fn new(offset: f32) -> Result<Self, ImageToAsciiBuilderError> {
         match offset {
             _ if (0.0..=255.0).contains(&offset) => Ok(Self(offset)),
-            _ => Err(AsciiArtError::ValidationError(String::from(
+            _ => Err(ImageToAsciiBuilderError::ValidationError(String::from(
                 "brightness offset must be between 0 and 225",
             ))),
         }
@@ -236,13 +236,13 @@ impl From<Font> for Bytes {
 }
 
 impl TryFrom<&str> for Font {
-    type Error = AsciiArtError;
+    type Error = ImageToAsciiBuilderError;
 
     fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
         match value {
             _ if value == "courier" => Ok(Font::Courier),
             _ if value == "bitocra-13" => Ok(Font::BitOcra13),
-            _ => Err(AsciiArtError::ValidationError(format!(
+            _ => Err(ImageToAsciiBuilderError::ValidationError(format!(
                 "{} is not a supported font",
                 value
             ))),
@@ -307,7 +307,7 @@ impl Display for Metric {
 }
 
 impl TryFrom<&str> for Metric {
-    type Error = AsciiArtError;
+    type Error = ImageToAsciiBuilderError;
 
     fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
         match value {
@@ -322,7 +322,7 @@ impl TryFrom<&str> for Metric {
             _ if value == "direction-and-intensity" => Ok(Metric::DirectionAndIntensity),
             _ if value == "direction" => Ok(Metric::Direction),
             _ if value == "intensity-jaccard" => Ok(Metric::IntensityJaccard),
-            _ => Err(AsciiArtError::ValidationError(format!(
+            _ => Err(ImageToAsciiBuilderError::ValidationError(format!(
                 "{} is not a supported metric",
                 value
             ))),
@@ -360,12 +360,12 @@ impl From<CharWidth> for Option<usize> {
 }
 
 impl TryFrom<&str> for CharWidth {
-    type Error = AsciiArtError;
+    type Error = ImageToAsciiBuilderError;
 
     fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
         match value.parse::<usize>() {
             Ok(width) => Ok(CharWidth::CharsWide(width)),
-            Err(error) => Err(AsciiArtError::ValidationError(error.to_string())),
+            Err(error) => Err(ImageToAsciiBuilderError::ValidationError(error.to_string())),
         }
     }
 }
@@ -380,26 +380,26 @@ impl CharWidth {
     }
 }
 
-/// ASCII Art.
+/// ASCII.
 #[derive(Debug)]
-pub struct AsciiArt(String);
+pub struct Ascii(String);
 
-impl Display for AsciiArt {
+impl Display for Ascii {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{}", self.0))
     }
 }
 
-impl AsciiArt {
-    /// Creates a new ASCII art builder.
-    pub fn builder() -> AsciiArtBuilder {
-        AsciiArtBuilder::default()
+impl Ascii {
+    /// Creates a new ASCII builder.
+    pub fn builder() -> AsciiBuilder {
+        AsciiBuilder::default()
     }
 }
 
-/// An ASCII art builder.
+/// An ASCII builder.
 #[derive(Default)]
-pub struct AsciiArtBuilder {
+pub struct AsciiBuilder {
     alphabet: Alphabet,
     brightness_offset: BrightnessOffset,
     chars_wide: CharWidth,
@@ -409,10 +409,10 @@ pub struct AsciiArtBuilder {
     metric: Metric,
 }
 
-impl AsciiArtBuilder {
-    /// Creates a new ASCII art builder.
+impl AsciiBuilder {
+    /// Creates a new ASCII builder.
     pub fn new() -> Self {
-        AsciiArtBuilder::default()
+        AsciiBuilder::default()
     }
 
     /// Sets the alphabet from built-in.
@@ -456,7 +456,7 @@ impl AsciiArtBuilder {
     }
 
     /// Sets the input image bytes from reader.
-    pub fn input_reader(mut self, mut reader: impl Read) -> Result<Self, AsciiArtError> {
+    pub fn input_reader(mut self, mut reader: impl Read) -> Result<Self, ImageToAsciiBuilderError> {
         let mut bytes: Vec<u8> = Vec::new();
         let _n = reader
             .read_to_end(&mut bytes)
@@ -474,15 +474,15 @@ impl AsciiArtBuilder {
         self
     }
 
-    /// Builds ASCII art.
-    pub fn build(self) -> Result<AsciiArt, AsciiArtError> {
+    /// Builds ASCII.
+    pub fn build(self) -> Result<Ascii, ImageToAsciiBuilderError> {
         tracing::info!("converting bytes to ascii");
         let dyn_img = Reader::new(Cursor::new(self.input_bytes))
             .with_guessed_format()
             .context("image reader failed")?
             .decode()
             .context("image decode failed")?;
-        Ok(AsciiArt(char_rows_to_terminal_color_string(
+        Ok(Ascii(char_rows_to_terminal_color_string(
             &img_to_char_rows(
                 &font::Font::from_bdf_stream(
                     Bytes::from(self.font).reader(),
