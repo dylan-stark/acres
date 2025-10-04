@@ -64,6 +64,33 @@ impl From<Alphabet> for Vec<char> {
     }
 }
 
+/// Brightness offset.
+pub struct BrightnessOffset(f32);
+
+impl Default for BrightnessOffset {
+    fn default() -> Self {
+        Self(0.0)
+    }
+}
+
+impl From<BrightnessOffset> for f32 {
+    fn from(value: BrightnessOffset) -> Self {
+        value.0
+    }
+}
+
+impl BrightnessOffset {
+    /// Creates a new brightness offset value.
+    pub fn new(offset: f32) -> Result<Self, AsciiArtError> {
+        match offset {
+            _ if (0.0..=255.0).contains(&offset) => Ok(Self(offset)),
+            _ => Err(AsciiArtError::ValidationError(String::from(
+                "brightness offset must be between 0 and 225",
+            ))),
+        }
+    }
+}
+
 /// Built-in fonts.
 #[derive(Default)]
 pub enum Font {
@@ -86,6 +113,9 @@ impl From<Font> for Bytes {
 /// An ASCII Art error.
 #[derive(Debug, thiserror::Error)]
 pub enum AsciiArtError {
+    /// A validation error.
+    #[error("validation error: {0}")]
+    ValidationError(String),
     /// An unexpected error.
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
@@ -112,6 +142,7 @@ impl AsciiArt {
 #[derive(Default)]
 pub struct AsciiArtBuilder {
     alphabet: Alphabet,
+    brightness_offset: BrightnessOffset,
     font: Font,
     chars_wide: usize,
     input_bytes: Bytes,
@@ -127,6 +158,12 @@ impl AsciiArtBuilder {
     pub fn alphabet(mut self, alphabet: Alphabet) -> Self {
         //self.alphabet_reader(Bytes::from(alphabet).reader())
         self.alphabet = alphabet;
+        self
+    }
+
+    /// Sets the brightness-offset.
+    pub fn brightness_offset(mut self, offset: BrightnessOffset) -> Self {
+        self.brightness_offset = offset;
         self
     }
 
@@ -168,14 +205,13 @@ impl AsciiArtBuilder {
         );
         let luma_img = LumaImage::from(&dyn_img);
         let convert = get_converter("direction-and-intensity");
-        let brightness_offset = 0.;
         let algorithm = get_conversion_algorithm("edge-augmented");
         let char_rows = img_to_char_rows(
             &font,
             &luma_img,
             convert,
             Some(self.chars_wide),
-            brightness_offset,
+            self.brightness_offset.into(),
             &algorithm,
         );
         Ok(AsciiArt(char_rows_to_terminal_color_string(
