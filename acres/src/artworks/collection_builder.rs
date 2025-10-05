@@ -1,8 +1,5 @@
-use anyhow::{Context, anyhow};
-use reqwest::StatusCode;
-
 use crate::artworks::collection_query_params::CollectionQueryParams;
-use crate::{AcresError, api::Api, artworks::Collection, config::Config};
+use crate::{AcresError, api::Api, artworks::Collection};
 
 /// An artworks collection collection operation.
 ///
@@ -51,11 +48,11 @@ impl CollectionBuilder {
     /// ```
     /// use acres::artworks::CollectionBuilder;
     ///
-    /// CollectionBuilder::new().ids(vec![256, 1024, 4096]);
+    /// CollectionBuilder::new().ids(Some(vec![256, 1024, 4096]));
     /// ```
-    pub fn ids(mut self, ids: Vec<u32>) -> Self {
+    pub fn ids(mut self, ids: Option<Vec<u32>>) -> Self {
         tracing::info!(msg = "Settings ids", ?ids);
-        self.ids = Some(ids);
+        self.ids = ids;
         self
     }
 
@@ -69,13 +66,13 @@ impl CollectionBuilder {
     /// ```
     /// use acres::artworks::CollectionBuilder;
     ///
-    /// CollectionBuilder::new().limit(10);
+    /// CollectionBuilder::new().limit(Some(10));
     /// ```
     ///
     /// [pagination section]: https://api.artic.edu/docs/#pagination
-    pub fn limit(mut self, limit: u32) -> Self {
+    pub fn limit(mut self, limit: Option<u32>) -> Self {
         tracing::info!(msg = "Settings limit", limit);
-        self.limit = Some(limit);
+        self.limit = limit;
         self
     }
 
@@ -89,13 +86,13 @@ impl CollectionBuilder {
     /// ```
     /// use acres::artworks::CollectionBuilder;
     ///
-    /// CollectionBuilder::new().page(2);
+    /// CollectionBuilder::new().page(Some(2));
     /// ```
     ///
     /// [pagination section]: https://api.artic.edu/docs/#pagination
-    pub fn page(mut self, page: u32) -> Self {
+    pub fn page(mut self, page: Option<u32>) -> Self {
         tracing::info!(msg = "Settings page", page);
-        self.page = Some(page);
+        self.page = page;
         self
     }
 
@@ -106,11 +103,13 @@ impl CollectionBuilder {
     /// ```
     /// use acres::artworks::CollectionBuilder;
     ///
-    /// CollectionBuilder::new().fields(vec!["title".into(), "description".into()]);
+    /// CollectionBuilder::new().fields(Some(vec!["title".into(), "description".into()]));
     /// ```
-    pub fn fields(mut self, fields: Vec<String>) -> Self {
+    pub fn fields(mut self, fields: Option<Vec<String>>) -> Self {
         tracing::info!(msg = "Settings fields", ?fields);
-        self.fields = fields;
+        if let Some(fields) = fields {
+            self.fields = fields;
+        }
         self
     }
 
@@ -121,11 +120,13 @@ impl CollectionBuilder {
     /// ```
     /// use acres::artworks::CollectionBuilder;
     ///
-    /// CollectionBuilder::new().include(vec!["place_pivots".into()]);
+    /// CollectionBuilder::new().include(Some(vec!["place_pivots".into()]));
     /// ```
-    pub fn include(mut self, include: Vec<String>) -> Self {
+    pub fn include(mut self, include: Option<Vec<String>>) -> Self {
         tracing::info!(msg = "Settings include", ?include);
-        self.include = include;
+        if let Some(include) = include {
+            self.include = include;
+        }
         self
     }
 
@@ -158,83 +159,94 @@ impl CollectionBuilder {
     /// ```
     pub async fn build(&self) -> Result<Collection, AcresError> {
         tracing::info!(msg = "Getting artworks collection", ?self);
-        // TODO: Move config into `Api`
-        let config = Config::new().context("failed to load config")?;
-        let artworks_json_path = config.cache_dir.join("artworks.json");
-        if config.use_cache && self.api.use_cache && artworks_json_path.is_file() {
-            tracing::info!(msg = "Using cached file", ?artworks_json_path);
-            let json = std::fs::read_to_string(&artworks_json_path).with_context(|| {
-                format!(
-                    "failed to read cached file from {}",
-                    artworks_json_path.display()
-                )
-            })?;
-            Ok(Collection::new(
-                serde_json::from_str(&json).context("failed to serialie JSON")?,
-            ))
-        } else {
-            tracing::info!(msg = "Not using cache");
-            let artworks_path = format!("{}/artworks", self.api.base_uri);
-            let client = reqwest::Client::new();
-            let mut headers = reqwest::header::HeaderMap::new();
-            headers.insert(
-                "user-agent",
-                format!("ACRES/{}", env!("CARGO_PKG_VERSION"),)
-                    .parse()
-                    .context("failed constructing user-agent header")?,
-            );
-            headers.insert(
-                "ACRES-User-Agent",
-                "ACRES (dylan.stark@gmail.com)"
-                    .parse()
-                    .context("failed constructing ACRES-User-Agent header")?,
-            );
-            tracing::debug!(?headers);
-            let query_params = CollectionQueryParams {
-                ids: self.ids.clone(),
-                limit: self.limit,
-                page: self.page,
-                fields: self.fields.clone(),
-                include: self.include.clone(),
-            };
-            tracing::debug!(?query_params);
+        let endpoint = format!("{}/artworks", self.api.base_uri);
+        let query_params = CollectionQueryParams {
+            ids: self.ids.clone(),
+            limit: self.limit,
+            page: self.page,
+            fields: self.fields.clone(),
+            include: self.include.clone(),
+        };
+        self.api
+            .fetch::<Collection>(endpoint, Some(query_params))
+            .await
+        //// TODO: Move config into `Api`
+        //let config = Config::new().context("failed to load config")?;
+        //let artworks_json_path = config.cache_dir.join("artworks.json");
+        //if config.use_cache && self.api.use_cache && artworks_json_path.is_file() {
+        //    tracing::info!(msg = "Using cached file", ?artworks_json_path);
+        //    let json = std::fs::read_to_string(&artworks_json_path).with_context(|| {
+        //        format!(
+        //            "failed to read cached file from {}",
+        //            artworks_json_path.display()
+        //        )
+        //    })?;
+        //    Ok(Collection::new(
+        //        serde_json::from_str(&json).context("failed to serialie JSON")?,
+        //    ))
+        //} else {
+        //    tracing::info!(msg = "Not using cache");
+        //    let artworks_path = format!("{}/artworks", self.api.base_uri);
+        //    let client = reqwest::Client::new();
+        //    let mut headers = reqwest::header::HeaderMap::new();
+        //    headers.insert(
+        //        "user-agent",
+        //        format!("ACRES/{}", env!("CARGO_PKG_VERSION"),)
+        //            .parse()
+        //            .context("failed constructing user-agent header")?,
+        //    );
+        //    headers.insert(
+        //        "ACRES-User-Agent",
+        //        "ACRES (dylan.stark@gmail.com)"
+        //            .parse()
+        //            .context("failed constructing ACRES-User-Agent header")?,
+        //    );
+        //    tracing::debug!(?headers);
+        //    let query_params = CollectionQueryParams {
+        //        ids: self.ids.clone(),
+        //        limit: self.limit,
+        //        page: self.page,
+        //        fields: self.fields.clone(),
+        //        include: self.include.clone(),
+        //    };
+        //    tracing::debug!(?query_params);
 
-            let response = client
-                .get(&artworks_path)
-                .headers(headers)
-                .query(&query_params)
-                .send()
-                .await
-                .with_context(|| format!("failed to GET {}", artworks_path))?;
-            let collection = match response.status() {
-                StatusCode::OK => Ok(response
-                    .json::<serde_json::Value>()
-                    .await
-                    .with_context(|| format!("failed to get JSON from GET {}", artworks_path))?),
-                _ => Err(response
-                    .json::<serde_json::Value>()
-                    .await
-                    .map(|value| anyhow!("{}: {}", value["error"], value["detail"]))
-                    .with_context(|| format!("failed to get JSON from GET {}", artworks_path))?),
-            };
+        //    let response = client
+        //        .get(&artworks_path)
+        //        .headers(headers)
+        //        .query(&query_params)
+        //        .send()
+        //        .await
+        //        .with_context(|| format!("failed to GET {}", artworks_path))?;
+        //    let collection = match response.status() {
+        //        StatusCode::OK => Ok(response
+        //            .json::<serde_json::Value>()
+        //            .await
+        //            .with_context(|| format!("failed to get JSON from GET {}", artworks_path))?),
+        //        _ => Err(response
+        //            .json::<serde_json::Value>()
+        //            .await
+        //            .map(|value| anyhow!("{}: {}", value["error"], value["detail"]))
+        //            .with_context(|| format!("failed to get JSON from GET {}", artworks_path))?),
+        //    };
 
-            if let Ok(collection) = &collection {
-                std::fs::create_dir_all(artworks_json_path.parent().expect("path has parent"))
-                    .with_context(|| {
-                        format!(
-                            "failed to create parent directory for {}",
-                            artworks_json_path.display()
-                        )
-                    })?;
-                std::fs::write(&artworks_json_path, collection.to_string())
-                    .with_context(|| format!("failed to write {}", artworks_json_path.display()))?;
-            }
+        //    if let Ok(collection) = &collection {
+        //        std::fs::create_dir_all(artworks_json_path.parent().expect("path has parent"))
+        //            .with_context(|| {
+        //                format!(
+        //                    "failed to create parent directory for {}",
+        //                    artworks_json_path.display()
+        //                )
+        //            })?;
+        //        std::fs::write(&artworks_json_path, collection.to_string())
+        //            .with_context(|| format!("failed to write {}", artworks_json_path.display()))?;
+        //    }
 
-            match collection {
-                Ok(collection) => Ok(Collection::new(collection)),
-                Err(error) => Err(error.into()),
-            }
-        }
+        //    match collection {
+        //        Ok(collection) => Ok(Collection::new(collection)),
+        //        Err(error) => Err(error.into()),
+        //    }
+        //}
     }
 }
 
@@ -284,7 +296,7 @@ mod tests {
 
         let collection: Collection = CollectionBuilder::new()
             .api(api)
-            .ids(vec![1, 3])
+            .ids(Some(vec![1, 3]))
             .build()
             .await
             .unwrap();
@@ -309,7 +321,7 @@ mod tests {
 
         let collection: Collection = CollectionBuilder::new()
             .api(api)
-            .limit(2)
+            .limit(Some(2))
             .build()
             .await
             .unwrap();
@@ -335,7 +347,7 @@ mod tests {
 
         let error = CollectionBuilder::new()
             .api(api)
-            .limit(1000)
+            .limit(Some(1000))
             .build()
             .await
             .err()
@@ -367,7 +379,7 @@ mod tests {
 
         CollectionBuilder::new()
             .api(api)
-            .page(2)
+            .page(Some(2))
             .build()
             .await
             .unwrap();
@@ -391,7 +403,7 @@ mod tests {
 
         CollectionBuilder::new()
             .api(api)
-            .fields(vec!["title".into(), "description".into()])
+            .fields(Some(vec!["title".into(), "description".into()]))
             .build()
             .await
             .unwrap();
@@ -415,7 +427,7 @@ mod tests {
 
         CollectionBuilder::new()
             .api(api)
-            .include(vec!["date".into(), "place_pivots".into()])
+            .include(Some(vec!["date".into(), "place_pivots".into()]))
             .build()
             .await
             .unwrap();

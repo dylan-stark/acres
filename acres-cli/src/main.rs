@@ -2,39 +2,36 @@
 
 //! acres-cli is a simple CLI for accessing the Art Institute of Chicago's [public APIs].
 //!
-//! You can list artworks with `acres-cli artworks`.
-//! The output is just JSON, so you can pipe to `jq` for easier consumption.
-//!
-//! If you know the `id` of a particular artwork, you can get it with `acres-cli
-//! artwork <id>`.
-//! The output is just JSON, by default, but you can get the image bytes by setting `--as=image` or
-//! an ASCII art representation with `--as=ascii`.
-//!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
-use std::io::Write;
+use std::io::{self, Write};
 
-use acres::artworks;
+use acres::{AcresError, Api, artworks};
 use clap::{Arg, Command, command, value_parser};
-use color_eyre::Result;
-use crossterm::terminal;
-use eyre::Context;
+use clap_stdin::FileOrStdin;
+use color_eyre::{
+    Result,
+    eyre::{Report, WrapErr},
+};
+use image_to_ascii_builder::{
+    Alphabet, Ascii, BrightnessOffset, CharWidth, ConversionAlgorithm, Font, Metric,
+};
 
 #[doc(hidden)]
 mod logging;
 
-#[doc(hidden)]
-#[derive(clap::ValueEnum, Clone)]
-enum AsOption {
-    Iiif,
-    Jpeg,
-    Json,
-    Ascii,
+#[derive(clap::ValueEnum, Clone, Default)]
+enum IiifTo {
+    #[default]
+    #[value(name = "url")]
+    Url,
+    #[value(name = "bytes")]
+    Bytes,
 }
 
 #[doc(hidden)]
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Report> {
     crate::logging::init()?;
     color_eyre::install()?;
 
@@ -43,31 +40,26 @@ async fn main() -> Result<()> {
         .subcommand_required(true)
         .subcommand(
             Command::new("artwork")
-                .about("An artwork")
+                .about("Retrieve a piece of artwork")
                 .arg(
                     Arg::new("id")
                         .help("the id of the artwork")
                         .required(true)
                         .value_parser(value_parser!(u32)),
                 )
+        )
+        .subcommand(
+            Command::new("artwork-manifest").about("Retrieve the manifest for this artwork")
                 .arg(
-                    Arg::new("width")
-                        .long("width")
-                        .help("width in chars; disregarded if not outputting as ASCII")
-                        .required(false)
-                        .value_parser(value_parser!(usize)),
-                )
-                .arg(
-                    Arg::new("as")
-                        .long("as")
-                        .help("how to format the output")
-                        .value_parser(value_parser!(AsOption))
-                        .default_value("json"),
+                    Arg::new("id")
+                        .help("the id of the artwork")
+                        .required(true)
+                        .value_parser(value_parser!(u32)),
                 ),
         )
         .subcommand(
             Command::new("artworks")
-                .about("The artworks collection")
+                .about("List artworks collection")
                 .arg(
                     Arg::new("ids")
                         .long("ids")
@@ -100,90 +92,294 @@ async fn main() -> Result<()> {
                         .value_parser(value_parser!(String)),
                 ),
         )
+        .subcommand(
+            Command::new("artworks-search")
+                .about("Search the artworks collection")
+                .arg(
+                    Arg::new("q")
+                        .long("q")
+                        .help("search query")
+                        .value_parser(value_parser!(String)),
+                )
+                .arg(
+                    Arg::new("query")
+                        .long("query")
+                        .help("complex query (in Elasticsearch domain syntax)")
+                        .value_parser(value_parser!(String)),
+                )
+                .arg(
+                    Arg::new("sort")
+                        .long("sort")
+                        .help("sort one or more fields")
+                        .value_parser(value_parser!(String)),
+                )
+                .arg(
+                    Arg::new("from")
+                        .long("from")
+                        .help("starting point of results")
+                        .value_parser(value_parser!(u32)),
+                )
+                .arg(
+                    Arg::new("size")
+                        .long("size")
+                        .help("number of results to return")
+                        .value_parser(value_parser!(u32)),
+                )
+                .arg(
+                    Arg::new("facets")
+                    .long("facets")
+                    .help( "comman-separated list of 'count' aggregation facets to include in results")
+                    .value_delimiter(',')
+                    .value_parser(value_parser!(String))
+                ),
+        )
+        .subcommand(
+            Command::new("ascii-art")
+                .about("Work with ASCII art")
+                .arg(
+                    Arg::new("image")
+                        .required(true)
+                        .help("image file or '-' to read image bytes from stdin")
+                        .value_parser(value_parser!(FileOrStdin)),
+                )
+                .arg(
+                    Arg::new("alphabet")
+                        .help("alphabet to use")
+                        .value_parser(Alphabet::parse),
+                )
+                .arg(
+                    Arg::new("brightness-offset")
+                        .help("brightness offset")
+                        .value_parser(BrightnessOffset::parse),
+                )
+                .arg(
+                    Arg::new("conversion-algorithm")
+                        .help("alphabet to use")
+                        .value_parser(ConversionAlgorithm::parse),
+                )
+                .arg(
+                    Arg::new("font")
+                        .help("font to use")
+                        .value_parser(Font::parse),
+                )
+                .arg(
+                    Arg::new("metric")
+                        .long("metric")
+                        .help("the metric to use")
+                        .value_parser(Metric::parse),
+                )
+                .arg(
+                    Arg::new("width")
+                        .long("width")
+                        .help("how many characters wide")
+                        .value_parser(CharWidth::parse),
+                ),
+        )
+        .subcommand(
+            Command::new("iiif")
+                .about("Work with IIIF URLs")
+                .arg(
+                    Arg::new("artwork")
+                        .required(true)
+                        .help("artwork JSON file or '-' to read JSON from stdin")
+                        .value_parser(value_parser!(FileOrStdin)),
+                )
+                .arg(
+                    Arg::new("region")
+                        .long("region")
+                        .help("rectangular portion of the full image to be returned")
+                        .value_parser(iiif::Region::parse),
+                )
+                .arg(
+                    Arg::new("size")
+                        .long("size")
+                        .help("dimensions to which the extracted region is to be scaled")
+                        .value_parser(iiif::Size::parse),
+                )
+                .arg(
+                    Arg::new("rotation")
+                        .long("rotation")
+                        .help("mirroring and rotation")
+                        .value_parser(iiif::Rotation::parse),
+                )
+                .arg(
+                    Arg::new("quality")
+                        .long("quality")
+                        .help("whether image is delivered in color, grayscale, or black-and-white")
+                        .value_parser(iiif::Quality::parse),
+                )
+                .arg(
+                    Arg::new("format")
+                        .long("format")
+                        .help("format of the returned image")
+                        .value_parser(iiif::Format::parse),
+                )
+                .arg(Arg::new("to").long("to").help("type of output").default_value("url").value_parser(value_parser!(IiifTo)))
+        )
+        .subcommand(
+            Command::new("iiif-info")
+                .about("Get associated IIIF image information")
+                .arg(
+                    Arg::new("artwork")
+                        .required(true)
+                        .help("artwork JSON file or '-' to read JSON from stdin")
+                        .value_parser(value_parser!(FileOrStdin)),
+                )
+                .arg(Arg::new("to").long("to").help("type of output").default_value("url").value_parser(value_parser!(IiifTo)))
+                .subcommand(Command::new("info").about("Retrieve image information.")),
+        )
         .get_matches();
 
-    if let Some(matches) = matches.subcommand_matches("artwork") {
-        let id = matches
-            .get_one::<u32>("id")
-            .expect("clap `required` ensures its present");
-        let artwork = artworks::Artwork::builder().id(*id);
-        match artwork.build().await {
-            Ok(artwork) => match matches
-                .get_one::<AsOption>("as")
-                .expect("clap ensures this is a string")
-            {
-                AsOption::Ascii => {
-                    let chars_wide = match matches.get_one::<usize>("width") {
-                        Some(&width) => width,
-                        None => match terminal::size() {
-                            Ok((columns, _)) => columns.into(),
-                            Err(_) => 80,
-                        },
-                    };
-                    match artwork.to_ascii(chars_wide).await {
-                        Ok(ascii) => std::io::stdout()
-                            .write_all((ascii + "\n").as_bytes())
-                            .wrap_err("We failed writing out the ASCII ...")?,
-                        Err(error) => {
-                            return Err(error).wrap_err("We couldn't generate that ASCII art ...");
-                        }
-                    }
-                }
-                AsOption::Iiif => match artwork.to_iiif() {
-                    Ok(iiif_url) => println!("{}", iiif_url),
-                    Err(error) => {
-                        return Err(error).wrap_err("We couldn't generate that IIIF url ...");
-                    }
-                },
-                AsOption::Jpeg => match artwork.to_image().await {
-                    Ok(image) => std::io::stdout()
-                        .write_all(&image)
-                        .wrap_err("We failed writing out the image ...")?,
-                    Err(error) => {
-                        return Err(error).wrap_err("We couldn't get that image ...");
-                    }
-                },
-                AsOption::Json => println!("{}", artwork),
-            },
+    match matches.subcommand() {
+        Some(("artwork", matches)) => match artworks::Artwork::builder()
+            .id(matches.get_one::<u32>("id").copied())
+            .build()
+            .await
+        {
+            Ok(artwork) => println!("{}", artwork),
             Err(error) => return Err(error).wrap_err("We couldn't get that artwork ..."),
-        }
-    }
-
-    if let Some(matches) = matches.subcommand_matches("artworks") {
-        let collection = artworks::Collection::builder();
-        let collection = match matches.get_many::<u32>("ids") {
-            Some(ids) => collection.ids(ids.copied().collect()),
-            None => collection,
-        };
-        let collection = match matches.get_one::<u32>("limit") {
-            Some(limit) => collection.limit(*limit),
-            None => collection,
-        };
-        let collection = match matches.get_one::<u32>("page") {
-            Some(page) => collection.page(*page),
-            None => collection,
-        };
-        let collection = match matches.get_many::<String>("fields") {
-            Some(fields) => {
-                collection.fields(fields.into_iter().map(|field| field.to_string()).collect())
+        },
+        Some(("artwork-manifest", matches)) => {
+            match artworks::Manifest::builder()
+                .id(matches.get_one::<u32>("id").copied())
+                .build()
+                .await
+            {
+                Ok(manifest) => println!("{}", manifest),
+                Err(error) => return Err(error).wrap_err("We couldn't get that manifest ..."),
             }
-            None => collection,
-        };
-        let collection = match matches.get_many::<String>("include") {
-            Some(include) => collection.include(
-                include
-                    .into_iter()
-                    .map(|include| include.to_string())
-                    .collect(),
-            ),
-            None => collection,
-        };
-
-        match collection.build().await {
-            Ok(collection) => println!("{}", collection),
-            Err(error) => return Err(error).wrap_err("We couldn't get that list ..."),
         }
-    }
+        Some(("artworks", matches)) => {
+            match artworks::Collection::builder()
+                .ids(
+                    matches
+                        .get_many::<u32>("ids")
+                        .map(|ids| ids.copied().collect::<Vec<u32>>()),
+                )
+                .limit(matches.get_one::<u32>("limit").copied())
+                .page(matches.get_one::<u32>("page").copied())
+                .fields(
+                    matches
+                        .get_many::<String>("fields")
+                        .map(|fields| fields.cloned().collect()),
+                )
+                .include(
+                    matches
+                        .get_many::<String>("include")
+                        .map(|include| include.cloned().collect()),
+                )
+                .build()
+                .await
+            {
+                Ok(collection) => println!("{}", collection),
+                Err(error) => return Err(error).wrap_err("We couldn't get that list ..."),
+            }
+        }
+        Some(("artworks-search", matches)) => {
+            match artworks::Search::builder()
+                .q(matches.get_one::<String>("q").cloned())
+                .query(matches.get_one::<String>("query").cloned())
+                .sort(matches.get_one::<String>("sort").cloned())
+                .from(matches.get_one::<u32>("from").cloned())
+                .size(matches.get_one::<u32>("size").cloned())
+                .facets(
+                    matches
+                        .get_many::<String>("facets")
+                        .map(|facets| facets.cloned().collect()),
+                )
+                .build()
+                .await
+            {
+                Ok(search) => println!("{}", search),
+                Err(error) => return Err(error).wrap_err("We couldn't complete that search ..."),
+            }
+        }
+        Some(("ascii-art", matches)) => {
+            let image_reader = matches
+                .get_one::<FileOrStdin>("image")
+                .expect("clap ensures we get the bytes")
+                .clone()
+                .into_reader()
+                .context("failed to clone file-or-stdin")?;
+            let art = Ascii::builder()
+                .input_reader(image_reader)
+                .context("failed to read input image")?
+                .alphabet(matches.get_one::<Alphabet>("alphabet").cloned())
+                .brightness_offset(
+                    matches
+                        .get_one::<BrightnessOffset>("brightness-offset")
+                        .cloned(),
+                )
+                .conversion_algorithm(
+                    matches
+                        .get_one::<ConversionAlgorithm>("conversion-algorithm")
+                        .cloned(),
+                )
+                .chars_wide(matches.get_one::<CharWidth>("width").cloned())
+                .font(matches.get_one::<Font>("font").cloned())
+                .metric(matches.get_one::<Metric>("metric").cloned())
+                .build()
+                .context("failed to build art")?;
+            println!("{}\n", art);
+        }
+        Some(("iiif", matches)) => {
+            let artwork = artworks::ArtworkInfo::load(
+                matches
+                    .get_one::<FileOrStdin>("artwork")
+                    .expect("clap ensures this is a string")
+                    .clone()
+                    .into_reader()?,
+            )
+            .ok_or(AcresError::ArtworkError(
+                "not able to read that artwork info".to_string(),
+            ))?;
+            let base_uri: iiif::BaseUri = artwork.try_into()?;
+            match iiif::ImageRequest::builder()
+                .base_uri(base_uri)
+                .region(matches.get_one::<iiif::Region>("region").cloned())
+                .size(matches.get_one::<iiif::Size>("size").cloned())
+                .rotation(matches.get_one::<iiif::Rotation>("rotation").cloned())
+                .quality(matches.get_one::<iiif::Quality>("quality").cloned())
+                .format(matches.get_one::<iiif::Format>("format").cloned())
+                .build()
+                .await
+            {
+                Ok(request) => match matches.get_one::<IiifTo>("to") {
+                    Some(IiifTo::Url) => println!("{}", request),
+                    Some(IiifTo::Bytes) => {
+                        let response: iiif::ImageResponse = Api::new()
+                            .fetch(request.to_string(), None as Option<()>)
+                            .await?;
+                        io::stdout()
+                            .write_all(&bytes::Bytes::from(response))
+                            .context("failed to write image bytes")?;
+                    }
+                    None => unreachable!("default value means we shouldn't get here"),
+                },
+                Err(error) => return Err(error).wrap_err("Oops, something went wrong ..."),
+            }
+        }
+        Some(("iiif-info", matches)) => {
+            let artwork = artworks::ArtworkInfo::load(
+                matches
+                    .get_one::<FileOrStdin>("artwork")
+                    .expect("clap ensures this is a string")
+                    .clone()
+                    .into_reader()?,
+            )
+            .ok_or(AcresError::ArtworkError(
+                "not able to read that artwork info".to_string(),
+            ))?;
+            let request: iiif::InformationRequest = iiif::BaseUri::try_from(artwork)?.into();
+            let response: iiif::InformationResponse = Api::new()
+                .fetch(request.to_string(), None as Option<()>)
+                .await?;
+            io::stdout()
+                .write_all(&bytes::Bytes::from(response))
+                .context("failed to write json bytes")?;
+        }
+        _ => unreachable!("clap should ensure we don't get here"),
+    };
 
     Ok(())
 }

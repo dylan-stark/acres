@@ -1,0 +1,15 @@
+[package]
+name = "image-to-ascii-builder"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.100"
+bytes = "1.10.1"
+# indicatif is pinned here to match image-to-ascii
+indicatif = "0.18.0"
+# image is pinned here to match image-to-ascii
+image = "0.24.2"
+image-to-ascii = "0.7.0"
+thiserror = "2.0.17"
+tracing = "0.1.41"

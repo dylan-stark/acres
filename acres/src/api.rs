@@ -1,3 +1,11 @@
+use std::fmt::Debug;
+
+use crate::{AcresError, config::Config};
+use anyhow::{Context, anyhow};
+use bytes::Bytes;
+use reqwest::StatusCode;
+use serde::Serialize;
+
 /// The top-level API client.
 ///
 /// All access to the [AIC public APIs] goes through one of these.
@@ -78,6 +86,94 @@ impl Api {
     }
 }
 
+impl Api {
+    /// Fetch
+    pub async fn fetch<T>(
+        &self,
+        endpoint: String,
+        query_params: Option<impl Serialize + Debug>,
+    ) -> Result<T, AcresError>
+    where
+        T: From<Bytes>,
+    {
+        let cached: Option<Bytes> = self.from_cache(&endpoint, &query_params)?;
+        let results: Result<Bytes, AcresError> = match cached {
+            Some(results) => Ok(results),
+            None => Ok(fetch(&endpoint, &query_params).await?),
+        };
+        let results = self.to_cache(&endpoint, query_params, results.unwrap())?;
+        Ok(T::from(results))
+    }
+
+    /// Stores an item in cache.
+    pub fn to_cache(
+        &self,
+        endpoint: &String,
+        query_params: impl Debug,
+        data: Bytes,
+    ) -> Result<Bytes, AcresError> {
+        if !self.use_cache {
+            return Ok(data);
+        }
+        let id =
+            xxhash_rust::xxh3::xxh3_64(format!("{:?}-{:?}", endpoint, query_params).as_bytes())
+                .to_string();
+        tracing::debug!("Looking to store id '{}' to cache", &id);
+        let cache_file_path = match Config::new() {
+            Ok(config) => config.cache_dir.join(&id),
+            Err(_) => return Ok(data),
+        };
+        tracing::debug!(?cache_file_path);
+        if cache_file_path.is_file() {
+            return Ok(data);
+        }
+        std::fs::write(&cache_file_path, data.clone()).with_context(|| "writing data to file")?;
+        tracing::info!(
+            "Wrote '{}' to cache at '{}'",
+            id,
+            cache_file_path.to_str().unwrap_or("???")
+        );
+        Ok(data)
+    }
+
+    /// Loads an item from cache.
+    ///
+    /// If `id` is not in the cache, returns Ok(None). Otherwise, loads
+    /// the data and returns result of applying the provided closure f().
+    pub fn from_cache(
+        &self,
+        endpoint: &String,
+        query_params: &Option<impl Serialize + Debug>,
+    ) -> Result<Option<Bytes>, AcresError> {
+        if !self.use_cache {
+            return Ok(None);
+        }
+        let id =
+            xxhash_rust::xxh3::xxh3_64(format!("{:?}-{:?}", endpoint, query_params).as_bytes())
+                .to_string();
+        tracing::debug!("Looking to load id '{}' from cache", id);
+        let cache_file_path = match Config::new() {
+            Ok(config) => config.cache_dir.join(&id),
+            Err(_) => return Ok(None),
+        };
+        if !cache_file_path.is_file() {
+            return Ok(None);
+        }
+        let data = std::fs::read(&cache_file_path).with_context(|| {
+            format!(
+                "failed to read cached file from {}",
+                cache_file_path.display()
+            )
+        })?;
+        tracing::info!(
+            "Loaded '{}' from cache at '{}'",
+            id,
+            cache_file_path.display()
+        );
+        Ok(Some(data.into()))
+    }
+}
+
 impl Default for Api {
     fn default() -> Self {
         ApiBuilder::default().build()
@@ -143,13 +239,56 @@ impl ApiBuilder {
 
 impl Default for ApiBuilder {
     fn default() -> Self {
+        // TODO: Check ACRES_* for overrides
+        let config = Config::new().unwrap_or_default();
         ApiBuilder {
-            base_uri: String::from("https://api.artic.edu/api/v1"),
-            use_cache: true,
+            base_uri: config.base_uri,
+            use_cache: config.use_cache,
         }
     }
 }
 
+/// Fetch.
+pub async fn fetch(
+    endpoint: &String,
+    query_params: &Option<impl Serialize>,
+) -> Result<Bytes, AcresError> {
+    let client = reqwest::Client::new();
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        "user-agent",
+        format!("ACRES/{}", env!("CARGO_PKG_VERSION"),)
+            .parse()
+            .context("failed constructing user-agent header")?,
+    );
+    headers.insert(
+        "ACRES-User-Agent",
+        "ACRES (dylan.stark@gmail.com)"
+            .parse()
+            .context("failed constructing ACRES-User-Agent header")?,
+    );
+    let mut request = client.get(endpoint).headers(headers);
+    if query_params.is_some() {
+        request = request.query(&query_params);
+    }
+    let response = request
+        .send()
+        .await
+        .with_context(|| format!("GET {}", endpoint))?;
+    let value = match response.status() {
+        StatusCode::OK => Ok(response
+            .bytes()
+            //.json::<serde_json::Value>()
+            .await
+            .with_context(|| format!("awaiting JSON from GET {}", endpoint))?),
+        _ => Err(response
+            .json::<serde_json::Value>()
+            .await
+            .map(|value| anyhow!("{}: {}", value["error"], value["detail"]))
+            .with_context(|| format!("awaiting errror from GET {}", endpoint))?),
+    };
+    Ok(value?)
+}
 #[cfg(test)]
 mod tests {
     use super::*;

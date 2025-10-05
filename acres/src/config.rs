@@ -8,6 +8,7 @@ pub struct Config {
     #[serde(default)]
     pub use_cache: bool,
     pub cache_dir: PathBuf,
+    pub base_uri: String,
 }
 
 impl Config {
@@ -16,6 +17,7 @@ impl Config {
         let builder = config::Config::builder()
             .set_default("use_cache", true)?
             .set_default("cache_dir", cache_dir.to_str().expect("path is valid"))?
+            .set_default("base_uri", "https://api.artic.edu/api/v1".to_string())?
             .add_source(config::Environment::with_prefix("ACRES"));
         let cfg: Self = builder.build()?.try_deserialize()?;
         tracing::debug!(?cfg);

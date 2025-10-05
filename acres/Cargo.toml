@@ -5,22 +5,20 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.98"
-bytes = { version = "1.10.1", optional = true }
+bytes = "1.10.1"
 config = "0.15.11"
 directories = "6.0.0"
-image = { version = "0.24.9", optional = true }
-image-to-ascii = { version = "0.7.0", optional = true }
+iiif = { path = "../iiif" }
 reqwest = { version = "0.12.15", features = ["json"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 thiserror = "2.0.12"
 tracing = { version = "0.1.41" }
+url = { version = "2.5.7", features = ["serde"] }
+xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
 
 [dev-dependencies]
 predicates = "3.1.3"
 tokio = { version = "1.44.2", features = ["full"] }
 wiremock = "0.6.3"
 
-[features]
-image = ["dep:bytes", "dep:image"]
-ascii-art = ["image", "dep:image-to-ascii"]
