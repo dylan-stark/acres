@@ -90,6 +90,8 @@ pub enum Alphabet {
     /// The alphabet alphabet.
     #[default]
     Alphabet,
+    /// The fast alphabet.
+    Fast,
     /// The letters alphabet.
     Letters,
     /// The lowercase alphabet.
@@ -106,6 +108,7 @@ impl Display for Alphabet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Alphabet::Alphabet => f.write_str("alphabet"),
+            Alphabet::Fast => f.write_str("fast"),
             Alphabet::Letters => f.write_str("letters"),
             Alphabet::Lowercase => f.write_str("lowercase"),
             Alphabet::Minimal => f.write_str("minimal"),
@@ -119,6 +122,7 @@ impl From<Alphabet> for Bytes {
     fn from(value: Alphabet) -> Self {
         match value {
             Alphabet::Alphabet => Bytes::from_static(include_bytes!("../.data/alphabet.txt")),
+            Alphabet::Fast => Bytes::from_static(include_bytes!("../.data/fast.txt")),
             Alphabet::Letters => Bytes::from_static(include_bytes!("../.data/letters.txt")),
             Alphabet::Lowercase => Bytes::from_static(include_bytes!("../.data/lowercase.txt")),
             Alphabet::Minimal => Bytes::from_static(include_bytes!("../.data/minimal.txt")),
@@ -146,6 +150,7 @@ impl TryFrom<&str> for Alphabet {
     fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
         match value {
             _ if value == "alphabet" => Ok(Alphabet::Alphabet),
+            _ if value == "fast" => Ok(Alphabet::Fast),
             _ if value == "letters" => Ok(Alphabet::Letters),
             _ if value == "lowercase" => Ok(Alphabet::Lowercase),
             _ if value == "minimal" => Ok(Alphabet::Minimal),
