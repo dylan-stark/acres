@@ -144,21 +144,25 @@ async fn main() -> Result<(), Report> {
                 )
                 .arg(
                     Arg::new("alphabet")
+                        .long("alphabet")
                         .help("alphabet to use")
                         .value_parser(Alphabet::parse),
                 )
                 .arg(
                     Arg::new("brightness-offset")
+                        .long("brightness-offset")
                         .help("brightness offset")
                         .value_parser(BrightnessOffset::parse),
                 )
                 .arg(
                     Arg::new("conversion-algorithm")
+                        .long("conversion-algorithm")
                         .help("alphabet to use")
                         .value_parser(ConversionAlgorithm::parse),
                 )
                 .arg(
                     Arg::new("font")
+                        .long("font")
                         .help("font to use")
                         .value_parser(Font::parse),
                 )
