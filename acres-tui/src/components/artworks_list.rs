@@ -18,7 +18,6 @@ use super::Component;
 
 use crate::{
     action::Action,
-    aic::{self, api::artworks::Client},
     app::Mode,
     config::get_data_dir,
     tui::Event,
