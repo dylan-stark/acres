@@ -8,6 +8,10 @@
       "<x>": "Select", // Select item
       "enter": "Select", // Select item
       "esc": "EnterViewMode", // Leave browse mode
+      "<q>": "Quit", // Quit the application
+      "<Ctrl-d>": "Quit", // Another way to quit
+      "<Ctrl-c>": "Quit", // Yet another way to quit
+      "<Ctrl-z>": "Suspend" // Suspend the application
     },
     "View": {
       "esc": "EnterBrowseMode", // Leave view mode
