@@ -1,3 +1,4 @@
+use clap_stdin::FileOrStdin;
 use color_eyre::Result;
 use crossterm::event::KeyEvent;
 use ratatui::prelude::Rect;
@@ -7,7 +8,7 @@ use tracing::info;
 
 use crate::{
     action::Action,
-    components::{artworks_list::ArtworksList, home::Home, Component},
+    components::{Component, home::Home},
     config::Config,
     tui::{Event, Tui},
 };
@@ -33,12 +34,12 @@ pub enum Mode {
 }
 
 impl App {
-    pub fn new(tick_rate: f64, frame_rate: f64, q: String) -> Result<Self> {
+    pub fn new(tick_rate: f64, frame_rate: f64, _artworks: FileOrStdin) -> Result<Self> {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         Ok(Self {
             tick_rate,
             frame_rate,
-            components: vec![Box::new(Home::new()), Box::new(ArtworksList::new(q))],
+            components: vec![Box::new(Home::new())],
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,
