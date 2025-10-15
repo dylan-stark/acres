@@ -1,35 +1,49 @@
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 
 /// A list of artworks
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Artworks {
-    config: Config,
-    data: Vec<Data>,
-    info: Info,
-    pagination: Pagination,
+    /// Config
+    pub config: Config,
+    /// Data
+    pub data: Vec<Data>,
+    /// Info
+    pub info: Info,
+    /// Pagination
+    pub pagination: Pagination,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-struct Config {
+impl FromStr for Artworks {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Config {
     iiif_url: String,
     website_url: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-struct Data {
-    id: u64,
-    title: String,
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Data {
+    pub id: u64,
+    pub title: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-struct Info {
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Info {
     license_text: String,
     license_links: Vec<String>,
     version: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-struct Pagination {
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Pagination {
     total: u64,
     limit: u64,
     offset: u64,

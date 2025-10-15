@@ -1,4 +1,3 @@
-use clap_stdin::FileOrStdin;
 use color_eyre::Result;
 use crossterm::event::KeyEvent;
 use ratatui::prelude::Rect;
@@ -34,12 +33,12 @@ pub enum Mode {
 }
 
 impl App {
-    pub fn new(tick_rate: f64, frame_rate: f64, _artworks: FileOrStdin) -> Result<Self> {
+    pub fn new(tick_rate: f64, frame_rate: f64, artworks: acres::artworks::Artworks) -> Result<Self> {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         Ok(Self {
             tick_rate,
             frame_rate,
-            components: vec![Box::new(Home::new()), Box::new(Artworks::new())],
+            components: vec![Box::new(Home::new()), Box::new(Artworks::new(artworks))],
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,

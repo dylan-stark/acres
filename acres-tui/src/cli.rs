@@ -1,3 +1,4 @@
+use acres::artworks::Artworks;
 use clap::Parser;
 use clap_stdin::FileOrStdin;
 
@@ -6,11 +7,11 @@ use crate::config::{get_config_dir, get_data_dir};
 #[derive(Parser, Debug)]
 #[command(author, version = version(), about)]
 pub struct Cli {
-    /// Artworks JSON from listing or searching the collection.
+    /// Artworks retrieved from listing artworks in the collection.
     ///
     /// Use `-` to pipe in from stdin.
     #[arg(value_name = "FILE or STDIN")]
-    pub artworks: FileOrStdin,
+    pub artworks: FileOrStdin<Artworks>,
 
     /// Tick rate, i.e. number of ticks per second.
     #[arg(short, long, value_name = "FLOAT", default_value_t = 4.0)]

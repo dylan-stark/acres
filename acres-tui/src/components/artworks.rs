@@ -19,12 +19,13 @@ pub struct Artworks {
 ///
 /// This is called when constructing the App.
 impl Artworks {
-    pub fn new() -> Self {
-        let list = ArtworkList::from_iter([
-            (Status::Unselected, 1_usize, "Title 1"),
-            (Status::Selected, 2_usize, "Title 2"),
-            (Status::Unselected, 3_usize, "Title 3"),
-        ]);
+    pub fn new(artworks: acres::artworks::Artworks) -> Self {
+        let list_iter: Vec<(Status, u64, String)> = artworks
+            .data
+            .iter()
+            .map(|data| (Status::Unselected, data.id, data.title.clone()))
+            .collect();
+        let list = ArtworkList::from_iter(list_iter);
         Self { list }
     }
 }
@@ -35,8 +36,8 @@ struct ArtworkList {
     state: ListState,
 }
 
-impl FromIterator<(Status, usize, &'static str)> for ArtworkList {
-    fn from_iter<T: IntoIterator<Item = (Status, usize, &'static str)>>(iter: T) -> Self {
+impl FromIterator<(Status, u64, String)> for ArtworkList {
+    fn from_iter<T: IntoIterator<Item = (Status, u64, String)>>(iter: T) -> Self {
         let items = iter
             .into_iter()
             .map(|(status, id, title)| ArtworkItem::new(status, id, title))
@@ -53,7 +54,7 @@ struct ArtworkItem {
 }
 
 impl ArtworkItem {
-    fn new(status: Status, id: usize, title: &str) -> Self {
+    fn new(status: Status, id: u64, title: String) -> Self {
         let label = format!("{} ({})", title, id);
         Self { label, status }
     }
