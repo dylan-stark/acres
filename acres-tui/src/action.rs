@@ -26,4 +26,6 @@ pub enum Action {
     ClearScreen,
     Error(String),
     Help,
+    #[strum(to_string = "View(id: {0})")]
+    View(u64),
 }

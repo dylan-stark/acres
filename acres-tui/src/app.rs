@@ -27,8 +27,8 @@ pub struct App {
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Mode {
-    #[default]
     Browse,
+    #[default]
     View,
 }
 
@@ -38,11 +38,11 @@ impl App {
         Ok(Self {
             tick_rate,
             frame_rate,
-            components: vec![Box::new(Home::new()), Box::new(Artworks::new(artworks))],
+            components: vec![Box::new(Home::new()), Box::new(Artworks::new(artworks, Mode::default()))],
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,
-            mode: Mode::Browse,
+            mode: Mode::default(),
             last_tick_key_events: Vec::new(),
             action_tx,
             action_rx,
