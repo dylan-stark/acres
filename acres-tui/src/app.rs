@@ -8,7 +8,7 @@ use tracing::info;
 
 use crate::{
     action::Action,
-    components::{Component, home::Home},
+    components::{Component, home::Home, artworks::Artworks},
     config::Config,
     tui::{Event, Tui},
 };
@@ -39,7 +39,7 @@ impl App {
         Ok(Self {
             tick_rate,
             frame_rate,
-            components: vec![Box::new(Home::new())],
+            components: vec![Box::new(Home::new()), Box::new(Artworks::new())],
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,

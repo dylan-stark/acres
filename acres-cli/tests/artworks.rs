@@ -7,7 +7,11 @@ async fn artworks_command_outputs_json() -> Result<(), Box<dyn std::error::Error
     let id = 999;
     let title = "Emergency!";
     let body = json!({
-          "pagination": {
+        "config": {
+            "iiif_url": "https://www.artic.edu/iiif/2",
+            "website_url": "http://www.artic.edu"
+        },
+        "pagination": {
           "total": 128194,
           "limit": 2,
           "offset": 0,
