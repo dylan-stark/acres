@@ -346,7 +346,6 @@ async fn main() -> Result<(), Report> {
                 .quality(matches.get_one::<iiif::Quality>("quality").cloned())
                 .format(matches.get_one::<iiif::Format>("format").cloned())
                 .build()
-                .await
             {
                 Ok(request) => match matches.get_one::<IiifTo>("to") {
                     Some(IiifTo::Url) => println!("{}", request),

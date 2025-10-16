@@ -1,4 +1,6 @@
+use acres::artworks::ArtworkInfo;
 use bytes::Bytes;
+use image_to_ascii_builder::Ascii;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -27,5 +29,9 @@ pub enum Action {
     Error(String),
     Help,
     #[strum(to_string = "View(id: {0})")]
-    View(u64),
+    View(ArtworkInfo),
+    #[strum(to_string = "RenderAscii([...])")]
+    RenderAscii(Bytes),
+    StartingRenderAscii,
+    UpdateAscii(Ascii),
 }

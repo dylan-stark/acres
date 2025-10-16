@@ -66,6 +66,8 @@ dependencies = [
  "derive_deref",
  "directories",
  "futures",
+ "iiif",
+ "image-to-ascii-builder",
  "json5",
  "lazy_static",
  "libc",
@@ -2668,6 +2670,7 @@ dependencies = [
  "image",
  "image-to-ascii",
  "indicatif 0.18.0",
+ "serde",
  "thiserror 2.0.17",
  "tracing",
 ]

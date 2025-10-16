@@ -2,10 +2,10 @@ use std::fmt::Display;
 
 use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::debug;
 
-use crate::AcresError;
+use crate::{AcresError, artworks::Artworks};
 
 use super::artwork_builder::{ArtworkBuilder, ManifestBuilder};
 
@@ -71,28 +71,56 @@ impl Artwork {
 }
 
 /// Artwork config.
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct ArtworkInfoConfig {
     /// IIIF URL.
     pub iiif_url: url::Url,
 }
 
 /// Artwork data.
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct ArtworkInfoData {
     /// ID.
     pub id: u32,
     /// Image ID.
     pub image_id: String,
+    /// Title.
+    pub title: String,
 }
 
 /// Artwork.
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct ArtworkInfo {
     /// Config.
     pub config: ArtworkInfoConfig,
     /// Data.
     pub data: ArtworkInfoData,
+}
+
+impl Display for ArtworkInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{} ({})", self.data.title, self.data.id))
+    }
+}
+
+impl From<Artworks> for Vec<ArtworkInfo> {
+    fn from(value: Artworks) -> Self {
+        let iiif_url = url::Url::parse(&value.config.iiif_url).expect("received valid URL");
+        value
+            .data
+            .iter()
+            .map(|data| ArtworkInfo {
+                config: ArtworkInfoConfig {
+                    iiif_url: iiif_url.clone(),
+                },
+                data: ArtworkInfoData {
+                    id: data.id as u32,
+                    image_id: data.image_id.clone(),
+                    title: data.title.clone(),
+                },
+            })
+            .collect()
+    }
 }
 
 impl TryFrom<ArtworkInfo> for iiif::BaseUri {

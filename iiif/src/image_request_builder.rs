@@ -53,7 +53,7 @@ impl ImageRequestBuilder {
     }
 
     /// Build the IIIF instance.
-    pub async fn build(&self) -> Result<ImageRequest, IiifError> {
+    pub fn build(&self) -> Result<ImageRequest, IiifError> {
         tracing::info!(msg = "Building IIIF instance", ?self);
 
         let base_uri = &self.base_uri;

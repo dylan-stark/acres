@@ -4,6 +4,7 @@
 
 use anyhow::Context;
 use bytes::{Buf, Bytes};
+use serde::{Deserialize, Serialize};
 
 use std::{
     fmt::Display,
@@ -386,7 +387,7 @@ impl CharWidth {
 }
 
 /// ASCII.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Ascii(String);
 
 impl Display for Ascii {

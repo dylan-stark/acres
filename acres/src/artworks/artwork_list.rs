@@ -25,13 +25,14 @@ impl FromStr for Artworks {
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Config {
-    iiif_url: String,
+    pub iiif_url: String,
     website_url: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Data {
     pub id: u64,
+    pub image_id: String,
     pub title: String,
 }
 

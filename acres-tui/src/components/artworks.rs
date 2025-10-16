@@ -1,3 +1,4 @@
+use acres::artworks::ArtworkInfo;
 use ratatui::{
     layout::{Constraint, Layout},
     style::{
@@ -30,17 +31,23 @@ impl Artworks {
     /// The primary job of this method is to construct the component's
     /// ArtworksList from an Acres Artworks (list).
     pub fn new(artworks: acres::artworks::Artworks, mode: Mode) -> Self {
-        let list_iter: Vec<(Status, u64, String)> = artworks
-            .data
+        let artwork_infos: Vec<ArtworkInfo> = artworks.clone().into();
+        // TODO: Figure out how to merge these two together now.
+        let list_iter: Vec<(Status, u64, String, ArtworkInfo)> = artwork_infos
             .iter()
             .enumerate()
-            .map(|(i, data)| {
+            .map(|(i, info)| {
                 let status = if i == 0 {
                     Status::Selected
                 } else {
                     Status::Unselected
                 };
-                (status, data.id, data.title.clone())
+                (
+                    status,
+                    info.data.id as u64,
+                    info.data.title.clone(),
+                    info.clone(),
+                )
             })
             .collect();
         let mut list = ArtworkList::from_iter(list_iter);
@@ -75,7 +82,7 @@ impl Artworks {
                 .expect("item at index i")
                 .1;
             item.status = Status::Selected;
-            Some(Action::View(item.id))
+            Some(Action::View(item.info.clone()))
         } else {
             None
         }
@@ -88,11 +95,11 @@ struct ArtworkList {
     state: ListState,
 }
 
-impl FromIterator<(Status, u64, String)> for ArtworkList {
-    fn from_iter<T: IntoIterator<Item = (Status, u64, String)>>(iter: T) -> Self {
+impl FromIterator<(Status, u64, String, ArtworkInfo)> for ArtworkList {
+    fn from_iter<T: IntoIterator<Item = (Status, u64, String, ArtworkInfo)>>(iter: T) -> Self {
         let items = iter
             .into_iter()
-            .map(|(status, id, title)| ArtworkItem::new(status, id, title))
+            .map(|(status, id, title, info)| ArtworkItem::new(status, id, title, info))
             .collect();
         let state = ListState::default();
         Self { items, state }
@@ -101,15 +108,19 @@ impl FromIterator<(Status, u64, String)> for ArtworkList {
 
 #[derive(Clone)]
 struct ArtworkItem {
-    id: u64,
+    info: ArtworkInfo,
     label: String,
     status: Status,
 }
 
 impl ArtworkItem {
-    fn new(status: Status, id: u64, title: String) -> Self {
+    fn new(status: Status, id: u64, title: String, info: ArtworkInfo) -> Self {
         let label = format!("{} ({})", title, id);
-        Self { id, label, status }
+        Self {
+            label,
+            status,
+            info,
+        }
     }
 }
 
