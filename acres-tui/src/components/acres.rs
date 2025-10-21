@@ -150,7 +150,7 @@ impl Component for Artworks {
         action: crate::action::Action,
     ) -> color_eyre::eyre::Result<Option<crate::action::Action>> {
         let action = match self.mode {
-            Mode::Browse => match action {
+            Mode::BrowseArtworks => match action {
                 Action::MoveDown => self.move_down(),
                 Action::MoveUp => self.move_up(),
                 Action::Select => self.choose(),
@@ -160,9 +160,9 @@ impl Component for Artworks {
                 }
                 _ => None,
             },
-            Mode::View => {
+            _ => {
                 if action == Action::EnterBrowseArtworksMode {
-                    self.mode = Mode::Browse;
+                    self.mode = Mode::BrowseArtworks;
                 }
                 None
             }

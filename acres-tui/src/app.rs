@@ -27,7 +27,8 @@ pub struct App {
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Mode {
-    Browse,
+    BrowseArtworks,
+    BrowseAlphabets,
     #[default]
     View,
 }
@@ -148,7 +149,7 @@ impl App {
                 }
                 Action::EnterViewMode => self.mode = Mode::View,
                 Action::EnterBrowseArtworksMode | Action::EnterBrowseAlphabetsMode => {
-                    self.mode = Mode::Browse
+                    self.mode = Mode::BrowseArtworks
                 }
                 Action::Quit => self.should_quit = true,
                 Action::Suspend => self.should_suspend = true,

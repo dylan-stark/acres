@@ -1,7 +1,9 @@
 use bytes::Bytes;
+use color_eyre::eyre::Result;
 use image_to_ascii_builder::{ALPHABETS, Alphabet};
 use ratatui::{
-    layout::{Constraint, Layout},
+    Frame,
+    layout::{Constraint, Layout, Rect},
     style::{
         Color, Modifier, Style,
         palette::tailwind::{GRAY, GREEN, SLATE},
@@ -16,10 +18,13 @@ use crate::{action::Action, app::Mode, components::Component};
 const HORIZONTAL_PADDING: u16 = 3;
 const VERTICAL_PADDING: u16 = 2;
 
+////////////////////////////////////////////////////////////////////////////////
+// Image-to-ASCII Builder component
+
 pub struct ImageToAsciiBuilder {
     image: Option<Bytes>,
     alphabet: Option<Alphabet>,
-    list: AlphabetList,
+    alphabet_list: AlphabetList,
     mode: Mode,
     action_tx: UnboundedSender<Action>,
 }
@@ -27,32 +32,10 @@ pub struct ImageToAsciiBuilder {
 impl ImageToAsciiBuilder {
     /// Sets up new alphabets component.
     pub fn new(action_tx: UnboundedSender<Action>, mode: Mode) -> Self {
-        // TODO: Find default alphabet in list so we can set the status and selected state
-        // appropriately.
-        let (i, _) = ALPHABETS
-            .iter()
-            .enumerate()
-            .find(|(_, a)| **a == image_to_ascii_builder::Alphabet::default())
-            .expect("default is in the list");
-        // TODO: Construct list of variants
-        let list_iter: Vec<(Status, Alphabet)> = ALPHABETS
-            .iter()
-            .enumerate()
-            .map(|(j, alphabet)| {
-                let status = if j == i {
-                    Status::Selected
-                } else {
-                    Status::Unselected
-                };
-                (status, alphabet.clone())
-            })
-            .collect();
-        let mut list = AlphabetList::from_iter(list_iter);
-        list.state.select(Some(i));
         Self {
             image: None,
             alphabet: None,
-            list,
+            alphabet_list: AlphabetList::new(),
             mode,
             action_tx,
         }
@@ -60,24 +43,24 @@ impl ImageToAsciiBuilder {
 
     /// Moves down to the next item or stays at the bottom.
     fn move_down(&mut self) -> Option<Action> {
-        self.list.state.select_next();
+        self.alphabet_list.state.select_next();
         None
     }
 
     /// Moves up to the previous item or stays at the top.
     fn move_up(&mut self) -> Option<Action> {
-        self.list.state.select_previous();
+        self.alphabet_list.state.select_previous();
         None
     }
 
     /// Chooses current selection to show.
     fn choose(&mut self) -> Option<Action> {
-        if let Some(i) = self.list.state.selected() {
-            for item in self.list.items.iter_mut() {
+        if let Some(i) = self.alphabet_list.state.selected() {
+            for item in self.alphabet_list.items.iter_mut() {
                 item.status = Status::Unselected;
             }
             let item = self
-                .list
+                .alphabet_list
                 .items
                 .iter_mut()
                 .enumerate()
@@ -95,7 +78,7 @@ impl ImageToAsciiBuilder {
 
     /// Enter browse alphabets mode
     fn enter_browse_alphabets_mode(&mut self) -> Option<Action> {
-        self.mode = Mode::Browse;
+        self.mode = Mode::BrowseAlphabets;
         None
     }
 
@@ -144,7 +127,7 @@ impl Component for ImageToAsciiBuilder {
         action: crate::action::Action,
     ) -> color_eyre::eyre::Result<Option<crate::action::Action>> {
         let continuation = match self.mode {
-            Mode::Browse => match action {
+            Mode::BrowseAlphabets => match action {
                 Action::MoveDown => self.move_down(),
                 Action::MoveUp => self.move_up(),
                 Action::Select => self.choose(),
@@ -155,7 +138,7 @@ impl Component for ImageToAsciiBuilder {
                 Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
                 _ => None,
             },
-            Mode::View => match action {
+            _ => match action {
                 Action::ImageToAsciiBuilderUpdateImage(image) => self.update_image(image),
                 Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
                 Action::EnterBrowseAlphabetsMode => self.enter_browse_alphabets_mode(),
@@ -170,19 +153,59 @@ impl Component for ImageToAsciiBuilder {
         frame: &mut ratatui::Frame,
         area: ratatui::prelude::Rect,
     ) -> color_eyre::eyre::Result<()> {
-        if self.mode == Mode::View {
-            return Ok(());
+        match self.mode {
+            Mode::BrowseAlphabets => self.alphabet_list.draw(frame, area),
+            _ => Ok(()),
         }
+    }
+}
 
+////////////////////////////////////////////////////////////////////////////////
+// Alphabet list (widget?)
+
+#[derive(Default)]
+struct AlphabetList {
+    items: Vec<AlphabetItem>,
+    state: ListState,
+}
+
+impl AlphabetList {
+    fn new() -> Self {
+        // TODO: Find default alphabet in list so we can set the status and selected state
+        // appropriately.
+        let (i, _) = ALPHABETS
+            .iter()
+            .enumerate()
+            .find(|(_, a)| **a == image_to_ascii_builder::Alphabet::default())
+            .expect("default is in the list");
+
+        // TODO: Construct list of variants
+        let list_iter: Vec<(Status, Alphabet)> = ALPHABETS
+            .iter()
+            .enumerate()
+            .map(|(j, alphabet)| {
+                let status = if j == i {
+                    Status::Selected
+                } else {
+                    Status::Unselected
+                };
+                (status, alphabet.clone())
+            })
+            .collect();
+        let mut list = AlphabetList::from_iter(list_iter);
+        list.state.select(Some(i));
+        list
+    }
+
+    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
         let width: u16 = area.width.min(
-            self.list
-                .items
+            self.items
                 .iter()
                 .map(|item| item.alphabet.to_string().len() as u16 + HORIZONTAL_PADDING)
                 .max()
                 .expect("all items have len"),
         );
-        let height = area.height.min(self.list.items.len() as u16);
+        let height = area.height.min(self.items.len() as u16);
 
         let [_, middle, _] = Layout::horizontal([
             Constraint::Fill(1),
@@ -201,7 +224,7 @@ impl Component for ImageToAsciiBuilder {
 
         let selected_style = Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD);
 
-        let items: Vec<ListItem> = self.list.items.iter().map(ListItem::from).collect();
+        let items: Vec<ListItem> = self.items.iter().map(ListItem::from).collect();
         let list: List<'_> = List::new(items)
             .block(block)
             .highlight_style(selected_style)
@@ -209,15 +232,9 @@ impl Component for ImageToAsciiBuilder {
             .highlight_spacing(ratatui::widgets::HighlightSpacing::Always);
 
         frame.render_widget(Clear, middle);
-        frame.render_stateful_widget(list, middle, &mut self.list.state);
+        frame.render_stateful_widget(list, middle, &mut self.state);
         Ok(())
     }
-}
-
-#[derive(Default)]
-struct AlphabetList {
-    items: Vec<AlphabetItem>,
-    state: ListState,
 }
 
 impl FromIterator<(Status, Alphabet)> for AlphabetList {
