@@ -86,7 +86,7 @@ impl ConversionAlgorithm {
 }
 
 /// Built-in alphabets.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Alphabet {
     /// The alphabet alphabet.
     #[default]
@@ -104,6 +104,17 @@ pub enum Alphabet {
     /// The uppercase alphabet.
     Uppercase,
 }
+
+/// All alphabets.
+pub const ALPHABETS: &[Alphabet] = &[
+    Alphabet::Alphabet,
+    Alphabet::Fast,
+    Alphabet::Letters,
+    Alphabet::Lowercase,
+    Alphabet::Minimal,
+    Alphabet::Symbols,
+    Alphabet::Uppercase,
+];
 
 impl Display for Alphabet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -470,6 +481,12 @@ impl AsciiBuilder {
         let bytes = Bytes::from(bytes);
         self.input_bytes = bytes;
         Ok(self)
+    }
+
+    /// Sets the input bytes directly.
+    pub fn input(mut self, bytes: Bytes) -> Self {
+        self.input_bytes = bytes;
+        self
     }
 
     /// Sets the metric.

@@ -82,7 +82,7 @@ impl Artworks {
                 .expect("item at index i")
                 .1;
             item.status = Status::Selected;
-            Some(Action::View(item.info.clone()))
+            Some(Action::IiifUpdateBaseUri(item.info.clone()))
         } else {
             None
         }
@@ -154,10 +154,14 @@ impl Component for Artworks {
                 Action::MoveDown => self.move_down(),
                 Action::MoveUp => self.move_up(),
                 Action::Select => self.choose(),
+                Action::EnterViewMode => {
+                    self.mode = Mode::View;
+                    None
+                }
                 _ => None,
             },
             Mode::View => {
-                if action == Action::EnterBrowseMode {
+                if action == Action::EnterBrowseArtworksMode {
                     self.mode = Mode::Browse;
                 }
                 None

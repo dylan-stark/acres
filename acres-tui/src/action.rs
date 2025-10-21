@@ -1,18 +1,19 @@
 use acres::artworks::ArtworkInfo;
 use bytes::Bytes;
-use image_to_ascii_builder::Ascii;
+use image_to_ascii_builder::{Alphabet, Ascii};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
 #[derive(Debug, Clone, PartialEq, Eq, Display, Serialize, Deserialize)]
 pub enum Action {
+    Log(String),
     MoveDown,
     MoveUp,
     Select,
-    EnterBrowseMode,
+    EnterBrowseArtworksMode,
+    EnterBrowseAlphabetsMode,
     EnterViewMode,
     LoadImage(String),
-    //EnterImageDownload(String),
     ExitImageDownload(String),
     SetImage(Bytes),
     EnterSearch,
@@ -28,10 +29,18 @@ pub enum Action {
     ClearScreen,
     Error(String),
     Help,
-    #[strum(to_string = "View(id: {0})")]
-    View(ArtworkInfo),
+    #[strum(to_string = "ViewAlphabet({0})")]
+    ViewAlphabet(Alphabet),
     #[strum(to_string = "RenderAscii([...])")]
-    RenderAscii(Bytes),
     StartingRenderAscii,
     UpdateAscii(Ascii),
+    // Update base URI for IIIF tool
+    #[strum(to_string = "IiifUpdateBaseUri(id: {0})")]
+    IiifUpdateBaseUri(ArtworkInfo),
+    // Request image using IIIF tool
+    IiifRequestImage,
+    // Update image for ImageToAsciiBuilder tool
+    ImageToAsciiBuilderUpdateAlphabet(Alphabet),
+    ImageToAsciiBuilderUpdateImage(Bytes),
+    ImageToAsciiBuilderBuildAscii,
 }

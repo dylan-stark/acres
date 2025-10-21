@@ -7,7 +7,7 @@ use tracing::info;
 
 use crate::{
     action::Action,
-    components::{artworks::Artworks, ascii::Ascii, home::Home, Component},
+    components::{Component, image_to_ascii_builder::ImageToAsciiBuilder, acres::Artworks, iiif::Iiif, home::Home},
     config::Config,
     tui::{Event, Tui},
 };
@@ -44,8 +44,9 @@ impl App {
             frame_rate,
             components: vec![
                 Box::new(Home::new()),
-                Box::new(Ascii::new(action_tx.clone())),
+                Box::new(Iiif::new(action_tx.clone())),
                 Box::new(Artworks::new(artworks, Mode::default())),
+                Box::new(ImageToAsciiBuilder::new(action_tx.clone(), Mode::default())),
             ],
             should_quit: false,
             should_suspend: false,
@@ -146,7 +147,9 @@ impl App {
                     self.last_tick_key_events.drain(..);
                 }
                 Action::EnterViewMode => self.mode = Mode::View,
-                Action::EnterBrowseMode => self.mode = Mode::Browse,
+                Action::EnterBrowseArtworksMode | Action::EnterBrowseAlphabetsMode => {
+                    self.mode = Mode::Browse
+                }
                 Action::Quit => self.should_quit = true,
                 Action::Suspend => self.should_suspend = true,
                 Action::Resume => self.should_suspend = false,

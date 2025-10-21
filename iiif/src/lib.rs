@@ -12,4 +12,5 @@ pub use self::base_uri::{BaseUri, Scheme};
 pub use self::image_request::{
     Format, ImageRequest, ImageResponse, Quality, Region, Rotation, Size,
 };
+pub use self::image_request_builder::ImageRequestBuilder;
 pub use self::information_request::{InformationRequest, InformationResponse};
