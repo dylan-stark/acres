@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use bytes::Bytes;
 use color_eyre::eyre::Result;
 use image_to_ascii_builder::{ALPHABETS, Alphabet, FONTS, Font};
@@ -29,9 +31,9 @@ enum Focus {
 pub struct ImageToAsciiBuilder {
     image: Option<Bytes>,
     alphabet: Option<Alphabet>,
-    alphabet_list: AlphabetList,
+    alphabet_list: BrowserList<Alphabet>,
     font: Option<Font>,
-    font_list: FontList,
+    font_list: BrowserList<Font>,
     focus: Option<Focus>,
     action_tx: UnboundedSender<Action>,
 }
@@ -42,9 +44,9 @@ impl ImageToAsciiBuilder {
         Self {
             image: None,
             alphabet: None,
-            alphabet_list: AlphabetList::new(),
+            alphabet_list: BrowserList::new(ALPHABETS),
             font: None,
-            font_list: FontList::new(),
+            font_list: BrowserList::new(FONTS),
             focus: None,
             action_tx,
         }
@@ -166,38 +168,45 @@ enum Status {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Alphabet list (widget?)
+// Browser list (widget?)
 
 #[derive(Default)]
-struct AlphabetList {
-    items: Vec<AlphabetItem>,
+struct BrowserList<T>
+where
+    T: Clone + Default + Display + PartialEq + Eq,
+{
+    items: Vec<BrowserItem<T>>,
     state: ListState,
 }
 
-impl AlphabetList {
-    fn new() -> Self {
-        // TODO: Find default alphabet in list so we can set the status and selected state
-        // appropriately.
-        let (i, _) = ALPHABETS
+impl<T> BrowserList<T>
+where
+    T: Clone + Default + Display + PartialEq + Eq,
+{
+    fn new(collection: &[T]) -> Self
+    where
+        T: Clone + Default + Display + PartialEq + Eq,
+    {
+        let (i, _) = collection
             .iter()
             .enumerate()
-            .find(|(_, a)| **a == image_to_ascii_builder::Alphabet::default())
+            .find(|(_, a)| **a == T::default())
             .expect("default is in the list");
 
         // TODO: Construct list of variants
-        let list_iter: Vec<(Status, Alphabet)> = ALPHABETS
+        let list_iter: Vec<(Status, T)> = collection
             .iter()
             .enumerate()
-            .map(|(j, alphabet)| {
+            .map(|(j, item)| {
                 let status = if j == i {
                     Status::Selected
                 } else {
                     Status::Unselected
                 };
-                (status, alphabet.clone())
+                (status, item.clone())
             })
             .collect();
-        let mut list = AlphabetList::from_iter(list_iter);
+        let mut list = Self::from_iter(list_iter);
         list.state.select(Some(i));
         list
     }
@@ -214,33 +223,26 @@ impl AlphabetList {
         None
     }
 
-    /// Chooses current selection to show.
-    fn choose(&mut self) -> Option<Action> {
-        if let Some(i) = self.state.selected() {
-            for item in self.items.iter_mut() {
-                item.status = Status::Unselected;
-            }
-            let item = self
-                .items
-                .iter_mut()
-                .enumerate()
-                .find(|(j, _)| i == *j)
-                .expect("item at index i")
-                .1;
-            item.status = Status::Selected;
-            Some(Action::ImageToAsciiBuilderUpdateAlphabet(
-                item.alphabet.clone(),
-            ))
-        } else {
-            None
+    fn find_item(&mut self, i: usize) -> &BrowserItem<T> {
+        for item in self.items.iter_mut() {
+            item.status = Status::Unselected;
         }
+        let item = self
+            .items
+            .iter_mut()
+            .enumerate()
+            .find(|(j, _)| i == *j)
+            .expect("item at index i")
+            .1;
+        item.status = Status::Selected;
+        item
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
         let width: u16 = area.width.min(
             self.items
                 .iter()
-                .map(|item| item.alphabet.to_string().len() as u16 + HORIZONTAL_PADDING)
+                .map(|item| item.value.to_string().len() as u16 + HORIZONTAL_PADDING)
                 .max()
                 .expect("all items have len"),
         );
@@ -276,151 +278,38 @@ impl AlphabetList {
     }
 }
 
-impl FromIterator<(Status, Alphabet)> for AlphabetList {
-    fn from_iter<T: IntoIterator<Item = (Status, Alphabet)>>(iter: T) -> Self {
-        let items = iter
-            .into_iter()
-            .map(|(status, alphabet)| AlphabetItem::new(status, alphabet))
-            .collect();
-        let state = ListState::default();
-        Self { items, state }
-    }
-}
-
-#[derive(Clone)]
-struct AlphabetItem {
-    alphabet: Alphabet,
-    status: Status,
-}
-
-impl AlphabetItem {
-    fn new(status: Status, alphabet: Alphabet) -> Self {
-        Self { alphabet, status }
-    }
-}
-
-impl From<&AlphabetItem> for ListItem<'_> {
-    fn from(value: &AlphabetItem) -> Self {
-        let line = match value.status {
-            Status::Selected => Line::styled(value.alphabet.to_string(), GREEN.c500),
-            Status::Unselected => Line::styled(value.alphabet.to_string(), GRAY.c500),
-        };
-        ListItem::new(line)
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Font list (widget?)
-
-#[derive(Default)]
-struct FontList {
-    items: Vec<FontItem>,
-    state: ListState,
-}
-
-impl FontList {
-    fn new() -> Self {
-        let (i, _) = FONTS
-            .iter()
-            .enumerate()
-            .find(|(_, a)| **a == image_to_ascii_builder::Font::default())
-            .expect("default is in the list");
-
-        // TODO: Construct list of variants
-        let list_iter: Vec<(Status, Font)> = FONTS
-            .iter()
-            .enumerate()
-            .map(|(j, font)| {
-                let status = if j == i {
-                    Status::Selected
-                } else {
-                    Status::Unselected
-                };
-                (status, font.clone())
-            })
-            .collect();
-        let mut list = FontList::from_iter(list_iter);
-        list.state.select(Some(i));
-        list
-    }
-
-    /// Moves down to the next item or stays at the bottom.
-    fn move_down(&mut self) -> Option<Action> {
-        self.state.select_next();
-        None
-    }
-
-    /// Moves up to the previous item or stays at the top.
-    fn move_up(&mut self) -> Option<Action> {
-        self.state.select_previous();
-        None
-    }
-
+impl BrowserList<Font> {
     /// Chooses current selection to show.
     fn choose(&mut self) -> Option<Action> {
         if let Some(i) = self.state.selected() {
-            for item in self.items.iter_mut() {
-                item.status = Status::Unselected;
-            }
-            let item = self
-                .items
-                .iter_mut()
-                .enumerate()
-                .find(|(j, _)| i == *j)
-                .expect("item at index i")
-                .1;
-            item.status = Status::Selected;
-            Some(Action::ImageToAsciiBuilderUpdateFont(item.font.clone()))
+            let item = self.find_item(i);
+            Some(Action::ImageToAsciiBuilderUpdateFont(item.value.clone()))
         } else {
             None
         }
     }
+}
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
-        let width: u16 = area.width.min(
-            self.items
-                .iter()
-                .map(|item| item.font.to_string().len() as u16 + HORIZONTAL_PADDING)
-                .max()
-                .expect("all items have len"),
-        );
-        let height = area.height.min(self.items.len() as u16);
-
-        let [_, middle, _] = Layout::horizontal([
-            Constraint::Fill(1),
-            Constraint::Max(width),
-            Constraint::Fill(1),
-        ])
-        .areas(area);
-        let [_, middle, _] = Layout::vertical([
-            Constraint::Fill(1),
-            Constraint::Max(height + VERTICAL_PADDING),
-            Constraint::Fill(1),
-        ])
-        .areas(middle);
-
-        let block = Block::bordered().border_style(Style::new().fg(Color::DarkGray));
-
-        let selected_style = Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD);
-
-        let items: Vec<ListItem> = self.items.iter().map(ListItem::from).collect();
-        let list: List<'_> = List::new(items)
-            .block(block)
-            .highlight_style(selected_style)
-            .highlight_symbol("-")
-            .highlight_spacing(ratatui::widgets::HighlightSpacing::Always);
-
-        frame.render_widget(Clear, middle);
-        frame.render_stateful_widget(list, middle, &mut self.state);
-        Ok(())
+impl BrowserList<Alphabet> {
+    /// Chooses current selection to show.
+    fn choose(&mut self) -> Option<Action> {
+        if let Some(i) = self.state.selected() {
+            let item = self.find_item(i);
+            Some(Action::ImageToAsciiBuilderUpdateAlphabet(item.value.clone()))
+        } else {
+            None
+        }
     }
 }
 
-impl FromIterator<(Status, Font)> for FontList {
-    fn from_iter<T: IntoIterator<Item = (Status, Font)>>(iter: T) -> Self {
+impl<T> FromIterator<(Status, T)> for BrowserList<T>
+where
+    T: Clone + Default + Display + Eq + PartialEq,
+{
+    fn from_iter<I: IntoIterator<Item = (Status, T)>>(iter: I) -> Self {
         let items = iter
             .into_iter()
-            .map(|(status, font)| FontItem::new(status, font))
+            .map(|(status, item)| BrowserItem::new(status, item))
             .collect();
         let state = ListState::default();
         Self { items, state }
@@ -428,22 +317,22 @@ impl FromIterator<(Status, Font)> for FontList {
 }
 
 #[derive(Clone)]
-struct FontItem {
-    font: Font,
+struct BrowserItem<T: Display> {
+    value: T,
     status: Status,
 }
 
-impl FontItem {
-    fn new(status: Status, font: Font) -> Self {
-        Self { font, status }
+impl<T: Display> BrowserItem<T> {
+    fn new(status: Status, value: T) -> Self {
+        Self { value, status }
     }
 }
 
-impl From<&FontItem> for ListItem<'_> {
-    fn from(value: &FontItem) -> Self {
+impl<T: Display> From<&BrowserItem<T>> for ListItem<'_> {
+    fn from(value: &BrowserItem<T>) -> Self {
         let line = match value.status {
-            Status::Selected => Line::styled(value.font.to_string(), GREEN.c500),
-            Status::Unselected => Line::styled(value.font.to_string(), GRAY.c500),
+            Status::Selected => Line::styled(value.value.to_string(), GREEN.c500),
+            Status::Unselected => Line::styled(value.value.to_string(), GRAY.c500),
         };
         ListItem::new(line)
     }
