@@ -109,15 +109,18 @@ impl From<Artworks> for Vec<ArtworkInfo> {
         value
             .data
             .iter()
-            .map(|data| ArtworkInfo {
-                config: ArtworkInfoConfig {
-                    iiif_url: iiif_url.clone(),
-                },
-                data: ArtworkInfoData {
-                    id: data.id as u32,
-                    image_id: data.image_id.clone(),
-                    title: data.title.clone(),
-                },
+            // ArtworkInfos must have IIIF URIs, so they must have image IDs
+            .filter_map(|data| {
+                data.image_id.clone().map(|image_id| ArtworkInfo {
+                    config: ArtworkInfoConfig {
+                        iiif_url: iiif_url.clone(),
+                    },
+                    data: ArtworkInfoData {
+                        id: data.id as u32,
+                        image_id: image_id.clone(),
+                        title: data.title.clone(),
+                    },
+                })
             })
             .collect()
     }

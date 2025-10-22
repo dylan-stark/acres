@@ -32,7 +32,7 @@ pub struct Config {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Data {
     pub id: u64,
-    pub image_id: String,
+    pub image_id: Option<String>,
     pub title: String,
 }
 
