@@ -298,7 +298,7 @@ impl Display for Font {
 }
 
 /// Metrics.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Metric {
     /// Dot.
     Dot,
@@ -324,6 +324,21 @@ pub enum Metric {
     /// IntensityJaccard.
     IntensityJaccard,
 }
+
+/// All metrics
+pub const METRICS: &[Metric] = &[
+    Metric::Dot,
+    Metric::Jaccard,
+    Metric::Occlusion,
+    Metric::Color,
+    Metric::Clear,
+    Metric::Fast,
+    Metric::Intensity,
+    Metric::Grad,
+    Metric::DirectionAndIntensity,
+    Metric::Direction,
+    Metric::IntensityJaccard,
+];
 
 impl Display for Metric {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

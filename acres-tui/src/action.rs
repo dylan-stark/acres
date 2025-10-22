@@ -1,6 +1,6 @@
 use acres::artworks::ArtworkInfo;
 use bytes::Bytes;
-use image_to_ascii_builder::{Alphabet, Ascii, ConversionAlgorithm, Font};
+use image_to_ascii_builder::{Alphabet, Ascii, ConversionAlgorithm, Font, Metric};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -15,6 +15,7 @@ pub enum Action {
     EnterBrowseAlphabetsMode,
     EnterBrowseConversionAlgorithmsMode,
     EnterBrowseFontsMode,
+    EnterBrowseMetricsMode,
     EnterViewMode,
     LoadImage(String),
     ExitImageDownload(String),
@@ -46,6 +47,7 @@ pub enum Action {
     ImageToAsciiBuilderUpdateAlphabet(Alphabet),
     ImageToAsciiBuilderUpdateConversionAlgorithm(ConversionAlgorithm),
     ImageToAsciiBuilderUpdateFont(Font),
+    ImageToAsciiBuilderUpdateMetric(Metric),
     ImageToAsciiBuilderUpdateImage(Bytes),
     ImageToAsciiBuilderBuildAscii,
 }

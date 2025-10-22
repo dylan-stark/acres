@@ -154,6 +154,7 @@ impl App {
                 | Action::EnterBrowseAlphabetsMode
                 | Action::EnterBrowseConversionAlgorithmsMode
                 | Action::EnterBrowseFontsMode => self.mode = Mode::Browse,
+                | Action::EnterBrowseMetricsMode => self.mode = Mode::Browse,
                 Action::Quit => self.should_quit = true,
                 Action::Suspend => self.should_suspend = true,
                 Action::Resume => self.should_suspend = false,

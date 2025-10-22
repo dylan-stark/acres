@@ -2,7 +2,9 @@ use std::fmt::Display;
 
 use bytes::Bytes;
 use color_eyre::eyre::Result;
-use image_to_ascii_builder::{ALPHABETS, Alphabet, CONVERSION_ALGORITHMS, ConversionAlgorithm, FONTS, Font};
+use image_to_ascii_builder::{
+    ALPHABETS, Alphabet, CONVERSION_ALGORITHMS, ConversionAlgorithm, FONTS, Font, METRICS, Metric,
+};
 use ratatui::{
     Frame,
     layout::{Constraint, Layout, Rect},
@@ -24,6 +26,7 @@ enum Focus {
     Alphabets,
     ConversionAlgorithms,
     Fonts,
+    Metrics,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -37,6 +40,8 @@ pub struct ImageToAsciiBuilder {
     conversion_algorithm_list: BrowserList<ConversionAlgorithm>,
     font: Option<Font>,
     font_list: BrowserList<Font>,
+    metric: Option<Metric>,
+    metric_list: BrowserList<Metric>,
     focus: Option<Focus>,
     action_tx: UnboundedSender<Action>,
 }
@@ -53,6 +58,8 @@ impl ImageToAsciiBuilder {
             font: None,
             font_list: BrowserList::new(FONTS),
             focus: None,
+            metric: None,
+            metric_list: BrowserList::new(METRICS),
             action_tx,
         }
     }
@@ -71,6 +78,12 @@ impl ImageToAsciiBuilder {
     /// Enter browse fonts mode
     fn enter_browse_fonts_mode(&mut self) -> Option<Action> {
         self.focus = Some(Focus::Fonts);
+        None
+    }
+
+    /// Enter browse metrics mode
+    fn enter_browse_metrics_mode(&mut self) -> Option<Action> {
+        self.focus = Some(Focus::Metrics);
         None
     }
 
@@ -93,7 +106,10 @@ impl ImageToAsciiBuilder {
     }
 
     /// Update conversion algorithm.
-    fn update_conversion_algorithm(&mut self, conversion_algorithm: ConversionAlgorithm) -> Option<Action> {
+    fn update_conversion_algorithm(
+        &mut self,
+        conversion_algorithm: ConversionAlgorithm,
+    ) -> Option<Action> {
         self.conversion_algorithm = Some(conversion_algorithm);
         Some(Action::ImageToAsciiBuilderBuildAscii)
     }
@@ -104,12 +120,19 @@ impl ImageToAsciiBuilder {
         Some(Action::ImageToAsciiBuilderBuildAscii)
     }
 
+    /// Update metric.
+    fn update_metric(&mut self, metric: Metric) -> Option<Action> {
+        self.metric = Some(metric);
+        Some(Action::ImageToAsciiBuilderBuildAscii)
+    }
+
     /// Build ASCII
     fn build_ascii(&self) -> Option<Action> {
         if let Some(image) = self.image.clone() {
             let alphabet = self.alphabet.clone();
             let conversion_algorithm = self.conversion_algorithm.clone();
             let font = self.font.clone();
+            let metric = self.metric.clone();
             let action_tx = self.action_tx.clone();
             tokio::spawn(async move {
                 let _ = action_tx.send(Action::StartingRenderAscii);
@@ -118,6 +141,7 @@ impl ImageToAsciiBuilder {
                     .alphabet(alphabet)
                     .conversion_algorithm(conversion_algorithm)
                     .font(font)
+                    .metric(metric)
                     .build()
                     .ok();
                 if let Some(ascii) = ascii {
@@ -166,12 +190,24 @@ impl Component for ImageToAsciiBuilder {
                 Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
                 _ => None,
             },
+            Some(Focus::Metrics) => match action {
+                Action::MoveDown => self.metric_list.move_down(),
+                Action::MoveUp => self.metric_list.move_up(),
+                Action::Select => self.metric_list.choose(),
+                Action::EnterViewMode => self.enter_view_mode(),
+                Action::ImageToAsciiBuilderUpdateMetric(metric) => self.update_metric(metric),
+                Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
+                _ => None,
+            },
             None => match action {
                 Action::ImageToAsciiBuilderUpdateImage(image) => self.update_image(image),
                 Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
                 Action::EnterBrowseAlphabetsMode => self.enter_browse_alphabets_mode(),
-                Action::EnterBrowseConversionAlgorithmsMode => self.enter_browse_conversion_algorithm_mode(),
+                Action::EnterBrowseConversionAlgorithmsMode => {
+                    self.enter_browse_conversion_algorithm_mode()
+                }
                 Action::EnterBrowseFontsMode => self.enter_browse_fonts_mode(),
+                Action::EnterBrowseMetricsMode => self.enter_browse_metrics_mode(),
                 _ => None,
             },
         };
@@ -187,6 +223,7 @@ impl Component for ImageToAsciiBuilder {
             Some(Focus::Alphabets) => self.alphabet_list.draw(frame, area),
             Some(Focus::ConversionAlgorithms) => self.conversion_algorithm_list.draw(frame, area),
             Some(Focus::Fonts) => self.font_list.draw(frame, area),
+            Some(Focus::Metrics) => self.metric_list.draw(frame, area),
             None => Ok(()),
         }
     }
@@ -314,7 +351,9 @@ impl BrowserList<Alphabet> {
     fn choose(&mut self) -> Option<Action> {
         if let Some(i) = self.state.selected() {
             let item = self.find_item(i);
-            Some(Action::ImageToAsciiBuilderUpdateAlphabet(item.value.clone()))
+            Some(Action::ImageToAsciiBuilderUpdateAlphabet(
+                item.value.clone(),
+            ))
         } else {
             None
         }
@@ -326,7 +365,9 @@ impl BrowserList<ConversionAlgorithm> {
     fn choose(&mut self) -> Option<Action> {
         if let Some(i) = self.state.selected() {
             let item = self.find_item(i);
-            Some(Action::ImageToAsciiBuilderUpdateConversionAlgorithm(item.value.clone()))
+            Some(Action::ImageToAsciiBuilderUpdateConversionAlgorithm(
+                item.value.clone(),
+            ))
         } else {
             None
         }
@@ -339,6 +380,18 @@ impl BrowserList<Font> {
         if let Some(i) = self.state.selected() {
             let item = self.find_item(i);
             Some(Action::ImageToAsciiBuilderUpdateFont(item.value.clone()))
+        } else {
+            None
+        }
+    }
+}
+
+impl BrowserList<Metric> {
+    /// Chooses current selection to show.
+    fn choose(&mut self) -> Option<Action> {
+        if let Some(i) = self.state.selected() {
+            let item = self.find_item(i);
+            Some(Action::ImageToAsciiBuilderUpdateMetric(item.value.clone()))
         } else {
             None
         }
