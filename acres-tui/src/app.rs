@@ -7,7 +7,10 @@ use tracing::info;
 
 use crate::{
     action::Action,
-    components::{Component, image_to_ascii_builder::ImageToAsciiBuilder, acres::Artworks, iiif::Iiif, home::Home},
+    components::{
+        Component, acres::Artworks, home::Home, iiif::Iiif,
+        image_to_ascii_builder::ImageToAsciiBuilder,
+    },
     config::Config,
     tui::{Event, Tui},
 };
@@ -29,6 +32,7 @@ pub struct App {
 pub enum Mode {
     BrowseArtworks,
     BrowseAlphabets,
+    BrowseFonts,
     #[default]
     View,
 }
@@ -148,9 +152,9 @@ impl App {
                     self.last_tick_key_events.drain(..);
                 }
                 Action::EnterViewMode => self.mode = Mode::View,
-                Action::EnterBrowseArtworksMode | Action::EnterBrowseAlphabetsMode => {
-                    self.mode = Mode::BrowseArtworks
-                }
+                Action::EnterBrowseArtworksMode
+                | Action::EnterBrowseAlphabetsMode
+                | Action::EnterBrowseFontsMode => self.mode = Mode::BrowseArtworks,
                 Action::Quit => self.should_quit = true,
                 Action::Suspend => self.should_suspend = true,
                 Action::Resume => self.should_suspend = false,

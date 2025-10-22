@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use color_eyre::eyre::Result;
-use image_to_ascii_builder::{ALPHABETS, Alphabet};
+use image_to_ascii_builder::{Alphabet, Font, ALPHABETS, FONTS};
 use ratatui::{
     Frame,
     layout::{Constraint, Layout, Rect},
@@ -25,6 +25,8 @@ pub struct ImageToAsciiBuilder {
     image: Option<Bytes>,
     alphabet: Option<Alphabet>,
     alphabet_list: AlphabetList,
+    font: Option<Font>,
+    font_list: FontList,
     mode: Mode,
     action_tx: UnboundedSender<Action>,
 }
@@ -36,49 +38,22 @@ impl ImageToAsciiBuilder {
             image: None,
             alphabet: None,
             alphabet_list: AlphabetList::new(),
+            font: None,
+            font_list: FontList::new(),
             mode,
             action_tx,
-        }
-    }
-
-    /// Moves down to the next item or stays at the bottom.
-    fn move_down(&mut self) -> Option<Action> {
-        self.alphabet_list.state.select_next();
-        None
-    }
-
-    /// Moves up to the previous item or stays at the top.
-    fn move_up(&mut self) -> Option<Action> {
-        self.alphabet_list.state.select_previous();
-        None
-    }
-
-    /// Chooses current selection to show.
-    fn choose(&mut self) -> Option<Action> {
-        if let Some(i) = self.alphabet_list.state.selected() {
-            for item in self.alphabet_list.items.iter_mut() {
-                item.status = Status::Unselected;
-            }
-            let item = self
-                .alphabet_list
-                .items
-                .iter_mut()
-                .enumerate()
-                .find(|(j, _)| i == *j)
-                .expect("item at index i")
-                .1;
-            item.status = Status::Selected;
-            Some(Action::ImageToAsciiBuilderUpdateAlphabet(
-                item.alphabet.clone(),
-            ))
-        } else {
-            None
         }
     }
 
     /// Enter browse alphabets mode
     fn enter_browse_alphabets_mode(&mut self) -> Option<Action> {
         self.mode = Mode::BrowseAlphabets;
+        None
+    }
+
+    /// Enter browse fonts mode
+    fn enter_browse_fonts_mode(&mut self) -> Option<Action> {
+        self.mode = Mode::BrowseFonts;
         None
     }
 
@@ -100,16 +75,24 @@ impl ImageToAsciiBuilder {
         Some(Action::ImageToAsciiBuilderBuildAscii)
     }
 
+    /// Update font.
+    fn update_font(&mut self, font: Font) -> Option<Action> {
+        self.font = Some(font);
+        Some(Action::ImageToAsciiBuilderBuildAscii)
+    }
+
     /// Build ASCII
     fn build_ascii(&self) -> Option<Action> {
         if let Some(image) = self.image.clone() {
             let alphabet = self.alphabet.clone();
+            let font = self.font.clone();
             let action_tx = self.action_tx.clone();
             tokio::spawn(async move {
                 let _ = action_tx.send(Action::StartingRenderAscii);
                 let ascii = image_to_ascii_builder::Ascii::builder()
                     .input(image)
                     .alphabet(alphabet)
+                    .font(font)
                     .build()
                     .ok();
                 if let Some(ascii) = ascii {
@@ -128,12 +111,23 @@ impl Component for ImageToAsciiBuilder {
     ) -> color_eyre::eyre::Result<Option<crate::action::Action>> {
         let continuation = match self.mode {
             Mode::BrowseAlphabets => match action {
-                Action::MoveDown => self.move_down(),
-                Action::MoveUp => self.move_up(),
-                Action::Select => self.choose(),
+                Action::MoveDown => self.alphabet_list.move_down(),
+                Action::MoveUp => self.alphabet_list.move_up(),
+                Action::Select => self.alphabet_list.choose(),
                 Action::EnterViewMode => self.enter_view_mode(),
                 Action::ImageToAsciiBuilderUpdateAlphabet(alphabet) => {
                     self.update_alphabet(alphabet)
+                }
+                Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
+                _ => None,
+            },
+            Mode::BrowseFonts => match action {
+                Action::MoveDown => self.font_list.move_down(),
+                Action::MoveUp => self.font_list.move_up(),
+                Action::Select => self.font_list.choose(),
+                Action::EnterViewMode => self.enter_view_mode(),
+                Action::ImageToAsciiBuilderUpdateFont(font) => {
+                    self.update_font(font)
                 }
                 Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
                 _ => None,
@@ -142,6 +136,7 @@ impl Component for ImageToAsciiBuilder {
                 Action::ImageToAsciiBuilderUpdateImage(image) => self.update_image(image),
                 Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
                 Action::EnterBrowseAlphabetsMode => self.enter_browse_alphabets_mode(),
+                Action::EnterBrowseFontsMode => self.enter_browse_fonts_mode(),
                 _ => None,
             },
         };
@@ -155,9 +150,16 @@ impl Component for ImageToAsciiBuilder {
     ) -> color_eyre::eyre::Result<()> {
         match self.mode {
             Mode::BrowseAlphabets => self.alphabet_list.draw(frame, area),
+            Mode::BrowseFonts => self.font_list.draw(frame, area),
             _ => Ok(()),
         }
     }
+}
+
+#[derive(Clone)]
+enum Status {
+    Selected,
+    Unselected,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -195,6 +197,40 @@ impl AlphabetList {
         let mut list = AlphabetList::from_iter(list_iter);
         list.state.select(Some(i));
         list
+    }
+
+    /// Moves down to the next item or stays at the bottom.
+    fn move_down(&mut self) -> Option<Action> {
+        self.state.select_next();
+        None
+    }
+
+    /// Moves up to the previous item or stays at the top.
+    fn move_up(&mut self) -> Option<Action> {
+        self.state.select_previous();
+        None
+    }
+
+    /// Chooses current selection to show.
+    fn choose(&mut self) -> Option<Action> {
+        if let Some(i) = self.state.selected() {
+            for item in self.items.iter_mut() {
+                item.status = Status::Unselected;
+            }
+            let item = self
+                .items
+                .iter_mut()
+                .enumerate()
+                .find(|(j, _)| i == *j)
+                .expect("item at index i")
+                .1;
+            item.status = Status::Selected;
+            Some(Action::ImageToAsciiBuilderUpdateAlphabet(
+                item.alphabet.clone(),
+            ))
+        } else {
+            None
+        }
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
@@ -249,12 +285,6 @@ impl FromIterator<(Status, Alphabet)> for AlphabetList {
 }
 
 #[derive(Clone)]
-enum Status {
-    Selected,
-    Unselected,
-}
-
-#[derive(Clone)]
 struct AlphabetItem {
     alphabet: Alphabet,
     status: Status,
@@ -271,6 +301,148 @@ impl From<&AlphabetItem> for ListItem<'_> {
         let line = match value.status {
             Status::Selected => Line::styled(value.alphabet.to_string(), GREEN.c500),
             Status::Unselected => Line::styled(value.alphabet.to_string(), GRAY.c500),
+        };
+        ListItem::new(line)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Font list (widget?)
+
+#[derive(Default)]
+struct FontList {
+    items: Vec<FontItem>,
+    state: ListState,
+}
+
+impl FontList {
+    fn new() -> Self {
+        let (i, _) = FONTS
+            .iter()
+            .enumerate()
+            .find(|(_, a)| **a == image_to_ascii_builder::Font::default())
+            .expect("default is in the list");
+
+        // TODO: Construct list of variants
+        let list_iter: Vec<(Status, Font)> = FONTS
+            .iter()
+            .enumerate()
+            .map(|(j, font)| {
+                let status = if j == i {
+                    Status::Selected
+                } else {
+                    Status::Unselected
+                };
+                (status, font.clone())
+            })
+            .collect();
+        let mut list = FontList::from_iter(list_iter);
+        list.state.select(Some(i));
+        list
+    }
+
+    /// Moves down to the next item or stays at the bottom.
+    fn move_down(&mut self) -> Option<Action> {
+        self.state.select_next();
+        None
+    }
+
+    /// Moves up to the previous item or stays at the top.
+    fn move_up(&mut self) -> Option<Action> {
+        self.state.select_previous();
+        None
+    }
+
+    /// Chooses current selection to show.
+    fn choose(&mut self) -> Option<Action> {
+        if let Some(i) = self.state.selected() {
+            for item in self.items.iter_mut() {
+                item.status = Status::Unselected;
+            }
+            let item = self
+                .items
+                .iter_mut()
+                .enumerate()
+                .find(|(j, _)| i == *j)
+                .expect("item at index i")
+                .1;
+            item.status = Status::Selected;
+            Some(Action::ImageToAsciiBuilderUpdateFont(
+                item.font.clone(),
+            ))
+        } else {
+            None
+        }
+    }
+
+    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
+        let width: u16 = area.width.min(
+            self.items
+                .iter()
+                .map(|item| item.font.to_string().len() as u16 + HORIZONTAL_PADDING)
+                .max()
+                .expect("all items have len"),
+        );
+        let height = area.height.min(self.items.len() as u16);
+
+        let [_, middle, _] = Layout::horizontal([
+            Constraint::Fill(1),
+            Constraint::Max(width),
+            Constraint::Fill(1),
+        ])
+        .areas(area);
+        let [_, middle, _] = Layout::vertical([
+            Constraint::Fill(1),
+            Constraint::Max(height + VERTICAL_PADDING),
+            Constraint::Fill(1),
+        ])
+        .areas(middle);
+
+        let block = Block::bordered().border_style(Style::new().fg(Color::DarkGray));
+
+        let selected_style = Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD);
+
+        let items: Vec<ListItem> = self.items.iter().map(ListItem::from).collect();
+        let list: List<'_> = List::new(items)
+            .block(block)
+            .highlight_style(selected_style)
+            .highlight_symbol("-")
+            .highlight_spacing(ratatui::widgets::HighlightSpacing::Always);
+
+        frame.render_widget(Clear, middle);
+        frame.render_stateful_widget(list, middle, &mut self.state);
+        Ok(())
+    }
+}
+
+impl FromIterator<(Status, Font)> for FontList {
+    fn from_iter<T: IntoIterator<Item = (Status, Font)>>(iter: T) -> Self {
+        let items = iter
+            .into_iter()
+            .map(|(status, font)| FontItem::new(status, font))
+            .collect();
+        let state = ListState::default();
+        Self { items, state }
+    }
+}
+
+#[derive(Clone)]
+struct FontItem {
+    font: Font,
+    status: Status,
+}
+
+impl FontItem {
+    fn new(status: Status, font: Font) -> Self {
+        Self { font, status }
+    }
+}
+
+impl From<&FontItem> for ListItem<'_> {
+    fn from(value: &FontItem) -> Self {
+        let line = match value.status {
+            Status::Selected => Line::styled(value.font.to_string(), GREEN.c500),
+            Status::Unselected => Line::styled(value.font.to_string(), GRAY.c500),
         };
         ListItem::new(line)
     }

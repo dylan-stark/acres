@@ -234,7 +234,7 @@ impl BrightnessOffset {
 }
 
 /// Built-in fonts.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Font {
     /// The courier font
     Courier,
@@ -242,6 +242,9 @@ pub enum Font {
     #[default]
     BitOcra13,
 }
+
+/// All fonts.
+pub const FONTS: &[Font] = &[Font::Courier, Font::BitOcra13];
 
 impl From<Font> for Bytes {
     fn from(value: Font) -> Self {
@@ -273,6 +276,15 @@ impl Font {
         match value.try_into() {
             Ok(font) => Ok(font),
             Err(error) => Err(error.to_string()),
+        }
+    }
+}
+
+impl Display for Font {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Font::Courier => f.write_str("courier"),
+            Font::BitOcra13 => f.write_str("bitorcra13"),
         }
     }
 }
