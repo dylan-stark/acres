@@ -34,7 +34,7 @@ pub enum ImageToAsciiBuilderError {
 }
 
 /// Conversion algorithm.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub enum ConversionAlgorithm {
     /// Base.
     Base,
@@ -46,6 +46,14 @@ pub enum ConversionAlgorithm {
     /// TwoPass.
     TwoPass,
 }
+
+/// All conversion algorithms
+pub const CONVERSION_ALGORITHMS: &[ConversionAlgorithm] = &[
+    ConversionAlgorithm::Base,
+    ConversionAlgorithm::Edge,
+    ConversionAlgorithm::EdgeAugmented,
+    ConversionAlgorithm::TwoPass,
+];
 
 impl Display for ConversionAlgorithm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

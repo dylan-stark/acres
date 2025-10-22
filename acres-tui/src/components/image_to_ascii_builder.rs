@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use bytes::Bytes;
 use color_eyre::eyre::Result;
-use image_to_ascii_builder::{ALPHABETS, Alphabet, FONTS, Font};
+use image_to_ascii_builder::{ALPHABETS, Alphabet, CONVERSION_ALGORITHMS, ConversionAlgorithm, FONTS, Font};
 use ratatui::{
     Frame,
     layout::{Constraint, Layout, Rect},
@@ -22,6 +22,7 @@ const VERTICAL_PADDING: u16 = 2;
 
 enum Focus {
     Alphabets,
+    ConversionAlgorithms,
     Fonts,
 }
 
@@ -32,6 +33,8 @@ pub struct ImageToAsciiBuilder {
     image: Option<Bytes>,
     alphabet: Option<Alphabet>,
     alphabet_list: BrowserList<Alphabet>,
+    conversion_algorithm: Option<ConversionAlgorithm>,
+    conversion_algorithm_list: BrowserList<ConversionAlgorithm>,
     font: Option<Font>,
     font_list: BrowserList<Font>,
     focus: Option<Focus>,
@@ -45,6 +48,8 @@ impl ImageToAsciiBuilder {
             image: None,
             alphabet: None,
             alphabet_list: BrowserList::new(ALPHABETS),
+            conversion_algorithm: None,
+            conversion_algorithm_list: BrowserList::new(CONVERSION_ALGORITHMS),
             font: None,
             font_list: BrowserList::new(FONTS),
             focus: None,
@@ -55,6 +60,11 @@ impl ImageToAsciiBuilder {
     /// Enter browse alphabets mode
     fn enter_browse_alphabets_mode(&mut self) -> Option<Action> {
         self.focus = Some(Focus::Alphabets);
+        None
+    }
+
+    fn enter_browse_conversion_algorithm_mode(&mut self) -> Option<Action> {
+        self.focus = Some(Focus::ConversionAlgorithms);
         None
     }
 
@@ -82,6 +92,12 @@ impl ImageToAsciiBuilder {
         Some(Action::ImageToAsciiBuilderBuildAscii)
     }
 
+    /// Update conversion algorithm.
+    fn update_conversion_algorithm(&mut self, conversion_algorithm: ConversionAlgorithm) -> Option<Action> {
+        self.conversion_algorithm = Some(conversion_algorithm);
+        Some(Action::ImageToAsciiBuilderBuildAscii)
+    }
+
     /// Update font.
     fn update_font(&mut self, font: Font) -> Option<Action> {
         self.font = Some(font);
@@ -92,6 +108,7 @@ impl ImageToAsciiBuilder {
     fn build_ascii(&self) -> Option<Action> {
         if let Some(image) = self.image.clone() {
             let alphabet = self.alphabet.clone();
+            let conversion_algorithm = self.conversion_algorithm.clone();
             let font = self.font.clone();
             let action_tx = self.action_tx.clone();
             tokio::spawn(async move {
@@ -99,6 +116,7 @@ impl ImageToAsciiBuilder {
                 let ascii = image_to_ascii_builder::Ascii::builder()
                     .input(image)
                     .alphabet(alphabet)
+                    .conversion_algorithm(conversion_algorithm)
                     .font(font)
                     .build()
                     .ok();
@@ -128,6 +146,17 @@ impl Component for ImageToAsciiBuilder {
                 Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
                 _ => None,
             },
+            Some(Focus::ConversionAlgorithms) => match action {
+                Action::MoveDown => self.conversion_algorithm_list.move_down(),
+                Action::MoveUp => self.conversion_algorithm_list.move_up(),
+                Action::Select => self.conversion_algorithm_list.choose(),
+                Action::EnterViewMode => self.enter_view_mode(),
+                Action::ImageToAsciiBuilderUpdateConversionAlgorithm(conversion_algorithm) => {
+                    self.update_conversion_algorithm(conversion_algorithm)
+                }
+                Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
+                _ => None,
+            },
             Some(Focus::Fonts) => match action {
                 Action::MoveDown => self.font_list.move_down(),
                 Action::MoveUp => self.font_list.move_up(),
@@ -141,6 +170,7 @@ impl Component for ImageToAsciiBuilder {
                 Action::ImageToAsciiBuilderUpdateImage(image) => self.update_image(image),
                 Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
                 Action::EnterBrowseAlphabetsMode => self.enter_browse_alphabets_mode(),
+                Action::EnterBrowseConversionAlgorithmsMode => self.enter_browse_conversion_algorithm_mode(),
                 Action::EnterBrowseFontsMode => self.enter_browse_fonts_mode(),
                 _ => None,
             },
@@ -155,6 +185,7 @@ impl Component for ImageToAsciiBuilder {
     ) -> color_eyre::eyre::Result<()> {
         match self.focus {
             Some(Focus::Alphabets) => self.alphabet_list.draw(frame, area),
+            Some(Focus::ConversionAlgorithms) => self.conversion_algorithm_list.draw(frame, area),
             Some(Focus::Fonts) => self.font_list.draw(frame, area),
             None => Ok(()),
         }
@@ -278,24 +309,36 @@ where
     }
 }
 
-impl BrowserList<Font> {
-    /// Chooses current selection to show.
-    fn choose(&mut self) -> Option<Action> {
-        if let Some(i) = self.state.selected() {
-            let item = self.find_item(i);
-            Some(Action::ImageToAsciiBuilderUpdateFont(item.value.clone()))
-        } else {
-            None
-        }
-    }
-}
-
 impl BrowserList<Alphabet> {
     /// Chooses current selection to show.
     fn choose(&mut self) -> Option<Action> {
         if let Some(i) = self.state.selected() {
             let item = self.find_item(i);
             Some(Action::ImageToAsciiBuilderUpdateAlphabet(item.value.clone()))
+        } else {
+            None
+        }
+    }
+}
+
+impl BrowserList<ConversionAlgorithm> {
+    /// Chooses current selection to show.
+    fn choose(&mut self) -> Option<Action> {
+        if let Some(i) = self.state.selected() {
+            let item = self.find_item(i);
+            Some(Action::ImageToAsciiBuilderUpdateConversionAlgorithm(item.value.clone()))
+        } else {
+            None
+        }
+    }
+}
+
+impl BrowserList<Font> {
+    /// Chooses current selection to show.
+    fn choose(&mut self) -> Option<Action> {
+        if let Some(i) = self.state.selected() {
+            let item = self.find_item(i);
+            Some(Action::ImageToAsciiBuilderUpdateFont(item.value.clone()))
         } else {
             None
         }
