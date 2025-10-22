@@ -30,9 +30,7 @@ pub struct App {
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Mode {
-    BrowseArtworks,
-    BrowseAlphabets,
-    BrowseFonts,
+    Browse,
     #[default]
     View,
 }
@@ -50,8 +48,8 @@ impl App {
             components: vec![
                 Box::new(Home::new()),
                 Box::new(Iiif::new(action_tx.clone())),
-                Box::new(Artworks::new(artworks, Mode::default())),
-                Box::new(ImageToAsciiBuilder::new(action_tx.clone(), Mode::default())),
+                Box::new(Artworks::new(artworks)),
+                Box::new(ImageToAsciiBuilder::new(action_tx.clone())),
             ],
             should_quit: false,
             should_suspend: false,
@@ -154,7 +152,7 @@ impl App {
                 Action::EnterViewMode => self.mode = Mode::View,
                 Action::EnterBrowseArtworksMode
                 | Action::EnterBrowseAlphabetsMode
-                | Action::EnterBrowseFontsMode => self.mode = Mode::BrowseArtworks,
+                | Action::EnterBrowseFontsMode => self.mode = Mode::Browse,
                 Action::Quit => self.should_quit = true,
                 Action::Suspend => self.should_suspend = true,
                 Action::Resume => self.should_suspend = false,

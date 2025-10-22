@@ -9,17 +9,21 @@ use ratatui::{
     widgets::{Block, Clear, List, ListItem, ListState},
 };
 
-use crate::{action::Action, app::Mode};
+use crate::action::Action;
 
 use super::Component;
 
 const HORIZONTAL_PADDING: u16 = 3;
 const VERTICAL_PADDING: u16 = 2;
 
+enum Focus {
+    Artworks,
+}
+
 #[derive(Default)]
 pub struct Artworks {
     list: ArtworkList,
-    mode: Mode,
+    focus: Option<Focus>,
 }
 
 /// Constructs Artworks list from JSON.
@@ -30,7 +34,7 @@ impl Artworks {
     ///
     /// The primary job of this method is to construct the component's
     /// ArtworksList from an Acres Artworks (list).
-    pub fn new(artworks: acres::artworks::Artworks, mode: Mode) -> Self {
+    pub fn new(artworks: acres::artworks::Artworks) -> Self {
         let artwork_infos: Vec<ArtworkInfo> = artworks.clone().into();
         // TODO: Figure out how to merge these two together now.
         let list_iter: Vec<(Status, u64, String, ArtworkInfo)> = artwork_infos
@@ -52,7 +56,7 @@ impl Artworks {
             .collect();
         let mut list = ArtworkList::from_iter(list_iter);
         list.state.select_first();
-        Self { list, mode }
+        Self { list, focus: None }
     }
 
     /// Moves down to the next item or stays at the bottom.
@@ -149,25 +153,25 @@ impl Component for Artworks {
         &mut self,
         action: crate::action::Action,
     ) -> color_eyre::eyre::Result<Option<crate::action::Action>> {
-        let action = match self.mode {
-            Mode::BrowseArtworks => match action {
+        let continuation = match self.focus {
+            Some(Focus::Artworks) => match action {
                 Action::MoveDown => self.move_down(),
                 Action::MoveUp => self.move_up(),
                 Action::Select => self.choose(),
                 Action::EnterViewMode => {
-                    self.mode = Mode::View;
+                    self.focus = None;
                     None
                 }
                 _ => None,
             },
-            _ => {
+            None => {
                 if action == Action::EnterBrowseArtworksMode {
-                    self.mode = Mode::BrowseArtworks;
+                    self.focus = Some(Focus::Artworks);
                 }
                 None
             }
         };
-        Ok(action)
+        Ok(continuation)
     }
 
     fn draw(
@@ -175,7 +179,7 @@ impl Component for Artworks {
         frame: &mut ratatui::Frame,
         area: ratatui::prelude::Rect,
     ) -> color_eyre::eyre::Result<()> {
-        if self.mode == Mode::View {
+        if self.focus.is_none() {
             return Ok(());
         }
 

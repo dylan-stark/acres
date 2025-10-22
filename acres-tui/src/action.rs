@@ -10,6 +10,7 @@ pub enum Action {
     MoveDown,
     MoveUp,
     Select,
+    EnterBrowseMode,
     EnterBrowseArtworksMode,
     EnterBrowseAlphabetsMode,
     EnterBrowseFontsMode,

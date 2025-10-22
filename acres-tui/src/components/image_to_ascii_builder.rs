@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use color_eyre::eyre::Result;
-use image_to_ascii_builder::{Alphabet, Font, ALPHABETS, FONTS};
+use image_to_ascii_builder::{ALPHABETS, Alphabet, FONTS, Font};
 use ratatui::{
     Frame,
     layout::{Constraint, Layout, Rect},
@@ -13,10 +13,15 @@ use ratatui::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{action::Action, app::Mode, components::Component};
+use crate::{action::Action, components::Component};
 
 const HORIZONTAL_PADDING: u16 = 3;
 const VERTICAL_PADDING: u16 = 2;
+
+enum Focus {
+    Alphabets,
+    Fonts,
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Image-to-ASCII Builder component
@@ -27,39 +32,39 @@ pub struct ImageToAsciiBuilder {
     alphabet_list: AlphabetList,
     font: Option<Font>,
     font_list: FontList,
-    mode: Mode,
+    focus: Option<Focus>,
     action_tx: UnboundedSender<Action>,
 }
 
 impl ImageToAsciiBuilder {
     /// Sets up new alphabets component.
-    pub fn new(action_tx: UnboundedSender<Action>, mode: Mode) -> Self {
+    pub fn new(action_tx: UnboundedSender<Action>) -> Self {
         Self {
             image: None,
             alphabet: None,
             alphabet_list: AlphabetList::new(),
             font: None,
             font_list: FontList::new(),
-            mode,
+            focus: None,
             action_tx,
         }
     }
 
     /// Enter browse alphabets mode
     fn enter_browse_alphabets_mode(&mut self) -> Option<Action> {
-        self.mode = Mode::BrowseAlphabets;
+        self.focus = Some(Focus::Alphabets);
         None
     }
 
     /// Enter browse fonts mode
     fn enter_browse_fonts_mode(&mut self) -> Option<Action> {
-        self.mode = Mode::BrowseFonts;
+        self.focus = Some(Focus::Fonts);
         None
     }
 
     /// Enter View mode
     fn enter_view_mode(&mut self) -> Option<Action> {
-        self.mode = Mode::View;
+        self.focus = None;
         None
     }
 
@@ -109,8 +114,8 @@ impl Component for ImageToAsciiBuilder {
         &mut self,
         action: crate::action::Action,
     ) -> color_eyre::eyre::Result<Option<crate::action::Action>> {
-        let continuation = match self.mode {
-            Mode::BrowseAlphabets => match action {
+        let continuation = match self.focus {
+            Some(Focus::Alphabets) => match action {
                 Action::MoveDown => self.alphabet_list.move_down(),
                 Action::MoveUp => self.alphabet_list.move_up(),
                 Action::Select => self.alphabet_list.choose(),
@@ -121,18 +126,16 @@ impl Component for ImageToAsciiBuilder {
                 Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
                 _ => None,
             },
-            Mode::BrowseFonts => match action {
+            Some(Focus::Fonts) => match action {
                 Action::MoveDown => self.font_list.move_down(),
                 Action::MoveUp => self.font_list.move_up(),
                 Action::Select => self.font_list.choose(),
                 Action::EnterViewMode => self.enter_view_mode(),
-                Action::ImageToAsciiBuilderUpdateFont(font) => {
-                    self.update_font(font)
-                }
+                Action::ImageToAsciiBuilderUpdateFont(font) => self.update_font(font),
                 Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
                 _ => None,
             },
-            _ => match action {
+            None => match action {
                 Action::ImageToAsciiBuilderUpdateImage(image) => self.update_image(image),
                 Action::ImageToAsciiBuilderBuildAscii => self.build_ascii(),
                 Action::EnterBrowseAlphabetsMode => self.enter_browse_alphabets_mode(),
@@ -148,10 +151,10 @@ impl Component for ImageToAsciiBuilder {
         frame: &mut ratatui::Frame,
         area: ratatui::prelude::Rect,
     ) -> color_eyre::eyre::Result<()> {
-        match self.mode {
-            Mode::BrowseAlphabets => self.alphabet_list.draw(frame, area),
-            Mode::BrowseFonts => self.font_list.draw(frame, area),
-            _ => Ok(()),
+        match self.focus {
+            Some(Focus::Alphabets) => self.alphabet_list.draw(frame, area),
+            Some(Focus::Fonts) => self.font_list.draw(frame, area),
+            None => Ok(()),
         }
     }
 }
@@ -367,9 +370,7 @@ impl FontList {
                 .expect("item at index i")
                 .1;
             item.status = Status::Selected;
-            Some(Action::ImageToAsciiBuilderUpdateFont(
-                item.font.clone(),
-            ))
+            Some(Action::ImageToAsciiBuilderUpdateFont(item.font.clone()))
         } else {
             None
         }
