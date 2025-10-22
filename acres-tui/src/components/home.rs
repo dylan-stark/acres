@@ -12,6 +12,7 @@ use crate::action::Action;
 #[derive(Default)]
 pub struct Home<'a> {
     text: Text<'a>,
+    show_logs: bool,
     log: Vec<String>,
     messages_width: u16,
     action_tx: Option<UnboundedSender<Action>>,
@@ -45,6 +46,7 @@ impl<'a> Component for Home<'a> {
                     .context("failed to convert ascii bytes to text")?;
                 self.text = text;
             }
+            Action::ToggleLogs => self.show_logs = !self.show_logs,
             Action::Log(message) => {
                 self.messages_width = self.messages_width.max(message.len() as u16);
                 self.log.push(message);
@@ -59,9 +61,13 @@ impl<'a> Component for Home<'a> {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
+        let logs_width = if self.show_logs {
+            self.messages_width
+        } else {
+            0
+        };
         let [view_area, logs_area] =
-            Layout::horizontal([Constraint::Fill(1), Constraint::Max(self.messages_width)])
-                .areas(area);
+            Layout::horizontal([Constraint::Fill(1), Constraint::Max(logs_width)]).areas(area);
         let [_, middle, _] = Layout::horizontal([
             Constraint::Fill(1),
             Constraint::Max(self.text.width() as u16),

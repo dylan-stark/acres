@@ -6,6 +6,7 @@ use strum::Display;
 
 #[derive(Debug, Clone, PartialEq, Eq, Display, Serialize, Deserialize)]
 pub enum Action {
+    ToggleLogs,
     Log(String),
     MoveDown,
     MoveUp,

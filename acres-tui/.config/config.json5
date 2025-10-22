@@ -18,6 +18,7 @@
       "<a>": "EnterBrowseAlphabetsMode", // Browse alphabets list
       "<c>": "EnterBrowseConversionAlgorithmsMode", // Browse conversion algorithms list
       "<f>": "EnterBrowseFontsMode", // Browse fonts list
+      "<l>": "ToggleLogs", // Toggle showing logs
       "<m>": "EnterBrowseMetricsMode", // Browse metrics list
       "<q>": "Quit", // Quit the application
       "<Ctrl-d>": "Quit", // Another way to quit
