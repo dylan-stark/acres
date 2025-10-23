@@ -153,7 +153,7 @@ impl App {
                 Action::EnterBrowseArtworksMode
                 | Action::EnterBrowseAlphabetsMode
                 | Action::EnterBrowseConversionAlgorithmsMode
-                | Action::EnterBrowseFontsMode => self.mode = Mode::Browse,
+                | Action::EnterBrowseFontsMode
                 | Action::EnterBrowseMetricsMode => self.mode = Mode::Browse,
                 Action::Quit => self.should_quit = true,
                 Action::Suspend => self.should_suspend = true,
