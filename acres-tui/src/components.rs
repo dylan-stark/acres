@@ -1,15 +1,17 @@
 use color_eyre::Result;
 use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::{
-    layout::{Rect, Size},
     Frame,
+    layout::{Rect, Size},
 };
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{action::Action, config::Config, tui::Event};
 
-pub mod artworks_list;
+pub mod acres;
 pub mod home;
+pub mod iiif;
+pub mod image_to_ascii_builder;
 
 /// `Component` is a trait that represents a visual and interactive element of the user interface.
 ///

@@ -8,9 +8,7 @@ use color_eyre::Result;
 use crate::app::App;
 
 mod action;
-mod aic;
 mod app;
-mod ascii_art;
 mod cli;
 mod components;
 mod config;
@@ -24,7 +22,7 @@ async fn main() -> Result<()> {
     crate::logging::init()?;
 
     let args = Cli::parse();
-    let mut app = App::new(args.tick_rate, args.frame_rate, args.q)?;
+    let mut app = App::new(args.tick_rate, args.frame_rate, args.artworks.contents()?)?;
     app.run().await?;
 
     Ok(())

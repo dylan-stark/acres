@@ -4,6 +4,7 @@
 
 use anyhow::Context;
 use bytes::{Buf, Bytes};
+use serde::{Deserialize, Serialize};
 
 use std::{
     fmt::Display,
@@ -33,7 +34,7 @@ pub enum ImageToAsciiBuilderError {
 }
 
 /// Conversion algorithm.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub enum ConversionAlgorithm {
     /// Base.
     Base,
@@ -45,6 +46,14 @@ pub enum ConversionAlgorithm {
     /// TwoPass.
     TwoPass,
 }
+
+/// All conversion algorithms
+pub const CONVERSION_ALGORITHMS: &[ConversionAlgorithm] = &[
+    ConversionAlgorithm::Base,
+    ConversionAlgorithm::Edge,
+    ConversionAlgorithm::EdgeAugmented,
+    ConversionAlgorithm::TwoPass,
+];
 
 impl Display for ConversionAlgorithm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -85,7 +94,7 @@ impl ConversionAlgorithm {
 }
 
 /// Built-in alphabets.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Alphabet {
     /// The alphabet alphabet.
     #[default]
@@ -103,6 +112,17 @@ pub enum Alphabet {
     /// The uppercase alphabet.
     Uppercase,
 }
+
+/// All alphabets.
+pub const ALPHABETS: &[Alphabet] = &[
+    Alphabet::Alphabet,
+    Alphabet::Fast,
+    Alphabet::Letters,
+    Alphabet::Lowercase,
+    Alphabet::Minimal,
+    Alphabet::Symbols,
+    Alphabet::Uppercase,
+];
 
 impl Display for Alphabet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -222,7 +242,7 @@ impl BrightnessOffset {
 }
 
 /// Built-in fonts.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Font {
     /// The courier font
     Courier,
@@ -230,6 +250,9 @@ pub enum Font {
     #[default]
     BitOcra13,
 }
+
+/// All fonts.
+pub const FONTS: &[Font] = &[Font::Courier, Font::BitOcra13];
 
 impl From<Font> for Bytes {
     fn from(value: Font) -> Self {
@@ -265,8 +288,17 @@ impl Font {
     }
 }
 
+impl Display for Font {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Font::Courier => f.write_str("courier"),
+            Font::BitOcra13 => f.write_str("bitorcra13"),
+        }
+    }
+}
+
 /// Metrics.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Metric {
     /// Dot.
     Dot,
@@ -292,6 +324,21 @@ pub enum Metric {
     /// IntensityJaccard.
     IntensityJaccard,
 }
+
+/// All metrics
+pub const METRICS: &[Metric] = &[
+    Metric::Dot,
+    Metric::Jaccard,
+    Metric::Occlusion,
+    Metric::Color,
+    Metric::Clear,
+    Metric::Fast,
+    Metric::Intensity,
+    Metric::Grad,
+    Metric::DirectionAndIntensity,
+    Metric::Direction,
+    Metric::IntensityJaccard,
+];
 
 impl Display for Metric {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -386,7 +433,7 @@ impl CharWidth {
 }
 
 /// ASCII.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Ascii(String);
 
 impl Display for Ascii {
@@ -469,6 +516,12 @@ impl AsciiBuilder {
         let bytes = Bytes::from(bytes);
         self.input_bytes = bytes;
         Ok(self)
+    }
+
+    /// Sets the input bytes directly.
+    pub fn input(mut self, bytes: Bytes) -> Self {
+        self.input_bytes = bytes;
+        self
     }
 
     /// Sets the metric.

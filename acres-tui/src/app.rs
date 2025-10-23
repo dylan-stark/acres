@@ -7,7 +7,10 @@ use tracing::info;
 
 use crate::{
     action::Action,
-    components::{artworks_list::ArtworksList, home::Home, Component},
+    components::{
+        Component, acres::Artworks, home::Home, iiif::Iiif,
+        image_to_ascii_builder::ImageToAsciiBuilder,
+    },
     config::Config,
     tui::{Event, Tui},
 };
@@ -27,22 +30,31 @@ pub struct App {
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Mode {
-    #[default]
     Browse,
+    #[default]
     View,
 }
 
 impl App {
-    pub fn new(tick_rate: f64, frame_rate: f64, q: String) -> Result<Self> {
+    pub fn new(
+        tick_rate: f64,
+        frame_rate: f64,
+        artworks: acres::artworks::Artworks,
+    ) -> Result<Self> {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         Ok(Self {
             tick_rate,
             frame_rate,
-            components: vec![Box::new(Home::new()), Box::new(ArtworksList::new(q))],
+            components: vec![
+                Box::new(Home::new()),
+                Box::new(Iiif::new(action_tx.clone())),
+                Box::new(Artworks::new(artworks)),
+                Box::new(ImageToAsciiBuilder::new(action_tx.clone())),
+            ],
             should_quit: false,
             should_suspend: false,
             config: Config::new()?,
-            mode: Mode::Browse,
+            mode: Mode::default(),
             last_tick_key_events: Vec::new(),
             action_tx,
             action_rx,
@@ -138,7 +150,11 @@ impl App {
                     self.last_tick_key_events.drain(..);
                 }
                 Action::EnterViewMode => self.mode = Mode::View,
-                Action::EnterBrowseMode => self.mode = Mode::Browse,
+                Action::EnterBrowseArtworksMode
+                | Action::EnterBrowseAlphabetsMode
+                | Action::EnterBrowseConversionAlgorithmsMode
+                | Action::EnterBrowseFontsMode => self.mode = Mode::Browse,
+                | Action::EnterBrowseMetricsMode => self.mode = Mode::Browse,
                 Action::Quit => self.should_quit = true,
                 Action::Suspend => self.should_suspend = true,
                 Action::Resume => self.should_suspend = false,
