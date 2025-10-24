@@ -1,5 +1,11 @@
 build: reformat test
 
+docs:
+	cargo doc --workspace --no-deps
+
+docs-all:
+	cargo doc --workspace --no-deps --document-private-items
+
 reformat:
 	cargo fmt --all --check
 
