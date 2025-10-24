@@ -1,3 +1,4 @@
+#![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 
 //! Ergonomic builder for the image-to-ascii crate.
@@ -195,7 +196,7 @@ impl Alphabet {
 }
 
 /// Brightness offset.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BrightnessOffset(f32);
 
 impl Default for BrightnessOffset {
@@ -393,7 +394,7 @@ impl Metric {
 }
 
 /// Width in characters.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub enum CharWidth {
     /// Use number of chars needed to cover image width
     #[default]
@@ -450,7 +451,7 @@ impl Ascii {
 }
 
 /// An ASCII builder.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct AsciiBuilder {
     alphabet: Alphabet,
     brightness_offset: BrightnessOffset,

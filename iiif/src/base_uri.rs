@@ -74,7 +74,7 @@ impl BaseUri {
 }
 
 /// A base URI builder
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct BaseUriBuilder {
     scheme: Scheme,
     server: String,

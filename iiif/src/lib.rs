@@ -1,3 +1,4 @@
+#![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 
 //! Simple and ergonomic access to the IIIF APIs.
