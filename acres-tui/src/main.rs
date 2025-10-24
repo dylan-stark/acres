@@ -1,3 +1,7 @@
+#![deny(missing_docs)]
+
+//! acres-tui is a terminal UI for browsing artworks from the Art Institute of Chicago's [public APIs].
+
 // Following is meant to handle clippy bug about uneeded return
 #![allow(clippy::needless_return)]
 
