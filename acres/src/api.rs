@@ -96,17 +96,17 @@ impl Api {
     where
         T: From<Bytes>,
     {
-        let cached: Option<Bytes> = self.from_cache(&endpoint, &query_params)?;
+        let cached: Option<Bytes> = self.load_from_cache(&endpoint, &query_params)?;
         let results: Result<Bytes, AcresError> = match cached {
             Some(results) => Ok(results),
             None => Ok(fetch(&endpoint, &query_params).await?),
         };
-        let results = self.to_cache(&endpoint, query_params, results.unwrap())?;
+        let results = self.store_in_cache(&endpoint, query_params, results.unwrap())?;
         Ok(T::from(results))
     }
 
     /// Stores an item in cache.
-    pub fn to_cache(
+    pub fn store_in_cache(
         &self,
         endpoint: &String,
         query_params: impl Debug,
@@ -140,7 +140,7 @@ impl Api {
     ///
     /// If `id` is not in the cache, returns Ok(None). Otherwise, loads
     /// the data and returns result of applying the provided closure f().
-    pub fn from_cache(
+    pub fn load_from_cache(
         &self,
         endpoint: &String,
         query_params: &Option<impl Serialize + Debug>,
