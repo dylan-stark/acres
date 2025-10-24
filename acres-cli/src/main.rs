@@ -20,6 +20,7 @@ use image_to_ascii_builder::{
 #[doc(hidden)]
 mod logging;
 
+#[doc(hidden)]
 #[derive(clap::ValueEnum, Clone, Default)]
 enum IiifTo {
     #[default]
