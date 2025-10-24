@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use crate::{AcresError, config::Config};
 use anyhow::{Context, anyhow};
@@ -171,6 +171,15 @@ impl Api {
             cache_file_path.display()
         );
         Ok(Some(data.into()))
+    }
+}
+
+impl Display for Api {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "API {{ base_uri: {:?}, use_cache: {:?} }}",
+            self.base_uri, self.use_cache
+        ))
     }
 }
 
