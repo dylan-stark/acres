@@ -17,7 +17,7 @@ use serde::Serialize;
 /// ```
 ///
 /// [AIC public APIs]: https://api.artic.edu/docs/#introduction
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Api {
     pub(crate) base_uri: String,
     pub(crate) use_cache: bool,
