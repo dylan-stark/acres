@@ -16,8 +16,8 @@ pub(super) struct SearchQueryParams {
 impl SearchQueryParams {
     pub fn valid(&self) -> Result<(), AcresError> {
         if self.sort.is_some() && self.query.is_none() {
-            return Err(AcresError::SearchQueryParamsError(
-                "Sort can only be used with query".to_string(),
+            return Err(AcresError::InvalidSearchQueryParams(
+                "sort can only be used if query is also set".to_string(),
             ));
         }
         Ok(())
@@ -69,6 +69,9 @@ mod tests {
 
         let result = params.valid();
         assert!(result.is_err());
-        assert!(matches!(result, Err(AcresError::SearchQueryParamsError(_))));
+        assert!(matches!(
+            result,
+            Err(AcresError::InvalidSearchQueryParams(_))
+        ));
     }
 }

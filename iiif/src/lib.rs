@@ -10,6 +10,7 @@ mod image_request_builder;
 mod information_request;
 
 pub use self::base_uri::{BaseUri, Scheme};
+pub use self::errors::IiifError;
 pub use self::image_request::{
     Format, ImageRequest, ImageResponse, Quality, Region, Rotation, Size,
 };

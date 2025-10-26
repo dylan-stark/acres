@@ -1,6 +1,6 @@
-use anyhow::anyhow;
-
 use std::fmt::Display;
+
+use crate::errors::IiifError;
 
 /// Supported URI schemes.
 ///
@@ -32,14 +32,11 @@ impl Display for Scheme {
 
 impl Scheme {
     /// Scheme parser.
-    pub fn parse(value: &str) -> Result<Scheme, String> {
+    pub fn parse(value: &str) -> Result<Scheme, IiifError> {
         match value {
             _ if value == "https" => Ok(Scheme::Https),
             _ if value == "http" => Ok(Scheme::Http),
-            _ => Err(format!(
-                "could not understand scheme specification: {}",
-                value
-            )),
+            _ => Err(IiifError::InvalidScheme(value.to_string())),
         }
     }
 }
@@ -149,12 +146,12 @@ impl BaseUriBuilder {
     }
 
     /// Builds the actual base URI for an image.
-    pub fn build(self) -> anyhow::Result<BaseUri> {
+    pub fn build(self) -> Result<BaseUri, IiifError> {
         if self.server.is_empty() {
-            return Err(anyhow!("Missing server"));
+            return Err(IiifError::MissingServer);
         }
         if self.identifier.is_empty() {
-            return Err(anyhow!("Missing identifier"));
+            return Err(IiifError::MissingIdentifier);
         }
 
         Ok(BaseUri {
@@ -215,13 +212,13 @@ mod tests {
     fn base_uri_missing_server() {
         let result = BaseUri::builder().identifier("abcd1234").build();
 
-        assert_eq!(format!("{}", result.unwrap_err()), "Missing server");
+        assert_eq!(format!("{}", result.unwrap_err()), "missing server");
     }
 
     #[test]
     fn base_uri_missing_identifier() {
         let result = BaseUri::builder().server("example.org").build();
 
-        assert_eq!(format!("{}", result.unwrap_err()), "Missing identifier");
+        assert_eq!(format!("{}", result.unwrap_err()), "missing identifier");
     }
 }

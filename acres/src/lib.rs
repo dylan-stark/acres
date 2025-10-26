@@ -30,15 +30,15 @@ pub use api::fetch;
 #[derive(Debug, thiserror::Error)]
 pub enum AcresError {
     /// An artwork-related error
-    #[error("Artwork-related error: {0}")]
-    ArtworkError(String),
-    /// An IIIF-related error
-    #[error("IIIF-related error: {0}")]
-    IiifError(String),
+    #[error("unable to load artwork info")]
+    LoadArtworkInfo,
+    /// Unable to parse IIIF scheme
+    #[error("IIIF error: {0}")]
+    Iiif(#[from] iiif::IiifError),
     /// A search query parameter error
-    #[error("Search query parameters error: {0}")]
-    SearchQueryParamsError(String),
+    #[error("search query parameters error: {0}")]
+    InvalidSearchQueryParams(String),
     /// An unexpected error.
     #[error(transparent)]
-    UnexpectedError(#[from] anyhow::Error),
+    Unexpected(#[from] anyhow::Error),
 }
