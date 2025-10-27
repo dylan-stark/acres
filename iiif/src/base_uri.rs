@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use strum::Display;
 
@@ -26,14 +26,14 @@ impl Scheme {
     }
 }
 
-impl TryFrom<&str> for Scheme {
-    type Error = IiifError;
+impl FromStr for Scheme {
+    type Err = IiifError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            _ if value == "https" => Ok(Scheme::Https),
-            _ if value == "http" => Ok(Scheme::Http),
-            _ => Err(IiifError::InvalidScheme(value.to_string())),
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            _ if s == "https" => Ok(Scheme::Https),
+            _ if s == "http" => Ok(Scheme::Http),
+            _ => Err(IiifError::InvalidScheme(s.to_string())),
         }
     }
 }

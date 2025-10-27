@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
@@ -132,7 +132,7 @@ impl TryFrom<ArtworkInfo> for iiif::BaseUri {
     fn try_from(artwork: ArtworkInfo) -> std::result::Result<Self, Self::Error> {
         iiif::BaseUri::builder()
             .scheme(
-                iiif::Scheme::try_from(artwork.config.iiif_url.scheme())
+                iiif::Scheme::from_str(artwork.config.iiif_url.scheme())
                     .map_err(AcresError::Iiif)?,
             )
             .server(
