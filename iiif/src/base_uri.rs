@@ -24,9 +24,12 @@ impl Scheme {
     pub fn new() -> Self {
         Self::default()
     }
+}
 
-    /// Scheme parser.
-    pub fn parse(value: &str) -> Result<Scheme, IiifError> {
+impl TryFrom<&str> for Scheme {
+    type Error = IiifError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
             _ if value == "https" => Ok(Scheme::Https),
             _ if value == "http" => Ok(Scheme::Http),
