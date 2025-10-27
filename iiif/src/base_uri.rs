@@ -1,36 +1,30 @@
 use std::fmt::Display;
 
+use strum::Display;
+
 use crate::errors::IiifError;
 
 /// Supported URI schemes.
 ///
 /// According to <https://iiif.io/api/image/3.0/#2-uri-syntax>:
 /// > "Indicates the use of the HTTP or HTTPS protocol in calling the service."
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Display, Default, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Scheme {
     /// HTTP protocol
+    #[strum(to_string = "http")]
     Http,
     /// HTTPS protocol
+    #[default]
+    #[strum(to_string = "https")]
     Https,
 }
 
-impl Default for Scheme {
-    fn default() -> Self {
-        Self::Https
-    }
-}
-
-impl Display for Scheme {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let scheme = match self {
-            Scheme::Https => "https",
-            Scheme::Http => "http",
-        };
-        write!(f, "{}", scheme)
-    }
-}
-
 impl Scheme {
+    /// Creates a new default scheme.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Scheme parser.
     pub fn parse(value: &str) -> Result<Scheme, IiifError> {
         match value {
