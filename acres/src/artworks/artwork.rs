@@ -130,7 +130,7 @@ impl TryFrom<ArtworkInfo> for iiif::BaseUri {
     type Error = AcresError;
 
     fn try_from(artwork: ArtworkInfo) -> std::result::Result<Self, Self::Error> {
-        iiif::BaseUri::builder()
+        Ok(iiif::BaseUri::builder()
             .scheme(
                 iiif::Scheme::from_str(artwork.config.iiif_url.scheme())
                     .map_err(AcresError::Iiif)?,
@@ -144,8 +144,7 @@ impl TryFrom<ArtworkInfo> for iiif::BaseUri {
             )
             .prefix(artwork.config.iiif_url.path())
             .identifier(&artwork.data.image_id)
-            .build()
-            .map_err(AcresError::Iiif)
+            .build())
     }
 }
 
