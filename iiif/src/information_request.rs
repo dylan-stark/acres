@@ -1,4 +1,6 @@
-//! IIIF information request.
+//! [IIIF information request](https://iiif.io/api/image/3.0/#51-image-information-request).
+//!
+//! - [Image Information](https://iiif.io/api/image/3.0/#5-image-information)
 
 use bytes::{Buf, Bytes};
 use serde::Deserialize;
