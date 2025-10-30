@@ -10,6 +10,9 @@ pub enum IiifError {
     /// Identifier is missing.
     #[error("missing identifier")]
     MissingIdentifier,
+    /// Unable to parse provided URI.
+    #[error("unable to parse URI: {0}")]
+    ParseUri(#[from] url::ParseError),
     /// Something unexpected went wrong.
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),

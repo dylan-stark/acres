@@ -1,5 +1,5 @@
 use crate::{
-    BaseUri,
+    Uri,
     errors::IiifError,
     image_request::{Format, ImageRequest, Quality, Region, Rotation, Size},
 };
@@ -7,7 +7,7 @@ use crate::{
 /// An IIIF builder.
 #[derive(Debug, Default)]
 pub struct ImageRequestBuilder {
-    base_uri: BaseUri,
+    uri: Option<Uri>,
     region: Option<Region>,
     size: Option<Size>,
     rotation: Option<Rotation>,
@@ -17,8 +17,8 @@ pub struct ImageRequestBuilder {
 
 impl ImageRequestBuilder {
     /// Artwork details.
-    pub fn base_uri(mut self, base_uri: BaseUri) -> Self {
-        self.base_uri = base_uri;
+    pub fn uri(mut self, uri: Uri) -> Self {
+        self.uri = Some(uri);
         self
     }
 
@@ -56,7 +56,8 @@ impl ImageRequestBuilder {
     pub fn build(&self) -> Result<ImageRequest, IiifError> {
         tracing::info!(msg = "Building IIIF instance", ?self);
 
-        let base_uri = &self.base_uri;
+        // TODO: Remove default values from this package
+        let uri = self.uri.clone();
         let region = self.region.as_ref().unwrap_or(&Region::Full);
         let size = self.size.as_ref().unwrap_or(&Size::Width(843));
         let rotation = self.rotation.as_ref().unwrap_or(&Rotation::Degrees(0.0));
@@ -64,7 +65,7 @@ impl ImageRequestBuilder {
         let format = self.format.as_ref().unwrap_or(&Format::Jpg);
 
         Ok(ImageRequest::new(
-            base_uri.clone(),
+            uri.unwrap().clone(),
             region.clone(),
             size.clone(),
             rotation.clone(),

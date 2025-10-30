@@ -336,9 +336,9 @@ async fn main() -> Result<(), Report> {
                     .into_reader()?,
             )
             .ok_or(AcresError::LoadArtworkInfo)?;
-            let base_uri: iiif::BaseUri = artwork.try_into()?;
+            let base_uri: iiif::Uri = artwork.try_into()?;
             match iiif::ImageRequest::builder()
-                .base_uri(base_uri)
+                .uri(base_uri)
                 .region(matches.get_one::<iiif::Region>("region").cloned())
                 .size(matches.get_one::<iiif::Size>("size").cloned())
                 .rotation(matches.get_one::<iiif::Rotation>("rotation").cloned())
@@ -370,7 +370,7 @@ async fn main() -> Result<(), Report> {
                     .into_reader()?,
             )
             .ok_or(AcresError::LoadArtworkInfo)?;
-            let request: iiif::InformationRequest = iiif::BaseUri::try_from(artwork)?.into();
+            let request: iiif::InformationRequest = iiif::Uri::try_from(artwork)?.into();
             let response: iiif::InformationResponse = Api::new()
                 .fetch(request.to_string(), None as Option<()>)
                 .await?;

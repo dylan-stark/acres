@@ -4,12 +4,12 @@ use std::fmt::Display;
 
 use bytes::Bytes;
 
-use crate::{base_uri::BaseUri, image_request_builder::ImageRequestBuilder};
+use crate::{image_request_builder::ImageRequestBuilder, uri::Uri};
 
 /// An IIIF instance.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImageRequest {
-    base_uri: BaseUri,
+    uri: Uri,
     region: Region,
     size: Size,
     rotation: Rotation,
@@ -20,7 +20,7 @@ pub struct ImageRequest {
 impl ImageRequest {
     /// Create a new image request.
     pub fn new(
-        base_uri: BaseUri,
+        uri: Uri,
         region: Region,
         size: Size,
         rotation: Rotation,
@@ -28,7 +28,7 @@ impl ImageRequest {
         format: Format,
     ) -> Self {
         ImageRequest {
-            base_uri,
+            uri,
             region,
             size,
             rotation,
@@ -43,7 +43,7 @@ impl Display for ImageRequest {
         write!(
             f,
             "{}/{}/{}/{}/{}.{}",
-            self.base_uri, self.region, self.size, self.rotation, self.quality, self.format
+            self.uri, self.region, self.size, self.rotation, self.quality, self.format
         )
     }
 }

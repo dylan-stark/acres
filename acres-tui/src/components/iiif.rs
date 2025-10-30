@@ -1,13 +1,13 @@
 use acres::Api;
 use color_eyre::eyre::{self};
-use iiif::{BaseUri, ImageRequest};
+use iiif::{ImageRequest, Uri};
 use ratatui::{Frame, prelude::Rect};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{action::Action, components::Component};
 
 pub struct Iiif {
-    base_uri: Option<BaseUri>,
+    base_uri: Option<Uri>,
     action_tx: UnboundedSender<Action>,
 }
 
@@ -31,9 +31,8 @@ impl Component for Iiif {
                 Ok(Some(Action::IiifRequestImage))
             }
             Action::IiifRequestImage => {
-                if let Some(base_uri) = &self.base_uri {
-                    let image_request =
-                        ImageRequest::builder().base_uri(base_uri.clone()).build()?;
+                if let Some(uri) = &self.base_uri {
+                    let image_request = ImageRequest::builder().uri(uri.clone()).build()?;
                     let action_tx = self.action_tx.clone();
                     tokio::spawn(async move {
                         let response: Option<iiif::ImageResponse> = Api::new()

@@ -6,30 +6,30 @@ use bytes::{Buf, Bytes};
 use serde::Deserialize;
 use std::fmt::Display;
 
-use crate::base_uri::BaseUri;
+use crate::uri::Uri;
 
 /// An IIIF instance.
 #[derive(Clone, Debug, PartialEq)]
 pub struct InformationRequest {
-    base_uri: BaseUri,
+    uri: Uri,
 }
 
 impl InformationRequest {
     /// Create a new information request.
-    pub fn new(base_uri: BaseUri) -> Self {
-        InformationRequest { base_uri }
+    pub fn new(uri: Uri) -> Self {
+        InformationRequest { uri }
     }
 }
 
 impl Display for InformationRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}/info.json", self.base_uri)
+        write!(f, "{}/info.json", self.uri)
     }
 }
 
-impl From<BaseUri> for InformationRequest {
-    fn from(value: BaseUri) -> Self {
-        InformationRequest { base_uri: value }
+impl From<Uri> for InformationRequest {
+    fn from(value: Uri) -> Self {
+        InformationRequest { uri: value }
     }
 }
 

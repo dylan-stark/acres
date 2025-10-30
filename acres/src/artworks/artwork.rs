@@ -1,7 +1,8 @@
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
 
 use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
+use iiif::IiifError;
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
@@ -126,25 +127,19 @@ impl From<Artworks> for Vec<ArtworkInfo> {
     }
 }
 
-impl TryFrom<ArtworkInfo> for iiif::BaseUri {
+impl TryFrom<ArtworkInfo> for iiif::Uri {
     type Error = AcresError;
 
     fn try_from(artwork: ArtworkInfo) -> std::result::Result<Self, Self::Error> {
-        Ok(iiif::BaseUri::builder()
-            .scheme(
-                iiif::Scheme::from_str(artwork.config.iiif_url.scheme())
-                    .map_err(AcresError::Iiif)?,
-            )
-            .server(
-                artwork
-                    .config
-                    .iiif_url
-                    .host_str()
-                    .context("failed to parse host from URL")?,
-            )
-            .prefix(artwork.config.iiif_url.path())
-            .identifier(&artwork.data.image_id)
-            .build())
+        artwork
+            .config
+            .iiif_url
+            .join(&artwork.data.image_id)
+            .map_err(IiifError::ParseUri)
+            .map_err(AcresError::Iiif)?
+            .as_str()
+            .parse::<iiif::Uri>()
+            .map_err(AcresError::Iiif)
     }
 }
 
