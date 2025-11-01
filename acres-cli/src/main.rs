@@ -193,30 +193,35 @@ async fn main() -> Result<(), Report> {
                     Arg::new("region")
                         .long("region")
                         .help("rectangular portion of the full image to be returned")
+                        .default_value("full")
                         .value_parser(iiif::Region::parse),
                 )
                 .arg(
                     Arg::new("size")
                         .long("size")
                         .help("dimensions to which the extracted region is to be scaled")
+                        .default_value("843,")
                         .value_parser(iiif::Size::parse),
                 )
                 .arg(
                     Arg::new("rotation")
                         .long("rotation")
                         .help("mirroring and rotation")
+                        .default_value("0.0")
                         .value_parser(iiif::Rotation::parse),
                 )
                 .arg(
                     Arg::new("quality")
                         .long("quality")
                         .help("whether image is delivered in color, grayscale, or black-and-white")
+                        .default_value("default")
                         .value_parser(iiif::Quality::parse),
                 )
                 .arg(
                     Arg::new("format")
                         .long("format")
                         .help("format of the returned image")
+                        .default_value("jpg")
                         .value_parser(iiif::Format::parse),
                 )
                 .arg(Arg::new("to").long("to").help("type of output").default_value("url").value_parser(value_parser!(IiifTo)))
@@ -337,28 +342,50 @@ async fn main() -> Result<(), Report> {
             )
             .ok_or(AcresError::LoadArtworkInfo)?;
             let base_uri: iiif::Uri = artwork.try_into()?;
-            match iiif::ImageRequest::builder()
+            let image_request = iiif::ImageRequest::builder()
                 .uri(base_uri)
-                .region(matches.get_one::<iiif::Region>("region").cloned())
-                .size(matches.get_one::<iiif::Size>("size").cloned())
-                .rotation(matches.get_one::<iiif::Rotation>("rotation").cloned())
-                .quality(matches.get_one::<iiif::Quality>("quality").cloned())
-                .format(matches.get_one::<iiif::Format>("format").cloned())
-                .build()
-            {
-                Ok(request) => match matches.get_one::<IiifTo>("to") {
-                    Some(IiifTo::Url) => println!("{}", request),
-                    Some(IiifTo::Bytes) => {
-                        let response: iiif::ImageResponse = Api::new()
-                            .fetch(request.to_string(), None as Option<()>)
-                            .await?;
-                        io::stdout()
-                            .write_all(&bytes::Bytes::from(response))
-                            .context("failed to write image bytes")?;
-                    }
-                    None => unreachable!("default value means we shouldn't get here"),
-                },
-                Err(error) => return Err(error).wrap_err("Oops, something went wrong ..."),
+                .region(
+                    matches
+                        .get_one::<iiif::Region>("region")
+                        .cloned()
+                        .expect("at least default set"),
+                )
+                .size(
+                    matches
+                        .get_one::<iiif::Size>("size")
+                        .cloned()
+                        .expect("at least default set"),
+                )
+                .rotation(
+                    matches
+                        .get_one::<iiif::Rotation>("rotation")
+                        .cloned()
+                        .expect("at least default set"),
+                )
+                .quality(
+                    matches
+                        .get_one::<iiif::Quality>("quality")
+                        .cloned()
+                        .expect("at least default set"),
+                )
+                .format(
+                    matches
+                        .get_one::<iiif::Format>("format")
+                        .cloned()
+                        .expect("at least default set"),
+                )
+                .build();
+            match matches.get_one::<IiifTo>("to") {
+                Some(IiifTo::Url) => println!("{}", image_request),
+                Some(IiifTo::Bytes) => {
+                    let response: iiif::ImageResponse = Api::new()
+                        .fetch(image_request.to_string(), None as Option<()>)
+                        .await?;
+                    io::stdout()
+                        .write_all(&bytes::Bytes::from(response))
+                        .context("failed to write image bytes")?;
+                }
+                None => unreachable!("default value means we shouldn't get here"),
             }
         }
         Some(("iiif-info", matches)) => {

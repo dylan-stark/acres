@@ -41,7 +41,6 @@ impl FromStr for Uri {
 
         let scheme = url.scheme().to_string();
         let server = url.host_str().ok_or(IiifError::MissingServer)?.to_string();
-        println!("{}", url.port().unwrap_or_default());
         let server = if url.port().is_some() {
             format!("{}:{}", server, url.port().unwrap_or_default())
         } else {
@@ -49,12 +48,12 @@ impl FromStr for Uri {
         };
         let mut path_segments = url
             .path_segments()
-            .ok_or(IiifError::MissingIdentifier)?
+            .ok_or(IiifError::MissingIdentifier(s.into()))?
             .collect::<Vec<&str>>();
         let identifier = path_segments
             .pop()
             .take_if(|v| !v.is_empty())
-            .ok_or(IiifError::MissingIdentifier)?
+            .ok_or(IiifError::MissingIdentifier(s.into()))?
             .to_string();
         let prefix = path_segments.join("/");
         let prefix = if !prefix.is_empty() {

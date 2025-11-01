@@ -1,13 +1,81 @@
-//! IIIF.
-
-use std::fmt::Display;
-
 use bytes::Bytes;
+use std::fmt::Display;
+use std::marker::PhantomData;
+use std::str::FromStr;
 
-use crate::{image_request_builder::ImageRequestBuilder, uri::Uri};
+use crate::{IiifError, Set, Unset, Uri};
 
-/// An IIIF instance.
-#[derive(Clone, Debug, PartialEq)]
+/// Defines an [image request] for the IIIF Image API 3.0.
+///
+/// You can create a new image request if you know all of the parameters upfront.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// use std::str::FromStr;
+/// use iiif::{Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
+///
+/// # fn main() -> Result<()> {
+/// let image_request = ImageRequest::new(
+///     Uri::from_str("https://example.org/images/12345")?,
+///     Region::Full,
+///     Size::Width(1024),
+///     Rotation::Degrees(0.0),
+///     Quality::Default,
+///     Format::Png,
+/// );
+/// assert_eq!(image_request.to_string(), "https://example.org/images/12345/full/1024,/0/default.png");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Or you can construct one piece-wise with a builder. This gives you the flexibility to set
+/// parameters when and in what order works best for you. And the [typestate pattern] ensures you
+/// can't `.build()` until all parameters are set.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use iiif::{Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
+/// #
+/// # fn main() -> Result<()> {
+/// let mut image_request = ImageRequest::builder();
+/// let mut image_request = image_request
+///     .region(Region::Full)
+///     .size(Size::Width(1024))
+///     .rotation(Rotation::Degrees(0.0))
+///     .quality(Quality::Default)
+///     .format(Format::Png);
+/// // The following won't compile because the URI isn't set:
+/// // let _ = image_request.build();
+///     
+/// let uri = Uri::from_str("https://example.org/images/12345")?;
+/// let mut image_request = image_request.uri(uri);
+/// // Now we can build it!
+///
+/// let image_request = image_request.build();
+/// assert_eq!(image_request.to_string(), "https://example.org/images/12345/full/1024,/0/default.png");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// And on the off chance that you already have a string and want an [`ImageRequest`], you can do
+/// that, too.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use iiif::{Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
+/// #
+/// # fn main() -> Result<()> {
+/// let image_request: ImageRequest = "https://example.org/images/12345/full/1024,/0/default.png".try_into()?;
+/// assert_eq!(image_request.to_string(), "https://example.org/images/12345/full/1024,/0/default.png");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [image request]: https://iiif.io/api/image/3.0/#4-image-requests
+/// [typestate pattern]: https://stanford-cs242.github.io/f19/lectures/08-2-typestate.html
+#[derive(Clone, Debug)]
 pub struct ImageRequest {
     uri: Uri,
     region: Region,
@@ -15,27 +83,6 @@ pub struct ImageRequest {
     rotation: Rotation,
     quality: Quality,
     format: Format,
-}
-
-impl ImageRequest {
-    /// Create a new image request.
-    pub fn new(
-        uri: Uri,
-        region: Region,
-        size: Size,
-        rotation: Rotation,
-        quality: Quality,
-        format: Format,
-    ) -> Self {
-        ImageRequest {
-            uri,
-            region,
-            size,
-            rotation,
-            quality,
-            format,
-        }
-    }
 }
 
 impl Display for ImageRequest {
@@ -48,10 +95,88 @@ impl Display for ImageRequest {
     }
 }
 
+impl TryFrom<&str> for ImageRequest {
+    type Error = IiifError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let url = url::Url::parse(value).map_err(IiifError::from)?;
+
+        let region: Region;
+        let size: Size;
+        let rotation: Rotation;
+        let quality: Quality;
+        let format: Format;
+        let mut params: Vec<&str> = url.path_segments().map_or_else(|| vec![], |v| v.collect());
+        if let Some(file) = params.pop() {
+            if let Some((q, f)) = file.split_once('.') {
+                format = f.try_into()?;
+                quality = q.try_into()?;
+            } else {
+                return Err(IiifError::MissingFormat(value.to_string()));
+            }
+        } else {
+            return Err(IiifError::MissingFormat(value.to_string()));
+        }
+        if let Some(r) = params.pop() {
+            rotation = r.try_into()?;
+        } else {
+            return Err(IiifError::MissingRotation(value.to_string()));
+        }
+        if let Some(s) = params.pop() {
+            size = s.try_into()?;
+        } else {
+            return Err(IiifError::MissingSize(value.to_string()));
+        }
+        if let Some(r) = params.pop() {
+            region = r.try_into()?;
+        } else {
+            return Err(IiifError::MissingRegion(value.to_string()));
+        }
+
+        let uri = Uri::from_str(
+            format!(
+                "{}://{}/{}",
+                url.scheme(),
+                url.host_str().map_or("", |v| v),
+                params.join("/")
+            )
+            .as_str(),
+        )?;
+
+        Ok(Self {
+            uri: uri,
+            region: region,
+            size: size,
+            rotation: rotation,
+            quality: quality,
+            format: format,
+        })
+    }
+}
+
 impl ImageRequest {
+    /// Constructs a new request.
+    pub fn new(
+        uri: Uri,
+        region: Region,
+        size: Size,
+        rotation: Rotation,
+        quality: Quality,
+        format: Format,
+    ) -> Self {
+        Self {
+            uri,
+            region,
+            size,
+            rotation,
+            quality,
+            format,
+        }
+    }
+
     /// Returns a new builder.
-    pub fn builder() -> ImageRequestBuilder {
-        ImageRequestBuilder::default()
+    pub fn builder() -> Builder<Unset, Unset, Unset, Unset, Unset, Unset> {
+        Builder::default()
     }
 }
 
@@ -72,7 +197,7 @@ impl From<ImageResponse> for Bytes {
 }
 
 /// Region of an image.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default)]
 pub enum Region {
     /// The complete image.
     #[default]
@@ -90,6 +215,50 @@ impl Display for Region {
             Region::Absolute(x, y, w, h) => write!(f, "{},{},{},{}", x, y, w, h),
             Region::Percentage(x, y, w, h) => write!(f, "pct:{},{},{},{}", x, y, w, h),
         }
+    }
+}
+
+impl PartialEq for Region {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl Eq for Region {}
+
+impl TryFrom<&str> for Region {
+    type Error = IiifError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if value == "full" {
+            return Ok(Region::Full);
+        }
+
+        let is_pct = value.starts_with("pct:");
+        let xywh = if is_pct {
+            value.replacen("pct:", "", 1)
+        } else {
+            value.to_string()
+        };
+
+        let parts = xywh.split(",");
+        if is_pct {
+            let parts: Vec<f32> = parts
+                .filter_map(|part| part.trim().parse::<f32>().ok())
+                .collect();
+            if parts.len() == 4 {
+                return Ok(Region::Percentage(parts[0], parts[1], parts[2], parts[3]));
+            }
+        } else {
+            let parts: Vec<u32> = parts
+                .filter_map(|part| part.trim().parse::<u32>().ok())
+                .collect();
+            if parts.len() == 4 {
+                return Ok(Region::Absolute(parts[0], parts[1], parts[2], parts[3]));
+            }
+        }
+
+        Err(IiifError::InvalidRegion(value.into()))
     }
 }
 
@@ -167,6 +336,49 @@ impl Display for Size {
     }
 }
 
+impl TryFrom<&str> for Size {
+    type Error = IiifError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if value == "full" {
+            return Ok(Size::Full);
+        } else if value.starts_with("pct:") {
+            let n = value.replacen("pct:", "", 1).parse::<f32>().ok();
+            if let Some(n) = n {
+                return Ok(Size::Percentage(n));
+            }
+        } else if value.starts_with("!") {
+            let parts = value
+                .replacen("!", "", 1)
+                .split(",")
+                .filter_map(|part| part.trim().parse::<u32>().ok())
+                .collect::<Vec<u32>>();
+            if parts.len() == 2 {
+                return Ok(Size::BestFit(parts[0], parts[1]));
+            }
+        } else if value.starts_with(",") {
+            let height = value.replacen(",", "", 1).parse::<u32>().ok();
+            if let Some(height) = height {
+                return Ok(Size::Height(height));
+            }
+        } else if value.ends_with(",") {
+            let width = value.replacen(",", "", 1).parse::<u32>().ok();
+            if let Some(width) = width {
+                return Ok(Size::Width(width));
+            }
+        } else {
+            let parts = value
+                .split(",")
+                .filter_map(|part| part.trim().parse::<u32>().ok())
+                .collect::<Vec<u32>>();
+            if parts.len() == 2 {
+                return Ok(Size::Exactly(parts[0], parts[1]));
+            }
+        }
+        Err(IiifError::InvalidSize(value.into()))
+    }
+}
+
 impl Size {
     /// Size parser.
     pub fn parse(value: &str) -> Result<Size, String> {
@@ -237,6 +449,21 @@ impl Display for Rotation {
     }
 }
 
+impl TryFrom<&str> for Rotation {
+    type Error = IiifError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if let Ok(degrees) = value.parse::<f32>() {
+            return Ok(Rotation::Degrees(degrees));
+        }
+        if let Ok(degrees) = value.replacen("!", "", 1).parse::<f32>() {
+            return Ok(Rotation::Mirrored(degrees));
+        }
+
+        Err(IiifError::InvalidRotation(value.into()))
+    }
+}
+
 impl Rotation {
     /// Rotation parser.
     pub fn parse(value: &str) -> Result<Rotation, String> {
@@ -275,6 +502,20 @@ impl Display for Quality {
             Quality::Gray => write!(f, "gray"),
             Quality::Bitonal => write!(f, "bitonal"),
             Quality::Default => write!(f, "default"),
+        }
+    }
+}
+
+impl TryFrom<&str> for Quality {
+    type Error = IiifError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            _ if value == "color" => Ok(Quality::Color),
+            _ if value == "gray" => Ok(Quality::Gray),
+            _ if value == "bitonal" => Ok(Quality::Bitonal),
+            _ if value == "default" => Ok(Quality::Default),
+            _ => Err(IiifError::InvalidQuality(value.into())),
         }
     }
 }
@@ -329,7 +570,25 @@ impl Display for Format {
     }
 }
 
+impl TryFrom<&str> for Format {
+    type Error = IiifError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            _ if value == "jpg" => Ok(Format::Jpg),
+            _ if value == "tif" => Ok(Format::Tif),
+            _ if value == "png" => Ok(Format::Png),
+            _ if value == "gif" => Ok(Format::Gif),
+            _ if value == "jp2" => Ok(Format::Jp2),
+            _ if value == "pdf" => Ok(Format::Pdf),
+            _ if value == "webp" => Ok(Format::WebP),
+            _ => Err(IiifError::InvalidFormat(value.into())),
+        }
+    }
+}
+
 impl Format {
+    // TODO: Remove this method in favor of TryFrom impl.
     /// Parse format from string.
     pub fn parse(value: &str) -> Result<Format, String> {
         match value {
@@ -348,6 +607,159 @@ impl Format {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+struct Partial {
+    uri: Option<Uri>,
+    region: Region,
+    size: Size,
+    rotation: Rotation,
+    quality: Quality,
+    format: Format,
+}
+
+impl From<Partial> for ImageRequest {
+    fn from(value: Partial) -> Self {
+        ImageRequest {
+            uri: value.uri.expect("set"),
+            region: value.region,
+            size: value.size,
+            rotation: value.rotation,
+            quality: value.quality,
+            format: value.format,
+        }
+    }
+}
+
+type SetType<A, B, C, D, E, F> = (
+    PhantomData<A>,
+    PhantomData<B>,
+    PhantomData<C>,
+    PhantomData<D>,
+    PhantomData<E>,
+    PhantomData<F>,
+);
+
+/// An image request builder.
+#[derive(Debug)]
+pub struct Builder<A, B, C, D, E, F> {
+    under_construction: Partial,
+    set: SetType<A, B, C, D, E, F>,
+}
+
+impl Default for Builder<Unset, Unset, Unset, Unset, Unset, Unset> {
+    fn default() -> Self {
+        Self {
+            under_construction: Partial::default(),
+            set: (
+                PhantomData,
+                PhantomData,
+                PhantomData,
+                PhantomData,
+                PhantomData,
+                PhantomData,
+            ),
+        }
+    }
+}
+
+impl Builder<Set, Set, Set, Set, Set, Set> {
+    /// Builds the full image request.
+    pub fn build(&self) -> ImageRequest {
+        self.under_construction.clone().into()
+    }
+}
+
+impl<A, B, C, D, E, F> Builder<A, B, C, D, E, F> {
+    pub fn uri(mut self, uri: Uri) -> Builder<Set, B, C, D, E, F> {
+        self.under_construction.uri = Some(uri);
+        Builder {
+            under_construction: self.under_construction,
+            set: (
+                PhantomData::<Set>,
+                self.set.1,
+                self.set.2,
+                self.set.3,
+                self.set.4,
+                self.set.5,
+            ),
+        }
+    }
+
+    pub fn region(mut self, region: Region) -> Builder<A, Set, C, D, E, F> {
+        self.under_construction.region = region;
+        Builder {
+            under_construction: self.under_construction,
+            set: (
+                self.set.0,
+                PhantomData::<Set>,
+                self.set.2,
+                self.set.3,
+                self.set.4,
+                self.set.5,
+            ),
+        }
+    }
+
+    pub fn size(mut self, size: Size) -> Builder<A, B, Set, D, E, F> {
+        self.under_construction.size = size;
+        Builder {
+            under_construction: self.under_construction,
+            set: (
+                self.set.0,
+                self.set.1,
+                PhantomData::<Set>,
+                self.set.3,
+                self.set.4,
+                self.set.5,
+            ),
+        }
+    }
+
+    pub fn rotation(mut self, rotation: Rotation) -> Builder<A, B, C, Set, E, F> {
+        self.under_construction.rotation = rotation;
+        Builder {
+            under_construction: self.under_construction,
+            set: (
+                self.set.0,
+                self.set.1,
+                self.set.2,
+                PhantomData::<Set>,
+                self.set.4,
+                self.set.5,
+            ),
+        }
+    }
+
+    pub fn quality(mut self, quality: Quality) -> Builder<A, B, C, D, Set, F> {
+        self.under_construction.quality = quality;
+        Builder {
+            under_construction: self.under_construction,
+            set: (
+                self.set.0,
+                self.set.1,
+                self.set.2,
+                self.set.3,
+                PhantomData::<Set>,
+                self.set.5,
+            ),
+        }
+    }
+
+    pub fn format(mut self, format: Format) -> Builder<A, B, C, D, E, Set> {
+        self.under_construction.format = format;
+        Builder {
+            under_construction: self.under_construction,
+            set: (
+                self.set.0,
+                self.set.1,
+                self.set.2,
+                self.set.3,
+                self.set.4,
+                PhantomData::<Set>,
+            ),
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

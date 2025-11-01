@@ -22,7 +22,6 @@
 
 mod errors;
 mod image_request;
-mod image_request_builder;
 mod information_request;
 mod uri;
 
@@ -30,6 +29,13 @@ pub use self::errors::IiifError;
 pub use self::image_request::{
     Format, ImageRequest, ImageResponse, Quality, Region, Rotation, Size,
 };
-pub use self::image_request_builder::ImageRequestBuilder;
 pub use self::information_request::{InformationRequest, InformationResponse};
 pub use self::uri::Uri;
+
+/// Used to indicate that a component not set for a partially-constructed value
+#[derive(Debug, Clone, Copy)]
+pub struct Unset;
+
+/// Used to indicate that a component is set for a partially-constructed value
+#[derive(Debug, Clone, Copy)]
+pub struct Set;
