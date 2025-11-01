@@ -1,7 +1,7 @@
 use bytes::Bytes;
-use std::fmt::Display;
 use std::marker::PhantomData;
 use std::str::FromStr;
+use std::{cmp::Ordering, fmt::Display};
 
 use crate::{IiifError, Set, Unset, Uri};
 
@@ -106,7 +106,7 @@ impl TryFrom<&str> for ImageRequest {
         let rotation: Rotation;
         let quality: Quality;
         let format: Format;
-        let mut params: Vec<&str> = url.path_segments().map_or_else(|| vec![], |v| v.collect());
+        let mut params: Vec<&str> = url.path_segments().map_or_else(Vec::new, |v| v.collect());
         if let Some(file) = params.pop() {
             if let Some((q, f)) = file.split_once('.') {
                 format = f.try_into()?;
@@ -144,12 +144,12 @@ impl TryFrom<&str> for ImageRequest {
         )?;
 
         Ok(Self {
-            uri: uri,
-            region: region,
-            size: size,
-            rotation: rotation,
-            quality: quality,
-            format: format,
+            uri,
+            region,
+            size,
+            rotation,
+            quality,
+            format,
         })
     }
 }
@@ -196,6 +196,63 @@ impl From<ImageResponse> for Bytes {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Percentage(String);
+
+impl Default for Percentage {
+    fn default() -> Self {
+        Self(String::from("0"))
+    }
+}
+
+impl TryFrom<f32> for Percentage {
+    type Error = IiifError;
+
+    fn try_from(value: f32) -> Result<Self, Self::Error> {
+        if !value.is_finite() || !value.is_sign_positive() {
+            return Err(IiifError::InvalidPercentage(value));
+        }
+        if let Some(Ordering::Greater) = value.partial_cmp(&(u32::MAX as f32)) {
+            return Err(IiifError::InvalidPercentage(value));
+        };
+        if (value - value.trunc()).abs() <= f32::EPSILON {
+            // Prefer whole values
+            Ok(Percentage(format!("{}", value as u32).to_string()))
+        } else {
+            Ok(Percentage(format!("{}", value).to_string()))
+        }
+    }
+}
+
+impl TryFrom<&str> for Percentage {
+    type Error = IiifError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let value: f32 = value.parse().map_err(IiifError::from)?;
+        Self::try_from(value)
+    }
+}
+
+impl FromStr for Percentage {
+    type Err = IiifError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Percentage::try_from(s)
+    }
+}
+
+impl Display for Percentage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
+
+impl Percentage {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 /// Region of an image.
 #[derive(Clone, Debug, Default)]
 pub enum Region {
@@ -205,7 +262,7 @@ pub enum Region {
     /// Region expressed in absolute pixel values.
     Absolute(u32, u32, u32, u32),
     /// Region expressed in percent of image's dimensions.
-    Percentage(f32, f32, f32, f32),
+    Percentage(Percentage, Percentage, Percentage, Percentage),
 }
 
 impl Display for Region {
@@ -243,11 +300,16 @@ impl TryFrom<&str> for Region {
 
         let parts = xywh.split(",");
         if is_pct {
-            let parts: Vec<f32> = parts
-                .filter_map(|part| part.trim().parse::<f32>().ok())
+            let parts: Vec<Percentage> = parts
+                .filter_map(|part| part.trim().parse::<Percentage>().ok())
                 .collect();
             if parts.len() == 4 {
-                return Ok(Region::Percentage(parts[0], parts[1], parts[2], parts[3]));
+                return Ok(Region::Percentage(
+                    parts[0].clone(),
+                    parts[1].clone(),
+                    parts[2].clone(),
+                    parts[3].clone(),
+                ));
             }
         } else {
             let parts: Vec<u32> = parts
@@ -278,11 +340,16 @@ impl Region {
 
         let parts = xywh.split(",");
         if is_pct {
-            let parts: Vec<f32> = parts
-                .filter_map(|part| part.trim().parse::<f32>().ok())
+            let parts: Vec<Percentage> = parts
+                .filter_map(|part| part.trim().parse::<Percentage>().ok())
                 .collect();
             if parts.len() == 4 {
-                return Ok(Region::Percentage(parts[0], parts[1], parts[2], parts[3]));
+                return Ok(Region::Percentage(
+                    parts[0].clone(),
+                    parts[1].clone(),
+                    parts[2].clone(),
+                    parts[3].clone(),
+                ));
             }
         } else {
             let parts: Vec<u32> = parts
@@ -808,11 +875,21 @@ mod tests {
 
         assert_eq!(
             Region::parse("pct:1,2,3,4").unwrap(),
-            Region::Percentage(1.0, 2.0, 3.0, 4.0)
+            Region::Percentage(
+                1.0.try_into().unwrap(),
+                2.0.try_into().unwrap(),
+                3.0.try_into().unwrap(),
+                4.0.try_into().unwrap()
+            )
         );
         assert_eq!(
             Region::parse("pct:1.2,2.37,3.4,4.513").unwrap(),
-            Region::Percentage(1.2, 2.37, 3.4, 4.513)
+            Region::Percentage(
+                1.2.try_into().unwrap(),
+                2.37.try_into().unwrap(),
+                3.4.try_into().unwrap(),
+                4.513.try_into().unwrap()
+            )
         );
         assert_eq!(
             Region::parse("pct:1.2,3.4,4.513").unwrap_err(),

@@ -1,3 +1,5 @@
+use std::num::ParseFloatError;
+
 /// An IIIF error.
 #[derive(thiserror::Error, Debug)]
 pub enum IiifError {
@@ -19,6 +21,12 @@ pub enum IiifError {
     /// Unable to parse region.
     #[error("invalid region: {0}")]
     InvalidRegion(String),
+    /// Unable to parse percenage.
+    #[error("invalid percenage: {0}")]
+    InvalidPercentage(f32),
+    /// Unusable percentage string.
+    #[error("unable to parse percentage: {0}")]
+    InvalidPercentageString(#[from] ParseFloatError),
     /// Format is missing.
     #[error("missing format in URL: {0}")]
     MissingFormat(String),
