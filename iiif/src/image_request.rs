@@ -466,12 +466,16 @@ impl From<ImageResponse> for Bytes {
     }
 }
 
-/// Region of an image.
+/// Defines a [region] of the underlying image content to retrieve.
+///
+/// [region]: https://iiif.io/api/image/3.0/#41-region
 #[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Region {
     /// The complete image.
     #[default]
     Full,
+    /// A square crop.
+    Square,
     /// Region expressed in absolute pixel values.
     Absolute(u32, u32, u32, u32),
     /// Region expressed in percent of image's dimensions.
@@ -482,6 +486,7 @@ impl Display for Region {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Region::Full => write!(f, "full"),
+            Region::Square => write!(f, "square"),
             Region::Absolute(x, y, w, h) => write!(f, "{},{},{},{}", x, y, w, h),
             Region::Percentage(x, y, w, h) => write!(f, "pct:{},{},{},{}", x, y, w, h),
         }
@@ -494,6 +499,10 @@ impl TryFrom<&str> for Region {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         if value == "full" {
             return Ok(Region::Full);
+        }
+
+        if value == "square" {
+            return Ok(Region::Square);
         }
 
         let is_pct = value.starts_with("pct:");
