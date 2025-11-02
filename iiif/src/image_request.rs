@@ -282,14 +282,14 @@ mod degree_tests {
 /// ```rust
 /// # use anyhow::Result;
 /// use std::str::FromStr;
-/// use iiif::{Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
+/// use iiif::{Degree, Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
 ///
 /// # fn main() -> Result<()> {
 /// let image_request = ImageRequest::new(
 ///     Uri::from_str("https://example.org/images/12345")?,
 ///     Region::Full,
 ///     Size::Width(1024),
-///     Rotation::Degrees(0.0),
+///     Rotation::Degrees(Degree::default()),
 ///     Quality::Default,
 ///     Format::Png,
 /// );
@@ -305,14 +305,14 @@ mod degree_tests {
 /// ```rust
 /// # use anyhow::Result;
 /// # use std::str::FromStr;
-/// # use iiif::{Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
+/// # use iiif::{Degree, Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
 /// #
 /// # fn main() -> Result<()> {
 /// let mut image_request = ImageRequest::builder();
 /// let mut image_request = image_request
 ///     .region(Region::Full)
 ///     .size(Size::Width(1024))
-///     .rotation(Rotation::Degrees(0.0))
+///     .rotation(Rotation::Degrees(Degree::default()))
 ///     .quality(Quality::Default)
 ///     .format(Format::Png);
 /// // The following won't compile because the URI isn't set:
@@ -655,17 +655,17 @@ impl FromStr for Size {
 }
 
 /// Amount to rotate by.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Rotation {
     /// Clockwise rotation in degrees.
-    Degrees(f32),
+    Degrees(Degree),
     /// Mirrored rotation in degrees.
-    Mirrored(f32),
+    Mirrored(Degree),
 }
 
 impl Default for Rotation {
     fn default() -> Self {
-        Rotation::Degrees(0.0)
+        Rotation::Degrees(Degree::default())
     }
 }
 
@@ -682,10 +682,10 @@ impl TryFrom<&str> for Rotation {
     type Error = IiifError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if let Ok(degrees) = value.parse::<f32>() {
+        if let Ok(degrees) = value.parse::<Degree>() {
             return Ok(Rotation::Degrees(degrees));
         }
-        if let Ok(degrees) = value.replacen("!", "", 1).parse::<f32>() {
+        if let Ok(degrees) = value.replacen("!", "", 1).parse::<Degree>() {
             return Ok(Rotation::Mirrored(degrees));
         }
 
@@ -693,13 +693,21 @@ impl TryFrom<&str> for Rotation {
     }
 }
 
+impl FromStr for Rotation {
+    type Err = IiifError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.try_into()
+    }
+}
+
 impl Rotation {
     /// Rotation parser.
     pub fn parse(value: &str) -> Result<Rotation, String> {
-        if let Ok(degrees) = value.parse::<f32>() {
+        if let Ok(degrees) = value.parse::<Degree>() {
             return Ok(Rotation::Degrees(degrees));
         }
-        if let Ok(degrees) = value.replacen("!", "", 1).parse::<f32>() {
+        if let Ok(degrees) = value.replacen("!", "", 1).parse::<Degree>() {
             return Ok(Rotation::Mirrored(degrees));
         }
 
@@ -998,7 +1006,7 @@ mod tests {
     #[test]
     fn defaults() {
         assert_eq!(Region::default().to_string(), "full");
-        assert_eq!(Size::default().to_string(), "843,");
+        assert_eq!(Size::default().to_string(), "full");
         assert_eq!(Rotation::default().to_string(), "0");
         assert_eq!(Quality::default().to_string(), "default");
         assert_eq!(Format::default().to_string(), "jpg");
@@ -1088,33 +1096,33 @@ mod tests {
     }
 
     #[rstest]
-    #[case("42", Rotation::Degrees(42.0))]
-    #[case("42.24", Rotation::Degrees(42.24))]
+    #[case("42", Rotation::Degrees(42.0_f32.try_into().unwrap()))]
+    #[case("42.24", Rotation::Degrees(42.24_f32.try_into().unwrap()))]
+    #[case("!42", Rotation::Mirrored(42.0_f32.try_into().unwrap()))]
+    #[case("!42.24", Rotation::Mirrored(42.24_f32.try_into().unwrap()))]
     fn parse_rotation_degrees(#[case] value: &str, #[case] expected: Rotation) {
         assert_eq!(Rotation::parse(value).unwrap(), expected);
     }
 
-    #[test]
-    fn rotation_parsing() {
-        assert_eq!(Rotation::parse("42").unwrap(), Rotation::Degrees(42.0));
-        assert_eq!(Rotation::parse("42").unwrap().to_string(), "42");
-        assert_eq!(Rotation::parse("42.24").unwrap(), Rotation::Degrees(42.24));
-        assert_eq!(Rotation::parse("42.24").unwrap().to_string(), "42.24");
-        assert_eq!(
-            Rotation::parse("forty-two").unwrap_err(),
-            "could not understand rotation specification: forty-two"
-        );
+    #[rstest]
+    #[case(Rotation::Degrees(42.0_f32.try_into().unwrap()), "42")]
+    #[case(Rotation::Degrees(42.2_f32.try_into().unwrap()), "42.2")]
+    #[case(Rotation::Degrees(42.22222_f32.try_into().unwrap()), "42.22")]
+    #[case(Rotation::Mirrored(42.0_f32.try_into().unwrap()), "!42")]
+    #[case(Rotation::Mirrored(42.2_f32.try_into().unwrap()), "!42.2")]
+    #[case(Rotation::Mirrored(42.22222_f32.try_into().unwrap()), "!42.22")]
+    fn display_rotation_degrees(#[case] value: Rotation, #[case] expected: &str) {
+        assert_eq!(value.to_string(), expected);
+    }
 
-        assert_eq!(Rotation::parse("!42").unwrap(), Rotation::Mirrored(42.0));
-        assert_eq!(Rotation::parse("!42").unwrap().to_string(), "!42");
+    #[rstest]
+    #[case("")]
+    #[case("forty-two")]
+    #[case("!forty-two")]
+    fn parsing_rotation_fails(#[case] value: &str) {
         assert_eq!(
-            Rotation::parse("!42.24").unwrap(),
-            Rotation::Mirrored(42.24)
-        );
-        assert_eq!(Rotation::parse("!42.24").unwrap().to_string(), "!42.24");
-        assert_eq!(
-            Rotation::parse("").unwrap_err(),
-            "could not understand rotation specification: "
+            Rotation::from_str(value).unwrap_err().to_string(),
+            format!("invalid rotation: {value}")
         );
     }
 
