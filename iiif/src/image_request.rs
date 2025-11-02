@@ -337,7 +337,7 @@ mod degree_tests {
 /// # use iiif::{Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
 /// #
 /// # fn main() -> Result<()> {
-/// let image_request: ImageRequest = "https://example.org/images/12345/full/1024,/0/default.png".try_into()?;
+/// let image_request: ImageRequest = "https://example.org/images/12345/full/1024,/0/default.png".parse()?;
 /// assert_eq!(image_request.to_string(), "https://example.org/images/12345/full/1024,/0/default.png");
 /// # Ok(())
 /// # }
@@ -365,11 +365,11 @@ impl Display for ImageRequest {
     }
 }
 
-impl TryFrom<&str> for ImageRequest {
-    type Error = IiifError;
+impl FromStr for ImageRequest {
+    type Err = IiifError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let url = url::Url::parse(value).map_err(IiifError::from)?;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let url = url::Url::parse(s).map_err(IiifError::from)?;
 
         let region: Region;
         let size: Size;
@@ -382,25 +382,25 @@ impl TryFrom<&str> for ImageRequest {
                 format = f.try_into()?;
                 quality = q.try_into()?;
             } else {
-                return Err(IiifError::MissingFormat(value.to_string()));
+                return Err(IiifError::MissingFormat(s.to_string()));
             }
         } else {
-            return Err(IiifError::MissingFormat(value.to_string()));
+            return Err(IiifError::MissingFormat(s.to_string()));
         }
         if let Some(r) = params.pop() {
             rotation = r.try_into()?;
         } else {
-            return Err(IiifError::MissingRotation(value.to_string()));
+            return Err(IiifError::MissingRotation(s.to_string()));
         }
         if let Some(s) = params.pop() {
             size = s.try_into()?;
         } else {
-            return Err(IiifError::MissingSize(value.to_string()));
+            return Err(IiifError::MissingSize(s.to_string()));
         }
         if let Some(r) = params.pop() {
             region = r.try_into()?;
         } else {
-            return Err(IiifError::MissingRegion(value.to_string()));
+            return Err(IiifError::MissingRegion(s.to_string()));
         }
 
         let uri = Uri::from_str(
@@ -467,6 +467,40 @@ impl From<ImageResponse> for Bytes {
 }
 
 /// Defines a [region] of the underlying image content to retrieve.
+///
+/// You can create one from a string.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Region;
+///
+/// # fn main() -> Result<()> {
+/// let region: Region = "pct:41.6,7.5,40,70".parse()?;
+/// assert_eq!(region.to_string(), "pct:41.6,7.5,40,70");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Or you can create one programmatically.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Region;
+///
+/// # fn main() -> Result<()> {
+/// let region = Region::Percentage(
+///     41.6_f32.try_into()?,
+///     7.5_f32.try_into()?,
+///     40_f32.try_into()?,
+///     70_f32.try_into()?,
+/// );
+/// assert_eq!(region.to_string(), "pct:41.6,7.5,40,70");
+/// # Ok(())
+/// # }
+/// ```
+///
 ///
 /// [region]: https://iiif.io/api/image/3.0/#41-region
 #[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
@@ -535,6 +569,14 @@ impl TryFrom<&str> for Region {
         }
 
         Err(IiifError::InvalidRegion(value.into()))
+    }
+}
+
+impl FromStr for Region {
+    type Err = IiifError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.try_into()
     }
 }
 
