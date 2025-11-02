@@ -5,6 +5,276 @@ use std::{cmp::Ordering, fmt::Display};
 
 use crate::{IiifError, Set, Unset, Uri};
 
+/// Defines a [floating point] percentage.
+///
+/// These are used when setting [`Region`] or [`Size`] as a percentage of the underlying image content.
+///
+/// You can create one from an `f32` or a string.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Percentage;
+///
+/// # fn main() -> Result<()> {
+/// let from_f32: Percentage = 4.2.try_into()?;
+/// let from_str: Percentage = "4.2".parse()?;
+/// assert_eq!(from_f32, from_str);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// We prefer whole numbers and keep only up to 2 fractional digits when including percentages in Regions or Sizes and URLs.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use iiif::{Percentage};
+/// #
+/// # fn main() -> Result<()> {
+/// assert_eq!(Percentage::try_from(10.0_f32)?.to_string(), "10");
+/// assert_eq!(Percentage::try_from(10.3_f32)?.to_string(), "10.3");
+/// assert_eq!(Percentage::try_from(10.3333333_f32)?.to_string(), "10.33");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// We also take care of ensuring percentages are from 0 to 100, inclusive.
+/// So expect to get errors if you're outside of those bounds.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use iiif::{Percentage};
+/// #
+/// # fn main() -> Result<()> {
+/// assert_eq!(Percentage::try_from(-10.0_f32).unwrap_err().to_string(), "invalid percentage: -10");
+/// assert_eq!(Percentage::try_from(110.0_f32).unwrap_err().to_string(), "invalid percentage: 110");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [floating point]: https://iiif.io/api/image/3.0/#47-floating-point-values
+/// [`Size`]: enum.Size.html
+/// [`Region`]: enum.Region.html
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Percentage(String);
+
+impl Default for Percentage {
+    fn default() -> Self {
+        Self(String::from("0"))
+    }
+}
+
+impl TryFrom<f32> for Percentage {
+    type Error = IiifError;
+
+    fn try_from(value: f32) -> Result<Self, Self::Error> {
+        if !value.is_finite() || !value.is_sign_positive() {
+            return Err(IiifError::InvalidPercentage(value));
+        }
+        if let Some(Ordering::Greater) = value.partial_cmp(&100.0) {
+            return Err(IiifError::InvalidPercentage(value));
+        };
+        Ok(Percentage(
+            format!("{:.2}", value)
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string(),
+        ))
+    }
+}
+
+impl FromStr for Percentage {
+    type Err = IiifError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value: f32 = s.parse().map_err(IiifError::from)?;
+        Self::try_from(value)
+    }
+}
+
+impl Display for Percentage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
+
+impl Percentage {
+    /// Creates a Percentage with default of 0.
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+#[cfg(test)]
+mod percentage_tests {
+    use core::f32;
+
+    use rstest::rstest;
+
+    use crate::image_request::Percentage;
+
+    #[rstest]
+    #[case(0.0, "0")]
+    #[case(4.2, "4.2")]
+    #[case(1 as f32/3 as f32, "0.33")]
+    #[case(100.0, "100")]
+    fn try_from_f32(#[case] value: f32, #[case] expected: &str) {
+        assert_eq!(
+            format!("{}", Percentage::try_from(value).unwrap()),
+            expected
+        );
+    }
+
+    #[rstest]
+    #[case(-4.2, "invalid percentage: -4.2")]
+    #[case(-0.0, "invalid percentage: -0")]
+    #[case(100.00001, "invalid percentage: 100.00001")]
+    #[case(f32::NAN, "invalid percentage: NaN")]
+    #[case(f32::INFINITY, "invalid percentage: inf")]
+    #[case(f32::NEG_INFINITY, "invalid percentage: -inf")]
+    fn try_from_f32_fails(#[case] value: f32, #[case] expected: &str) {
+        assert_eq!(
+            format!("{}", Percentage::try_from(value).unwrap_err()),
+            expected
+        )
+    }
+}
+
+/// Defines a [floating point] degrees.
+///
+/// These are used when setting [`Rotation`] as degrees to rotate the underlying image content.
+///
+/// You can create one from an `f32` or a string.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Degree;
+///
+/// # fn main() -> Result<()> {
+/// let from_f32: Degree = 4.2.try_into()?;
+/// let from_str: Degree = "4.2".parse()?;
+/// assert_eq!(from_f32, from_str);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// We prefer whole numbers and keep only up to 2 fractional digits including in Rotations and URLs.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use iiif::{Degree};
+/// #
+/// # fn main() -> Result<()> {
+/// assert_eq!(Degree::try_from(10.0_f32)?.to_string(), "10");
+/// assert_eq!(Degree::try_from(10.3_f32)?.to_string(), "10.3");
+/// assert_eq!(Degree::try_from(10.3333333_f32)?.to_string(), "10.33");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// We also take care of ensuring rotations are from 0 to 360, inclusive.
+/// So expect to get errors if you're outside of those bounds.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use iiif::{Degree};
+/// #
+/// # fn main() -> Result<()> {
+/// assert_eq!(Degree::try_from(-10.0_f32).unwrap_err().to_string(), "invalid degree: -10");
+/// assert_eq!(Degree::try_from(370.0_f32).unwrap_err().to_string(), "invalid degree: 370");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [floating point]: https://iiif.io/api/image/3.0/#47-floating-point-values
+/// [`Rotatin`]: enum.Rotatin.html
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Degree(String);
+
+impl Default for Degree {
+    fn default() -> Self {
+        Self(String::from("0"))
+    }
+}
+
+impl TryFrom<f32> for Degree {
+    type Error = IiifError;
+
+    fn try_from(value: f32) -> Result<Self, Self::Error> {
+        if !value.is_finite() || !value.is_sign_positive() {
+            return Err(IiifError::InvalidDegree(value));
+        }
+        if let Some(Ordering::Greater) = value.partial_cmp(&360.0) {
+            return Err(IiifError::InvalidDegree(value));
+        };
+        Ok(Degree(
+            format!("{:.2}", value)
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string(),
+        ))
+    }
+}
+
+impl FromStr for Degree {
+    type Err = IiifError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value: f32 = s.parse().map_err(IiifError::from)?;
+        Self::try_from(value)
+    }
+}
+
+impl Display for Degree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
+
+impl Degree {
+    /// Creates a Degree with default of 0.
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+#[cfg(test)]
+mod degree_tests {
+    use core::f32;
+
+    use rstest::rstest;
+
+    use crate::image_request::Degree;
+
+    #[rstest]
+    #[case(0.0, "0")]
+    #[case(4.2, "4.2")]
+    #[case(33.0 + 1 as f32/3 as f32, "33.33")]
+    #[case(360.0, "360")]
+    fn try_from_f33(#[case] value: f32, #[case] expected: &str) {
+        assert_eq!(format!("{}", Degree::try_from(value).unwrap()), expected);
+    }
+
+    #[rstest]
+    #[case(-4.2, "invalid degree: -4.2")]
+    #[case(-0.0, "invalid degree: -0")]
+    #[case(360.001, "invalid degree: 360.001")]
+    #[case(f32::NAN, "invalid degree: NaN")]
+    #[case(f32::INFINITY, "invalid degree: inf")]
+    #[case(f32::NEG_INFINITY, "invalid degree: -inf")]
+    fn try_from_f32_fails(#[case] value: f32, #[case] expected: &str) {
+        assert_eq!(
+            format!("{}", Degree::try_from(value).unwrap_err()),
+            expected
+        )
+    }
+}
+
 /// Defines an [image request] for the IIIF Image API 3.0.
 ///
 /// You can create a new image request if you know all of the parameters upfront.
@@ -193,143 +463,6 @@ impl From<Bytes> for ImageResponse {
 impl From<ImageResponse> for Bytes {
     fn from(value: ImageResponse) -> Self {
         value.0
-    }
-}
-
-/// Defines a [floating point] percentage.
-///
-/// These are used when setting [`Region`] or [`Size`] as a percentage of the underlying image content.
-///
-/// You can create one from an `f32` or a string.
-///
-/// ```rust
-/// # use anyhow::Result;
-/// # use std::str::FromStr;
-/// use iiif::Percentage;
-///
-/// # fn main() -> Result<()> {
-/// let from_f32: Percentage = 4.2.try_into()?;
-/// let from_str: Percentage = "4.2".parse()?;
-/// assert_eq!(from_f32, from_str);
-/// # Ok(())
-/// # }
-/// ```
-///
-/// We prefer whole numbers and keep only up to 2 fractional digits when including percentages in Sizes and URLs.
-///
-/// ```rust
-/// # use anyhow::Result;
-/// # use std::str::FromStr;
-/// # use iiif::{Percentage};
-/// #
-/// # fn main() -> Result<()> {
-/// assert_eq!(Percentage::try_from(10.0_f32)?.to_string(), "10");
-/// assert_eq!(Percentage::try_from(10.3_f32)?.to_string(), "10.3");
-/// assert_eq!(Percentage::try_from(10.3333333_f32)?.to_string(), "10.33");
-/// # Ok(())
-/// # }
-/// ```
-///
-/// We also take care of ensuring percentages are from 0 to 100, inclusive.
-/// So expect to get errors if you're outside of those bounds.
-///
-/// ```rust
-/// # use anyhow::Result;
-/// # use std::str::FromStr;
-/// # use iiif::{Percentage};
-/// #
-/// # fn main() -> Result<()> {
-/// assert_eq!(Percentage::try_from(-10.0_f32).unwrap_err().to_string(), "invalid percentage: -10");
-/// assert_eq!(Percentage::try_from(110.0_f32).unwrap_err().to_string(), "invalid percentage: 110");
-/// # Ok(())
-/// # }
-/// ```
-///
-/// [floating point]: https://iiif.io/api/image/3.0/#47-floating-point-values
-/// [`Size`]: enum.Size.html
-/// [`Region`]: enum.Region.html
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Percentage(String);
-
-impl Default for Percentage {
-    fn default() -> Self {
-        Self(String::from("0"))
-    }
-}
-
-impl TryFrom<f32> for Percentage {
-    type Error = IiifError;
-
-    fn try_from(value: f32) -> Result<Self, Self::Error> {
-        if !value.is_finite() || !value.is_sign_positive() {
-            return Err(IiifError::InvalidPercentage(value));
-        }
-        if let Some(Ordering::Greater) = value.partial_cmp(&100.0) {
-            return Err(IiifError::InvalidPercentage(value));
-        };
-        Ok(Percentage(
-            format!("{:.2}", value)
-                .trim_end_matches('0')
-                .trim_end_matches('.')
-                .to_string(),
-        ))
-    }
-}
-
-impl FromStr for Percentage {
-    type Err = IiifError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value: f32 = s.parse().map_err(IiifError::from)?;
-        Self::try_from(value)
-    }
-}
-
-impl Display for Percentage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0.as_str())
-    }
-}
-
-impl Percentage {
-    /// Creates a Percentage with default of 0.
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-#[cfg(test)]
-mod percentage_tests {
-    use core::f32;
-
-    use rstest::rstest;
-
-    use crate::image_request::Percentage;
-
-    #[rstest]
-    #[case(0.0, "0")]
-    #[case(4.2, "4.2")]
-    #[case(1 as f32/3 as f32, "0.33")]
-    #[case(100.0, "100")]
-    fn try_from_f32(#[case] value: f32, #[case] expected: &str) {
-        assert_eq!(
-            format!("{}", Percentage::try_from(value).unwrap()),
-            expected
-        );
-    }
-
-    #[rstest]
-    #[case(-4.2, "invalid percentage: -4.2")]
-    #[case(-0.0, "invalid percentage: -0")]
-    #[case(100.00001, "invalid percentage: 100.00001")]
-    #[case(f32::NAN, "invalid percentage: NaN")]
-    #[case(f32::INFINITY, "invalid percentage: inf")]
-    #[case(f32::NEG_INFINITY, "invalid percentage: -inf")]
-    fn try_from_f32_fails(#[case] value: f32, #[case] expected: &str) {
-        assert_eq!(
-            format!("{}", Percentage::try_from(value).unwrap_err()),
-            expected
-        )
     }
 }
 
@@ -965,6 +1098,13 @@ mod tests {
             Size::from_str(value).unwrap_err().to_string(),
             format!("invalid size: {value}")
         );
+    }
+
+    #[rstest]
+    #[case("42", Rotation::Degrees(42.0))]
+    #[case("42.24", Rotation::Degrees(42.24))]
+    fn parse_rotation_degrees(#[case] value: &str, #[case] expected: Rotation) {
+        assert_eq!(Rotation::parse(value).unwrap(), expected);
     }
 
     #[test]

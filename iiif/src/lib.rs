@@ -27,7 +27,7 @@ mod uri;
 
 pub use self::errors::IiifError;
 pub use self::image_request::{
-    Format, ImageRequest, ImageResponse, Percentage, Quality, Region, Rotation, Size,
+    Degree, Format, ImageRequest, ImageResponse, Percentage, Quality, Region, Rotation, Size,
 };
 pub use self::information_request::{InformationRequest, InformationResponse};
 pub use self::uri::Uri;

@@ -24,6 +24,9 @@ pub enum IiifError {
     /// Unable to parse percenage.
     #[error("invalid percentage: {0}")]
     InvalidPercentage(f32),
+    /// Unable to parse degrees.
+    #[error("invalid degree: {0}")]
+    InvalidDegree(f32),
     /// Unusable percentage string.
     #[error("unable to parse percentage: {0}")]
     InvalidPercentageString(#[from] ParseFloatError),
