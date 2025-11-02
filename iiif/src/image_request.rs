@@ -398,7 +398,7 @@ impl FromStr for ImageRequest {
             return Err(IiifError::MissingSize(s.to_string()));
         }
         if let Some(r) = params.pop() {
-            region = r.try_into()?;
+            region = r.parse()?;
         } else {
             return Err(IiifError::MissingRegion(s.to_string()));
         }
@@ -527,23 +527,23 @@ impl Display for Region {
     }
 }
 
-impl TryFrom<&str> for Region {
-    type Error = IiifError;
+impl FromStr for Region {
+    type Err = IiifError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if value == "full" {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "full" {
             return Ok(Region::Full);
         }
 
-        if value == "square" {
+        if s == "square" {
             return Ok(Region::Square);
         }
 
-        let is_pct = value.starts_with("pct:");
+        let is_pct = s.starts_with("pct:");
         let xywh = if is_pct {
-            value.replacen("pct:", "", 1)
+            s.replacen("pct:", "", 1)
         } else {
-            value.to_string()
+            s.to_string()
         };
 
         let parts = xywh.split(",");
@@ -568,15 +568,7 @@ impl TryFrom<&str> for Region {
             }
         }
 
-        Err(IiifError::InvalidRegion(value.into()))
-    }
-}
-
-impl FromStr for Region {
-    type Err = IiifError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.try_into()
+        Err(IiifError::InvalidRegion(s.into()))
     }
 }
 
