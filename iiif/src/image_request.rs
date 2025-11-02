@@ -573,9 +573,10 @@ impl Region {
 }
 
 /// Size to scale to.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Size {
     /// Don't scale.
+    #[default]
     Full,
     /// Scale width to this many pixels.
     Width(u32),
@@ -587,12 +588,6 @@ pub enum Size {
     Exactly(u32, u32),
     /// Scale width and height to best fit.
     BestFit(u32, u32),
-}
-
-impl Default for Size {
-    fn default() -> Self {
-        Size::Width(843)
-    }
 }
 
 impl Display for Size {
