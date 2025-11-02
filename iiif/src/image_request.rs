@@ -572,49 +572,6 @@ impl FromStr for Region {
     }
 }
 
-impl Region {
-    /// Region parser.
-    pub fn parse(value: &str) -> Result<Region, String> {
-        if value == "full" {
-            return Ok(Region::Full);
-        }
-
-        let is_pct = value.starts_with("pct:");
-        let xywh = if is_pct {
-            value.replacen("pct:", "", 1)
-        } else {
-            value.to_string()
-        };
-
-        let parts = xywh.split(",");
-        if is_pct {
-            let parts: Vec<Percentage> = parts
-                .filter_map(|part| part.trim().parse::<Percentage>().ok())
-                .collect();
-            if parts.len() == 4 {
-                return Ok(Region::Percentage(
-                    parts[0].clone(),
-                    parts[1].clone(),
-                    parts[2].clone(),
-                    parts[3].clone(),
-                ));
-            }
-        } else {
-            let parts: Vec<u32> = parts
-                .filter_map(|part| part.trim().parse::<u32>().ok())
-                .collect();
-            if parts.len() == 4 {
-                return Ok(Region::Absolute(parts[0], parts[1], parts[2], parts[3]));
-            }
-        }
-
-        Err(format!(
-            "could not understand region specification: {}",
-            value
-        ))
-    }
-}
-
 /// Size to scale to.
 #[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Size {
@@ -1055,61 +1012,28 @@ mod tests {
         assert_eq!(Format::default().to_string(), "jpg");
     }
 
-    #[test]
-    fn region_parsing() {
-        assert_eq!(Region::parse("full").unwrap(), Region::Full);
-        assert_eq!(
-            Region::parse("ful").unwrap_err(),
-            "could not understand region specification: ful"
-        );
-        assert_eq!(
-            Region::parse("Full").unwrap_err(),
-            "could not understand region specification: Full"
-        );
+    #[rstest]
+    #[case("full", Region::Full)]
+    #[case("1,2,3,4", Region::Absolute(1, 2, 3, 4))]
+    #[case("pct:1,2,3,4", Region::Percentage( 1.0.try_into().unwrap(), 2.0.try_into().unwrap(), 3.0.try_into().unwrap(), 4.0.try_into().unwrap()))]
+    #[case("pct:1.2,2.37,3.4,4.513", Region::Percentage( 1.2.try_into().unwrap(), 2.37.try_into().unwrap(), 3.4.try_into().unwrap(), 4.513.try_into().unwrap()))]
+    fn parsing_region(#[case] value: &str, #[case] expected: Region) {
+        assert_eq!(Region::from_str(value).unwrap(), expected);
+    }
 
+    #[rstest]
+    #[case("ful")]
+    #[case("Full")]
+    #[case("1,2,4")]
+    #[case("1,2,,4")]
+    #[case("1,2,a,4")]
+    #[case("1,2,3,4,5")]
+    #[case("pct:1.2,3.4,4.513")]
+    fn parsing_region_fails(#[case] value: &str) {
         assert_eq!(
-            Region::parse("1,2,3,4").unwrap(),
-            Region::Absolute(1, 2, 3, 4)
-        );
-        assert_eq!(
-            Region::parse("1,2,4").unwrap_err(),
-            "could not understand region specification: 1,2,4"
-        );
-        assert_eq!(
-            Region::parse("1,2,,4").unwrap_err(),
-            "could not understand region specification: 1,2,,4"
-        );
-        assert_eq!(
-            Region::parse("1,2,a,4").unwrap_err(),
-            "could not understand region specification: 1,2,a,4"
-        );
-        assert_eq!(
-            Region::parse("1,2,3,4,5").unwrap_err(),
-            "could not understand region specification: 1,2,3,4,5"
-        );
-
-        assert_eq!(
-            Region::parse("pct:1,2,3,4").unwrap(),
-            Region::Percentage(
-                1.0.try_into().unwrap(),
-                2.0.try_into().unwrap(),
-                3.0.try_into().unwrap(),
-                4.0.try_into().unwrap()
-            )
-        );
-        assert_eq!(
-            Region::parse("pct:1.2,2.37,3.4,4.513").unwrap(),
-            Region::Percentage(
-                1.2.try_into().unwrap(),
-                2.37.try_into().unwrap(),
-                3.4.try_into().unwrap(),
-                4.513.try_into().unwrap()
-            )
-        );
-        assert_eq!(
-            Region::parse("pct:1.2,3.4,4.513").unwrap_err(),
-            "could not understand region specification: pct:1.2,3.4,4.513"
-        );
+            Region::from_str(value).unwrap_err().to_string(),
+            format!("invalid region: {value}")
+        )
     }
 
     #[rstest]

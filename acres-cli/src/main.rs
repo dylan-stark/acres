@@ -194,7 +194,7 @@ async fn main() -> Result<(), Report> {
                         .long("region")
                         .help("rectangular portion of the full image to be returned")
                         .default_value("full")
-                        .value_parser(iiif::Region::parse),
+                        .value_parser(value_parser!(iiif::Region)),
                 )
                 .arg(
                     Arg::new("size")
