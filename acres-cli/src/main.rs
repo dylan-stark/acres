@@ -201,7 +201,7 @@ async fn main() -> Result<(), Report> {
                         .long("size")
                         .help("dimensions to which the extracted region is to be scaled")
                         .default_value("843,")
-                        .value_parser(iiif::Size::parse),
+                        .value_parser(value_parser!(iiif::Size)),
                 )
                 .arg(
                     Arg::new("rotation")

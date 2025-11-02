@@ -198,7 +198,7 @@ impl From<ImageResponse> for Bytes {
 
 /// Defines a [floating point] percentage.
 ///
-/// These are used when setting [`Size`] as a percentage of the underlying image content.
+/// These are used when setting [`Region`] or [`Size`] as a percentage of the underlying image content.
 ///
 /// You can create one from an `f32` or a string.
 ///
@@ -246,8 +246,9 @@ impl From<ImageResponse> for Bytes {
 /// ```
 ///
 /// [floating point]: https://iiif.io/api/image/3.0/#47-floating-point-values
-/// [`Size`]: enum.Size
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// [`Size`]: enum.Size.html
+/// [`Region`]: enum.Region.html
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Percentage(String);
 
 impl Default for Percentage {
@@ -455,7 +456,7 @@ impl Region {
 }
 
 /// Size to scale to.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Size {
     /// Don't scale.
     Full,
@@ -464,7 +465,7 @@ pub enum Size {
     /// Scale height to this many pixels.
     Height(u32),
     /// Scale height and width by this percent.
-    Percentage(f32),
+    Percentage(Percentage),
     /// Scale width and height to exactly this.
     Exactly(u32, u32),
     /// Scale width and height to best fit.
@@ -499,7 +500,7 @@ impl TryFrom<&str> for Size {
         } else if value.starts_with("pct:") {
             let n = value.replacen("pct:", "", 1).parse::<f32>().ok();
             if let Some(n) = n {
-                return Ok(Size::Percentage(n));
+                return Ok(Size::Percentage(n.try_into()?));
             }
         } else if value.starts_with("!") {
             let parts = value
@@ -533,49 +534,11 @@ impl TryFrom<&str> for Size {
     }
 }
 
-impl Size {
-    /// Size parser.
-    pub fn parse(value: &str) -> Result<Size, String> {
-        if value == "full" {
-            return Ok(Size::Full);
-        } else if value.starts_with("pct:") {
-            let n = value.replacen("pct:", "", 1).parse::<f32>().ok();
-            if let Some(n) = n {
-                return Ok(Size::Percentage(n));
-            }
-        } else if value.starts_with("!") {
-            let parts = value
-                .replacen("!", "", 1)
-                .split(",")
-                .filter_map(|part| part.trim().parse::<u32>().ok())
-                .collect::<Vec<u32>>();
-            if parts.len() == 2 {
-                return Ok(Size::BestFit(parts[0], parts[1]));
-            }
-        } else if value.starts_with(",") {
-            let height = value.replacen(",", "", 1).parse::<u32>().ok();
-            if let Some(height) = height {
-                return Ok(Size::Height(height));
-            }
-        } else if value.ends_with(",") {
-            let width = value.replacen(",", "", 1).parse::<u32>().ok();
-            if let Some(width) = width {
-                return Ok(Size::Width(width));
-            }
-        } else {
-            let parts = value
-                .split(",")
-                .filter_map(|part| part.trim().parse::<u32>().ok())
-                .collect::<Vec<u32>>();
-            if parts.len() == 2 {
-                return Ok(Size::Exactly(parts[0], parts[1]));
-            }
-        }
+impl FromStr for Size {
+    type Err = IiifError;
 
-        Err(format!(
-            "could not understand size specification: {}",
-            value
-        ))
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.try_into()
     }
 }
 
@@ -916,6 +879,8 @@ impl<A, B, C, D, E, F> Builder<A, B, C, D, E, F> {
 }
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+
     use super::*;
 
     #[test]
@@ -984,43 +949,29 @@ mod tests {
         );
     }
 
-    #[test]
-    fn size_parsing() {
-        assert_eq!(Size::parse("full").unwrap(), Size::Full);
-        assert_eq!(
-            Size::parse("FULL").unwrap_err(),
-            "could not understand size specification: FULL"
-        );
+    #[rstest]
+    #[case("full", Size::Full)]
+    #[case("42,", Size::Width(42))]
+    #[case(",42", Size::Height(42))]
+    #[case("pct:42", Size::Percentage(Percentage::from_str("42").unwrap()))]
+    #[case("pct:42.3", Size::Percentage(Percentage::from_str("42.3").unwrap()))]
+    #[case("640,480", Size::Exactly(640, 480))]
+    #[case("!640,480", Size::BestFit(640, 480))]
+    fn parsing(#[case] value: &str, #[case] expected: Size) {
+        assert_eq!(Size::from_str(value).unwrap(), expected);
+    }
 
-        assert_eq!(Size::parse("42,").unwrap(), Size::Width(42));
+    #[rstest]
+    #[case("FULL")]
+    #[case("42.0,")]
+    #[case(",42.0")]
+    #[case("42.0,42.0")]
+    #[case("!42.0,42.0")]
+    #[case("pct:")]
+    fn parsing_fails(#[case] value: &str) {
         assert_eq!(
-            Size::parse("42.0,").unwrap_err(),
-            "could not understand size specification: 42.0,"
-        );
-
-        assert_eq!(Size::parse(",42").unwrap(), Size::Height(42));
-        assert_eq!(
-            Size::parse(",42.0").unwrap_err(),
-            "could not understand size specification: ,42.0"
-        );
-
-        assert_eq!(Size::parse("pct:42").unwrap(), Size::Percentage(42.));
-        assert_eq!(Size::parse("pct:42.3").unwrap(), Size::Percentage(42.3));
-        assert_eq!(
-            Size::parse("pct:").unwrap_err(),
-            "could not understand size specification: pct:"
-        );
-
-        assert_eq!(Size::parse("42,24").unwrap(), Size::Exactly(42, 24));
-        assert_eq!(
-            Size::parse("42.0,24.0").unwrap_err(),
-            "could not understand size specification: 42.0,24.0"
-        );
-
-        assert_eq!(Size::parse("!42,24").unwrap(), Size::BestFit(42, 24));
-        assert_eq!(
-            Size::parse("!42.0,24.0").unwrap_err(),
-            "could not understand size specification: !42.0,24.0"
+            Size::from_str(value).unwrap_err().to_string(),
+            format!("invalid size: {value}")
         );
     }
 
