@@ -205,11 +205,11 @@ impl From<ImageResponse> for Bytes {
 /// ```rust
 /// # use anyhow::Result;
 /// # use std::str::FromStr;
-/// use iiif::{Percentage};
+/// use iiif::Percentage;
 ///
 /// # fn main() -> Result<()> {
 /// let from_f32: Percentage = 4.2.try_into()?;
-/// let from_str: Percentage = "4.2".try_into()?;
+/// let from_str: Percentage = "4.2".parse()?;
 /// assert_eq!(from_f32, from_str);
 /// # Ok(())
 /// # }
@@ -276,20 +276,12 @@ impl TryFrom<f32> for Percentage {
     }
 }
 
-impl TryFrom<&str> for Percentage {
-    type Error = IiifError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let value: f32 = value.parse().map_err(IiifError::from)?;
-        Self::try_from(value)
-    }
-}
-
 impl FromStr for Percentage {
     type Err = IiifError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Percentage::try_from(s)
+        let value: f32 = s.parse().map_err(IiifError::from)?;
+        Self::try_from(value)
     }
 }
 
