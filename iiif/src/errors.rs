@@ -22,7 +22,7 @@ pub enum IiifError {
     #[error("invalid region: {0}")]
     InvalidRegion(String),
     /// Unable to parse percenage.
-    #[error("invalid percenage: {0}")]
+    #[error("invalid percentage: {0}")]
     InvalidPercentage(f32),
     /// Unusable percentage string.
     #[error("unable to parse percentage: {0}")]

@@ -196,7 +196,58 @@ impl From<ImageResponse> for Bytes {
     }
 }
 
-#[derive(Clone, Debug)]
+/// Defines a [floating point] percentage.
+///
+/// These are used when setting [`Size`] as a percentage of the underlying image content.
+///
+/// You can create one from an `f32` or a string.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::{Percentage};
+///
+/// # fn main() -> Result<()> {
+/// let from_f32: Percentage = 4.2.try_into()?;
+/// let from_str: Percentage = "4.2".try_into()?;
+/// assert_eq!(from_f32, from_str);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// We prefer whole numbers and keep only up to 2 fractional digits when including percentages in Sizes and URLs.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use iiif::{Percentage};
+/// #
+/// # fn main() -> Result<()> {
+/// assert_eq!(Percentage::try_from(10.0_f32)?.to_string(), "10");
+/// assert_eq!(Percentage::try_from(10.3_f32)?.to_string(), "10.3");
+/// assert_eq!(Percentage::try_from(10.3333333_f32)?.to_string(), "10.33");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// We also take care of ensuring percentages are from 0 to 100, inclusive.
+/// So expect to get errors if you're outside of those bounds.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use iiif::{Percentage};
+/// #
+/// # fn main() -> Result<()> {
+/// assert_eq!(Percentage::try_from(-10.0_f32).unwrap_err().to_string(), "invalid percentage: -10");
+/// assert_eq!(Percentage::try_from(110.0_f32).unwrap_err().to_string(), "invalid percentage: 110");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [floating point]: https://iiif.io/api/image/3.0/#47-floating-point-values
+/// [`Size`]: enum.Size
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Percentage(String);
 
 impl Default for Percentage {
@@ -212,15 +263,15 @@ impl TryFrom<f32> for Percentage {
         if !value.is_finite() || !value.is_sign_positive() {
             return Err(IiifError::InvalidPercentage(value));
         }
-        if let Some(Ordering::Greater) = value.partial_cmp(&(u32::MAX as f32)) {
+        if let Some(Ordering::Greater) = value.partial_cmp(&100.0) {
             return Err(IiifError::InvalidPercentage(value));
         };
-        if (value - value.trunc()).abs() <= f32::EPSILON {
-            // Prefer whole values
-            Ok(Percentage(format!("{}", value as u32).to_string()))
-        } else {
-            Ok(Percentage(format!("{}", value).to_string()))
-        }
+        Ok(Percentage(
+            format!("{:.2}", value)
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string(),
+        ))
     }
 }
 
@@ -248,8 +299,44 @@ impl Display for Percentage {
 }
 
 impl Percentage {
+    /// Creates a Percentage with default of 0.
     pub fn new() -> Self {
         Self::default()
+    }
+}
+
+#[cfg(test)]
+mod percentage_tests {
+    use core::f32;
+
+    use rstest::rstest;
+
+    use crate::image_request::Percentage;
+
+    #[rstest]
+    #[case(0.0, "0")]
+    #[case(4.2, "4.2")]
+    #[case(1 as f32/3 as f32, "0.33")]
+    #[case(100.0, "100")]
+    fn try_from_f32(#[case] value: f32, #[case] expected: &str) {
+        assert_eq!(
+            format!("{}", Percentage::try_from(value).unwrap()),
+            expected
+        );
+    }
+
+    #[rstest]
+    #[case(-4.2, "invalid percentage: -4.2")]
+    #[case(-0.0, "invalid percentage: -0")]
+    #[case(100.00001, "invalid percentage: 100.00001")]
+    #[case(f32::NAN, "invalid percentage: NaN")]
+    #[case(f32::INFINITY, "invalid percentage: inf")]
+    #[case(f32::NEG_INFINITY, "invalid percentage: -inf")]
+    fn try_from_f32_fails(#[case] value: f32, #[case] expected: &str) {
+        assert_eq!(
+            format!("{}", Percentage::try_from(value).unwrap_err()),
+            expected
+        )
     }
 }
 
