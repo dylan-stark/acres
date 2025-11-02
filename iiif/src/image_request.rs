@@ -467,7 +467,7 @@ impl From<ImageResponse> for Bytes {
 }
 
 /// Region of an image.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Region {
     /// The complete image.
     #[default]
@@ -487,14 +487,6 @@ impl Display for Region {
         }
     }
 }
-
-impl PartialEq for Region {
-    fn eq(&self, other: &Self) -> bool {
-        self.to_string() == other.to_string()
-    }
-}
-
-impl Eq for Region {}
 
 impl TryFrom<&str> for Region {
     type Error = IiifError;
