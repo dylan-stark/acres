@@ -208,21 +208,21 @@ async fn main() -> Result<(), Report> {
                         .long("rotation")
                         .help("mirroring and rotation")
                         .default_value("0.0")
-                        .value_parser(iiif::Rotation::parse),
+                        .value_parser(value_parser!(iiif::Rotation)),
                 )
                 .arg(
                     Arg::new("quality")
                         .long("quality")
                         .help("whether image is delivered in color, grayscale, or black-and-white")
                         .default_value("default")
-                        .value_parser(iiif::Quality::parse),
+                        .value_parser(value_parser!(iiif::Quality)),
                 )
                 .arg(
                     Arg::new("format")
                         .long("format")
                         .help("format of the returned image")
                         .default_value("jpg")
-                        .value_parser(iiif::Format::parse),
+                        .value_parser(value_parser!(iiif::Format)),
                 )
                 .arg(Arg::new("to").long("to").help("type of output").default_value("url").value_parser(value_parser!(IiifTo)))
         )

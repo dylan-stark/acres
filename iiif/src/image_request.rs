@@ -379,8 +379,8 @@ impl FromStr for ImageRequest {
         let mut params: Vec<&str> = url.path_segments().map_or_else(Vec::new, |v| v.collect());
         if let Some(file) = params.pop() {
             if let Some((q, f)) = file.split_once('.') {
-                format = f.try_into()?;
-                quality = q.try_into()?;
+                format = f.parse()?;
+                quality = q.parse()?;
             } else {
                 return Err(IiifError::MissingFormat(s.to_string()));
             }
@@ -388,7 +388,7 @@ impl FromStr for ImageRequest {
             return Err(IiifError::MissingFormat(s.to_string()));
         }
         if let Some(r) = params.pop() {
-            rotation = r.try_into()?;
+            rotation = r.parse()?;
         } else {
             return Err(IiifError::MissingRotation(s.to_string()));
         }
@@ -669,7 +669,36 @@ impl FromStr for Size {
     }
 }
 
-/// Amount to rotate by.
+/// Defines [rotation] of the underlying image content.
+///
+/// You can create one from a string.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Rotation;
+///
+/// # fn main() -> Result<()> {
+/// let rotation: Rotation = "180".parse()?;
+/// assert_eq!(rotation.to_string(), "180");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Or you can create one programmatically.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Rotation;
+///
+/// # fn main() -> Result<()> {
+/// let rotation = Rotation::Degrees(180_f32.try_into()?);
+/// assert_eq!(rotation.to_string(), "180");
+/// # Ok(())
+/// # }
+/// ```
+/// [rotation]: https://iiif.io/api/image/2.0/#rotation
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Rotation {
     /// Clockwise rotation in degrees.
@@ -693,48 +722,53 @@ impl Display for Rotation {
     }
 }
 
-impl TryFrom<&str> for Rotation {
-    type Error = IiifError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if let Ok(degrees) = value.parse::<Degree>() {
-            return Ok(Rotation::Degrees(degrees));
-        }
-        if let Ok(degrees) = value.replacen("!", "", 1).parse::<Degree>() {
-            return Ok(Rotation::Mirrored(degrees));
-        }
-
-        Err(IiifError::InvalidRotation(value.into()))
-    }
-}
-
 impl FromStr for Rotation {
     type Err = IiifError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.try_into()
-    }
-}
-
-impl Rotation {
-    /// Rotation parser.
-    pub fn parse(value: &str) -> Result<Rotation, String> {
-        if let Ok(degrees) = value.parse::<Degree>() {
+        if let Ok(degrees) = s.parse::<Degree>() {
             return Ok(Rotation::Degrees(degrees));
         }
-        if let Ok(degrees) = value.replacen("!", "", 1).parse::<Degree>() {
+        if let Ok(degrees) = s.replacen("!", "", 1).parse::<Degree>() {
             return Ok(Rotation::Mirrored(degrees));
         }
 
-        Err(format!(
-            "could not understand rotation specification: {}",
-            value
-        ))
+        Err(IiifError::InvalidRotation(s.into()))
     }
 }
 
-/// Image quality.
-#[derive(Clone, Debug, PartialEq, Default)]
+/// Defines a [quality] of the underlying image content.
+///
+/// You can create one from a string.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Quality;
+///
+/// # fn main() -> Result<()> {
+/// let quality: Quality = "color".parse()?;
+/// assert_eq!(quality.to_string(), "color");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Or you can create one programmatically.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Quality;
+///
+/// # fn main() -> Result<()> {
+/// let quality = Quality::Color;
+/// assert_eq!(quality.to_string(), "color");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [quality]: https://iiif.io/api/image/2.0/#quality
+#[derive(Clone, Debug, PartialEq, Default, Eq, PartialOrd, Ord, Hash)]
 pub enum Quality {
     /// Full color.
     Color,
@@ -758,38 +792,52 @@ impl Display for Quality {
     }
 }
 
-impl TryFrom<&str> for Quality {
-    type Error = IiifError;
+impl FromStr for Quality {
+    type Err = IiifError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            _ if value == "color" => Ok(Quality::Color),
-            _ if value == "gray" => Ok(Quality::Gray),
-            _ if value == "bitonal" => Ok(Quality::Bitonal),
-            _ if value == "default" => Ok(Quality::Default),
-            _ => Err(IiifError::InvalidQuality(value.into())),
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            _ if s == "color" => Ok(Quality::Color),
+            _ if s == "gray" => Ok(Quality::Gray),
+            _ if s == "bitonal" => Ok(Quality::Bitonal),
+            _ if s == "default" => Ok(Quality::Default),
+            _ => Err(IiifError::InvalidQuality(s.into())),
         }
     }
 }
 
-impl Quality {
-    /// Quality parser.
-    pub fn parse(value: &str) -> Result<Quality, String> {
-        match value {
-            _ if value == "color" => Ok(Quality::Color),
-            _ if value == "gray" => Ok(Quality::Gray),
-            _ if value == "bitonal" => Ok(Quality::Bitonal),
-            _ if value == "default" => Ok(Quality::Default),
-            _ => Err(format!(
-                "could not understand quality specification: {}",
-                value
-            )),
-        }
-    }
-}
-
-/// Image format.
-#[derive(Clone, Debug, PartialEq, Default)]
+/// Defines a [format] for the underlying image content.
+///
+/// You can create one from a string.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Format;
+///
+/// # fn main() -> Result<()> {
+/// let format: Format = "png".parse()?;
+/// assert_eq!(format.to_string(), "png");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Or you can create one programmatically.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Format;
+///
+/// # fn main() -> Result<()> {
+/// let format = Format::Png;
+/// assert_eq!(format.to_string(), "png");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [format]: https://iiif.io/api/image/2.0/#format
+#[derive(Clone, Debug, PartialEq, Default, Eq, PartialOrd, Ord, Hash)]
 pub enum Format {
     /// JPEG format.
     #[default]
@@ -822,39 +870,19 @@ impl Display for Format {
     }
 }
 
-impl TryFrom<&str> for Format {
-    type Error = IiifError;
+impl FromStr for Format {
+    type Err = IiifError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            _ if value == "jpg" => Ok(Format::Jpg),
-            _ if value == "tif" => Ok(Format::Tif),
-            _ if value == "png" => Ok(Format::Png),
-            _ if value == "gif" => Ok(Format::Gif),
-            _ if value == "jp2" => Ok(Format::Jp2),
-            _ if value == "pdf" => Ok(Format::Pdf),
-            _ if value == "webp" => Ok(Format::WebP),
-            _ => Err(IiifError::InvalidFormat(value.into())),
-        }
-    }
-}
-
-impl Format {
-    // TODO: Remove this method in favor of TryFrom impl.
-    /// Parse format from string.
-    pub fn parse(value: &str) -> Result<Format, String> {
-        match value {
-            _ if value == "jpg" => Ok(Format::Jpg),
-            _ if value == "tif" => Ok(Format::Tif),
-            _ if value == "png" => Ok(Format::Png),
-            _ if value == "gif" => Ok(Format::Gif),
-            _ if value == "jp2" => Ok(Format::Jp2),
-            _ if value == "pdf" => Ok(Format::Pdf),
-            _ if value == "webp" => Ok(Format::WebP),
-            _ => Err(format!(
-                "could not understand format specification: {}",
-                value
-            )),
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            _ if s == "jpg" => Ok(Format::Jpg),
+            _ if s == "tif" => Ok(Format::Tif),
+            _ if s == "png" => Ok(Format::Png),
+            _ if s == "gif" => Ok(Format::Gif),
+            _ if s == "jp2" => Ok(Format::Jp2),
+            _ if s == "pdf" => Ok(Format::Pdf),
+            _ if s == "webp" => Ok(Format::WebP),
+            _ => Err(IiifError::InvalidFormat(s.into())),
         }
     }
 }
@@ -1083,7 +1111,7 @@ mod tests {
     #[case("!42", Rotation::Mirrored(42.0_f32.try_into().unwrap()))]
     #[case("!42.24", Rotation::Mirrored(42.24_f32.try_into().unwrap()))]
     fn parse_rotation_degrees(#[case] value: &str, #[case] expected: Rotation) {
-        assert_eq!(Rotation::parse(value).unwrap(), expected);
+        assert_eq!(Rotation::from_str(value).unwrap(), expected);
     }
 
     #[rstest]
@@ -1108,30 +1136,42 @@ mod tests {
         );
     }
 
-    #[test]
-    fn quality_parsing() {
-        assert_eq!(Quality::parse("color").unwrap(), Quality::Color);
-        assert_eq!(Quality::parse("gray").unwrap(), Quality::Gray);
-        assert_eq!(Quality::parse("bitonal").unwrap(), Quality::Bitonal);
-        assert_eq!(Quality::parse("default").unwrap(), Quality::Default);
-        assert_eq!(
-            Quality::parse("11").unwrap_err(),
-            "could not understand quality specification: 11"
-        );
+    #[rstest]
+    #[case("color", Quality::Color)]
+    #[case("gray", Quality::Gray)]
+    #[case("bitonal", Quality::Bitonal)]
+    #[case("default", Quality::Default)]
+    fn parsing_quality(#[case] value: &str, #[case] expected: Quality) {
+        assert_eq!(Quality::from_str(value).unwrap(), expected);
     }
 
-    #[test]
-    fn format_parsing() {
-        assert_eq!(Format::parse("jpg").unwrap(), Format::Jpg);
-        assert_eq!(Format::parse("tif").unwrap(), Format::Tif);
-        assert_eq!(Format::parse("png").unwrap(), Format::Png);
-        assert_eq!(Format::parse("gif").unwrap(), Format::Gif);
-        assert_eq!(Format::parse("jp2").unwrap(), Format::Jp2);
-        assert_eq!(Format::parse("pdf").unwrap(), Format::Pdf);
-        assert_eq!(Format::parse("webp").unwrap(), Format::WebP);
+    #[rstest]
+    #[case("11")]
+    fn parsing_quality_fails(#[case] value: &str) {
         assert_eq!(
-            Format::parse("11").unwrap_err(),
-            "could not understand format specification: 11"
-        );
+            Quality::from_str(value).unwrap_err().to_string(),
+            format!("invalid quality: {value}")
+        )
+    }
+
+    #[rstest]
+    #[case("jpg", Format::Jpg)]
+    #[case("tif", Format::Tif)]
+    #[case("png", Format::Png)]
+    #[case("gif", Format::Gif)]
+    #[case("jp2", Format::Jp2)]
+    #[case("pdf", Format::Pdf)]
+    #[case("webp", Format::WebP)]
+    fn parsing_format(#[case] value: &str, #[case] expected: Format) {
+        assert_eq!(Format::from_str(value).unwrap(), expected);
+    }
+
+    #[rstest]
+    #[case("bmp")]
+    fn parsing_format_fails(#[case] value: &str) {
+        assert_eq!(
+            Format::from_str(value).unwrap_err().to_string(),
+            format!("invalid format: {value}")
+        )
     }
 }
