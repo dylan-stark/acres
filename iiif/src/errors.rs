@@ -51,6 +51,9 @@ pub enum IiifError {
     /// Identifier is missing.
     #[error("missing identifier in URL: {0}")]
     MissingIdentifier(String),
+    /// Info part is missing.
+    #[error("missing info part in URL: {0}")]
+    MissingInfoPart(String),
     /// Unable to parse provided URI.
     #[error("unable to parse URI: {0}")]
     ParseUri(#[from] url::ParseError),

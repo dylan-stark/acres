@@ -25,7 +25,7 @@ use crate::errors::IiifError;
 ///
 /// [Base URI]: https://iiif.io/api/image/3.0/#2-uri-syntax
 /// [IiifError]: enum.IiifError
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Uri {
     scheme: String,
     server: String,
