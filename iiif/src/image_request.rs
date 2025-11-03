@@ -1,4 +1,3 @@
-use bytes::Bytes;
 use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{cmp::Ordering, fmt::Display};
@@ -876,22 +875,6 @@ impl ImageRequest {
     /// Returns a new builder.
     pub fn builder() -> Builder<Unset, Unset, Unset, Unset, Unset, Unset> {
         Builder::default()
-    }
-}
-
-/// An IIIF image request response.
-#[derive(Clone, Debug, PartialEq)]
-pub struct ImageResponse(Bytes);
-
-impl From<Bytes> for ImageResponse {
-    fn from(value: Bytes) -> Self {
-        ImageResponse(value)
-    }
-}
-
-impl From<ImageResponse> for Bytes {
-    fn from(value: ImageResponse) -> Self {
-        value.0
     }
 }
 

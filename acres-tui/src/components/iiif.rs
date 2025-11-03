@@ -52,13 +52,13 @@ impl Component for Iiif {
                         .build();
                     let action_tx = self.action_tx.clone();
                     tokio::spawn(async move {
-                        let response: Option<iiif::ImageResponse> = Api::new()
+                        let response: Option<bytes::Bytes> = Api::new()
                             .fetch(image_request.to_string(), None as Option<()>)
                             .await
                             .ok();
                         if let Some(response) = response {
-                            let _ = action_tx
-                                .send(Action::ImageToAsciiBuilderUpdateImage(response.into()));
+                            let _ =
+                                action_tx.send(Action::ImageToAsciiBuilderUpdateImage(response));
                         }
                     });
                 }

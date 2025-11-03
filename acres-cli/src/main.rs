@@ -378,11 +378,11 @@ async fn main() -> Result<(), Report> {
             match matches.get_one::<IiifTo>("to") {
                 Some(IiifTo::Url) => println!("{}", image_request),
                 Some(IiifTo::Bytes) => {
-                    let response: iiif::ImageResponse = Api::new()
+                    let response: bytes::Bytes = Api::new()
                         .fetch(image_request.to_string(), None as Option<()>)
                         .await?;
                     io::stdout()
-                        .write_all(&bytes::Bytes::from(response))
+                        .write_all(&response)
                         .context("failed to write image bytes")?;
                 }
                 None => unreachable!("default value means we shouldn't get here"),
