@@ -1,7 +1,7 @@
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
 
-//! Simple, ergonomic access to the [IIIF APIs](https://iiif.io/api/image/3.0/).
+//! Simple, ergonomic access for the [IIIF API 2.0](https://iiif.io/api/image/2.0/).
 //!
 //! You bring the URI and we make building the requests easy and error-proof.
 //!

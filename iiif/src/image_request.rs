@@ -54,7 +54,7 @@ use crate::{IiifError, Set, Unset, Uri};
 /// # }
 /// ```
 ///
-/// [floating point]: https://iiif.io/api/image/3.0/#47-floating-point-values
+/// [floating point]: https://iiif.io/api/image/2.0/#image-request-parameters
 /// [`Size`]: enum.Size.html
 /// [`Region`]: enum.Region.html
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -191,7 +191,7 @@ mod percentage_tests {
 /// # }
 /// ```
 ///
-/// [floating point]: https://iiif.io/api/image/3.0/#47-floating-point-values
+/// [floating point]: https://iiif.io/api/image/2.0/#image-request-parameters
 /// [`Rotatin`]: enum.Rotatin.html
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Degree(String);
@@ -275,7 +275,7 @@ mod degree_tests {
     }
 }
 
-/// Defines an [image request] for the IIIF Image API 3.0.
+/// Defines an [image request] for the IIIF Image API 2.0.
 ///
 /// You can create a new image request if you know all of the parameters upfront.
 ///
@@ -343,7 +343,7 @@ mod degree_tests {
 /// # }
 /// ```
 ///
-/// [image request]: https://iiif.io/api/image/3.0/#4-image-requests
+/// [image request]: https://iiif.io/api/image/2.0/#4-image-requests
 /// [typestate pattern]: https://stanford-cs242.github.io/f19/lectures/08-2-typestate.html
 #[derive(Clone, Debug)]
 pub struct ImageRequest {
@@ -393,7 +393,7 @@ impl FromStr for ImageRequest {
             return Err(IiifError::MissingRotation(s.to_string()));
         }
         if let Some(s) = params.pop() {
-            size = s.try_into()?;
+            size = s.parse()?;
         } else {
             return Err(IiifError::MissingSize(s.to_string()));
         }
@@ -502,14 +502,12 @@ impl From<ImageResponse> for Bytes {
 /// ```
 ///
 ///
-/// [region]: https://iiif.io/api/image/3.0/#41-region
+/// [region]: https://iiif.io/api/image/2.0/#region
 #[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Region {
     /// The complete image.
     #[default]
     Full,
-    /// A square crop.
-    Square,
     /// Region expressed in absolute pixel values.
     Absolute(u32, u32, u32, u32),
     /// Region expressed in percent of image's dimensions.
@@ -520,7 +518,6 @@ impl Display for Region {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Region::Full => write!(f, "full"),
-            Region::Square => write!(f, "square"),
             Region::Absolute(x, y, w, h) => write!(f, "{},{},{},{}", x, y, w, h),
             Region::Percentage(x, y, w, h) => write!(f, "pct:{},{},{},{}", x, y, w, h),
         }
@@ -533,10 +530,6 @@ impl FromStr for Region {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s == "full" {
             return Ok(Region::Full);
-        }
-
-        if s == "square" {
-            return Ok(Region::Square);
         }
 
         let is_pct = s.starts_with("pct:");
@@ -572,7 +565,37 @@ impl FromStr for Region {
     }
 }
 
-/// Size to scale to.
+/// Defines [size] (scaling) of the underlying image content to retrieve.
+///
+/// You can create one from a string.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Size;
+///
+/// # fn main() -> Result<()> {
+/// let size: Size = "!640,480".parse()?;
+/// assert_eq!(size.to_string(), "!640,480");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Or you can create one programmatically.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Size;
+///
+/// # fn main() -> Result<()> {
+/// let size = Size::BestFit(640, 480);
+/// assert_eq!(size.to_string(), "!640,480");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [size]: https://iiif.io/api/image/2.0/#size
 #[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Size {
     /// Don't scale.
@@ -603,19 +626,19 @@ impl Display for Size {
     }
 }
 
-impl TryFrom<&str> for Size {
-    type Error = IiifError;
+impl FromStr for Size {
+    type Err = IiifError;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if value == "full" {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "full" {
             return Ok(Size::Full);
-        } else if value.starts_with("pct:") {
-            let n = value.replacen("pct:", "", 1).parse::<f32>().ok();
+        } else if s.starts_with("pct:") {
+            let n = s.replacen("pct:", "", 1).parse::<f32>().ok();
             if let Some(n) = n {
                 return Ok(Size::Percentage(n.try_into()?));
             }
-        } else if value.starts_with("!") {
-            let parts = value
+        } else if s.starts_with("!") {
+            let parts = s
                 .replacen("!", "", 1)
                 .split(",")
                 .filter_map(|part| part.trim().parse::<u32>().ok())
@@ -623,18 +646,18 @@ impl TryFrom<&str> for Size {
             if parts.len() == 2 {
                 return Ok(Size::BestFit(parts[0], parts[1]));
             }
-        } else if value.starts_with(",") {
-            let height = value.replacen(",", "", 1).parse::<u32>().ok();
+        } else if s.starts_with(",") {
+            let height = s.replacen(",", "", 1).parse::<u32>().ok();
             if let Some(height) = height {
                 return Ok(Size::Height(height));
             }
-        } else if value.ends_with(",") {
-            let width = value.replacen(",", "", 1).parse::<u32>().ok();
+        } else if s.ends_with(",") {
+            let width = s.replacen(",", "", 1).parse::<u32>().ok();
             if let Some(width) = width {
                 return Ok(Size::Width(width));
             }
         } else {
-            let parts = value
+            let parts = s
                 .split(",")
                 .filter_map(|part| part.trim().parse::<u32>().ok())
                 .collect::<Vec<u32>>();
@@ -642,15 +665,7 @@ impl TryFrom<&str> for Size {
                 return Ok(Size::Exactly(parts[0], parts[1]));
             }
         }
-        Err(IiifError::InvalidSize(value.into()))
-    }
-}
-
-impl FromStr for Size {
-    type Err = IiifError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.try_into()
+        Err(IiifError::InvalidSize(s.into()))
     }
 }
 
