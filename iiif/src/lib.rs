@@ -5,19 +5,27 @@
 //!
 //! You bring the URI and we make building the requests easy and error-proof.
 //!
-//! ```rust,ignore
-//! let uri = iiif::Uri::parse("https://example.org/image-service/abcd1234/1E34750D-38DB-4825-A38A-B60A345E591C")?;
+//! ```rust
+//! # use anyhow::Result;
+//! # use std::str::FromStr;
+//! use iiif::{Degree, Format, Quality, Region, Rotation, Size, Uri};
 //!
-//! let info_request = iiif::InformationRequest::new(uri);
-//! println!("Check out {info_request} for information about the image.")
+//! # fn main() -> Result<()> {
+//! let uri: Uri = "https://example.org/image-service/abcd1234/1E34750D-38DB-4825-A38A-B60A345E591C".parse()?;
+//!
+//! let info_request = iiif::InformationRequest::new(uri.clone());
+//! println!("Check out {info_request} for information about the image.");
 //!
 //! let image_request = iiif::ImageRequest::builder()
-//!     .region(Some(Region::Full))
-//!     .size(Some(Size::Width(843)))
-//!     .rotation(Some(Rotation::Degrees(0.0)))
-//!     .quality(Some(Quality::Default))
-//!     .format(Some(Format::Jpg))
+//!     .uri(uri)
+//!     .region(Region::Full)
+//!     .size(Size::Width(843))
+//!     .rotation(Rotation::Degrees(Degree::default()))
+//!     .quality(Quality::Default)
+//!     .format(Format::Jpg)
 //!     .build();
+//! # Ok(())
+//! # }
 //! ```
 
 mod errors;
