@@ -52,7 +52,7 @@ pub use self::errors::IiifError;
 pub use self::image_request::{
     Degree, Format, ImageRequest, Percentage, Quality, Region, Rotation, Size,
 };
-pub use self::information_request::{InformationRequest, InformationResponse};
+pub use self::information_request::InformationRequest;
 pub use self::uri::Uri;
 
 /// Used to indicate that a component not set for a partially-constructed value

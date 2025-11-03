@@ -1,5 +1,3 @@
-use bytes::{Buf, Bytes};
-use serde::Deserialize;
 use std::{fmt::Display, str::FromStr};
 
 use crate::{IiifError, uri::Uri};
@@ -75,7 +73,7 @@ impl FromStr for InformationRequest {
             let uri = Uri::from_str(uri)?;
             Ok(InformationRequest::from(uri))
         } else {
-            return Err(IiifError::MissingInfoPart(s.to_string()));
+            Err(IiifError::MissingInfoPart(s.to_string()))
         }
     }
 }
@@ -83,22 +81,5 @@ impl FromStr for InformationRequest {
 impl From<Uri> for InformationRequest {
     fn from(value: Uri) -> Self {
         InformationRequest { uri: value }
-    }
-}
-
-/// An IIIF information request response.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-pub struct InformationResponse(serde_json::Value);
-
-impl From<Bytes> for InformationResponse {
-    fn from(value: Bytes) -> Self {
-        let reader = value.reader();
-        serde_json::from_reader(reader).unwrap()
-    }
-}
-
-impl From<InformationResponse> for Bytes {
-    fn from(value: InformationResponse) -> Self {
-        Bytes::from(value.0.to_string())
     }
 }

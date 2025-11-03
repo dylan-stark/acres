@@ -398,11 +398,11 @@ async fn main() -> Result<(), Report> {
             )
             .ok_or(AcresError::LoadArtworkInfo)?;
             let request: iiif::InformationRequest = iiif::Uri::try_from(artwork)?.into();
-            let response: iiif::InformationResponse = Api::new()
+            let response: bytes::Bytes = Api::new()
                 .fetch(request.to_string(), None as Option<()>)
                 .await?;
             io::stdout()
-                .write_all(&bytes::Bytes::from(response))
+                .write_all(&response)
                 .context("failed to write json bytes")?;
         }
         _ => unreachable!("clap should ensure we don't get here"),
