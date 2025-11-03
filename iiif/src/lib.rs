@@ -8,15 +8,15 @@
 //! ```rust
 //! # use anyhow::Result;
 //! # use std::str::FromStr;
-//! use iiif::{Degree, Format, Quality, Region, Rotation, Size, Uri};
+//! use iiif::{Degree, Format, ImageRequest, InformationRequest, Quality, Region, Rotation, Size, Uri};
 //!
 //! # fn main() -> Result<()> {
 //! let uri: Uri = "https://example.org/image-service/abcd1234/1E34750D-38DB-4825-A38A-B60A345E591C".parse()?;
 //!
-//! let info_request = iiif::InformationRequest::new(uri.clone());
+//! let info_request = InformationRequest::new(uri.clone());
 //! println!("Check out {info_request} for information about the image.");
 //!
-//! let image_request = iiif::ImageRequest::builder()
+//! let image_request = ImageRequest::builder()
 //!     .uri(uri)
 //!     .region(Region::Full)
 //!     .size(Size::Width(843))
@@ -33,7 +33,7 @@
 //! ```rust
 //! # use anyhow::Result;
 //! # use std::str::FromStr;
-//! use iiif::{ImageRequest};
+//! use iiif::ImageRequest;
 //!
 //! # fn main() -> Result<()> {
 //! let image_request: ImageRequest = "https://example.org/image-service/abcd1234 \
