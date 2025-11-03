@@ -275,197 +275,6 @@ mod degree_tests {
     }
 }
 
-/// Defines an [image request] for the IIIF Image API 2.0.
-///
-/// You can create a new image request if you know all of the parameters upfront.
-///
-/// ```rust
-/// # use anyhow::Result;
-/// use std::str::FromStr;
-/// use iiif::{Degree, Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
-///
-/// # fn main() -> Result<()> {
-/// let image_request = ImageRequest::new(
-///     Uri::from_str("https://example.org/images/12345")?,
-///     Region::Full,
-///     Size::Width(1024),
-///     Rotation::Degrees(Degree::default()),
-///     Quality::Default,
-///     Format::Png,
-/// );
-/// assert_eq!(image_request.to_string(), "https://example.org/images/12345/full/1024,/0/default.png");
-/// # Ok(())
-/// # }
-/// ```
-///
-/// Or you can construct one piece-wise with a builder. This gives you the flexibility to set
-/// parameters when and in what order works best for you. And the [typestate pattern] ensures you
-/// can't `.build()` until all parameters are set.
-///
-/// ```rust
-/// # use anyhow::Result;
-/// # use std::str::FromStr;
-/// # use iiif::{Degree, Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
-/// #
-/// # fn main() -> Result<()> {
-/// let mut image_request = ImageRequest::builder();
-/// let mut image_request = image_request
-///     .region(Region::Full)
-///     .size(Size::Width(1024))
-///     .rotation(Rotation::Degrees(Degree::default()))
-///     .quality(Quality::Default)
-///     .format(Format::Png);
-/// // The following won't compile because the URI isn't set:
-/// // let _ = image_request.build();
-///     
-/// let uri = Uri::from_str("https://example.org/images/12345")?;
-/// let mut image_request = image_request.uri(uri);
-/// // Now we can build it!
-///
-/// let image_request = image_request.build();
-/// assert_eq!(image_request.to_string(), "https://example.org/images/12345/full/1024,/0/default.png");
-/// # Ok(())
-/// # }
-/// ```
-///
-/// And on the off chance that you already have a string and want an [`ImageRequest`], you can do
-/// that, too.
-///
-/// ```rust
-/// # use anyhow::Result;
-/// # use std::str::FromStr;
-/// # use iiif::{Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
-/// #
-/// # fn main() -> Result<()> {
-/// let image_request: ImageRequest = "https://example.org/images/12345/full/1024,/0/default.png".parse()?;
-/// assert_eq!(image_request.to_string(), "https://example.org/images/12345/full/1024,/0/default.png");
-/// # Ok(())
-/// # }
-/// ```
-///
-/// [image request]: https://iiif.io/api/image/2.0/#4-image-requests
-/// [typestate pattern]: https://stanford-cs242.github.io/f19/lectures/08-2-typestate.html
-#[derive(Clone, Debug)]
-pub struct ImageRequest {
-    uri: Uri,
-    region: Region,
-    size: Size,
-    rotation: Rotation,
-    quality: Quality,
-    format: Format,
-}
-
-impl Display for ImageRequest {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}/{}/{}/{}/{}.{}",
-            self.uri, self.region, self.size, self.rotation, self.quality, self.format
-        )
-    }
-}
-
-impl FromStr for ImageRequest {
-    type Err = IiifError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let url = url::Url::parse(s).map_err(IiifError::from)?;
-
-        let region: Region;
-        let size: Size;
-        let rotation: Rotation;
-        let quality: Quality;
-        let format: Format;
-        let mut params: Vec<&str> = url.path_segments().map_or_else(Vec::new, |v| v.collect());
-        if let Some(file) = params.pop() {
-            if let Some((q, f)) = file.split_once('.') {
-                format = f.parse()?;
-                quality = q.parse()?;
-            } else {
-                return Err(IiifError::MissingFormat(s.to_string()));
-            }
-        } else {
-            return Err(IiifError::MissingFormat(s.to_string()));
-        }
-        if let Some(r) = params.pop() {
-            rotation = r.parse()?;
-        } else {
-            return Err(IiifError::MissingRotation(s.to_string()));
-        }
-        if let Some(s) = params.pop() {
-            size = s.parse()?;
-        } else {
-            return Err(IiifError::MissingSize(s.to_string()));
-        }
-        if let Some(r) = params.pop() {
-            region = r.parse()?;
-        } else {
-            return Err(IiifError::MissingRegion(s.to_string()));
-        }
-
-        let uri = Uri::from_str(
-            format!(
-                "{}://{}/{}",
-                url.scheme(),
-                url.host_str().map_or("", |v| v),
-                params.join("/")
-            )
-            .as_str(),
-        )?;
-
-        Ok(Self {
-            uri,
-            region,
-            size,
-            rotation,
-            quality,
-            format,
-        })
-    }
-}
-
-impl ImageRequest {
-    /// Constructs a new request.
-    pub fn new(
-        uri: Uri,
-        region: Region,
-        size: Size,
-        rotation: Rotation,
-        quality: Quality,
-        format: Format,
-    ) -> Self {
-        Self {
-            uri,
-            region,
-            size,
-            rotation,
-            quality,
-            format,
-        }
-    }
-
-    /// Returns a new builder.
-    pub fn builder() -> Builder<Unset, Unset, Unset, Unset, Unset, Unset> {
-        Builder::default()
-    }
-}
-
-/// An IIIF image request response.
-#[derive(Clone, Debug, PartialEq)]
-pub struct ImageResponse(Bytes);
-
-impl From<Bytes> for ImageResponse {
-    fn from(value: Bytes) -> Self {
-        ImageResponse(value)
-    }
-}
-
-impl From<ImageResponse> for Bytes {
-    fn from(value: ImageResponse) -> Self {
-        value.0
-    }
-}
-
 /// Defines a [region] of the underlying image content to retrieve.
 ///
 /// You can create one from a string.
@@ -887,6 +696,197 @@ impl FromStr for Format {
     }
 }
 
+/// Defines an [image request] for the IIIF Image API 2.0.
+///
+/// You can create a new image request if you know all of the parameters upfront.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// use std::str::FromStr;
+/// use iiif::{Degree, Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
+///
+/// # fn main() -> Result<()> {
+/// let image_request = ImageRequest::new(
+///     Uri::from_str("https://example.org/images/12345")?,
+///     Region::Full,
+///     Size::Width(1024),
+///     Rotation::Degrees(Degree::default()),
+///     Quality::Default,
+///     Format::Png,
+/// );
+/// assert_eq!(image_request.to_string(), "https://example.org/images/12345/full/1024,/0/default.png");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Or you can construct one piece-wise with a builder. This gives you the flexibility to set
+/// parameters when and in what order works best for you. And the [typestate pattern] ensures you
+/// can't `.build()` until all parameters are set.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use iiif::{Degree, Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
+/// #
+/// # fn main() -> Result<()> {
+/// let mut image_request = ImageRequest::builder();
+/// let mut image_request = image_request
+///     .region(Region::Full)
+///     .size(Size::Width(1024))
+///     .rotation(Rotation::Degrees(Degree::default()))
+///     .quality(Quality::Default)
+///     .format(Format::Png);
+/// // The following won't compile because the URI isn't set:
+/// // let _ = image_request.build();
+///     
+/// let uri = Uri::from_str("https://example.org/images/12345")?;
+/// let mut image_request = image_request.uri(uri);
+/// // Now we can build it!
+///
+/// let image_request = image_request.build();
+/// assert_eq!(image_request.to_string(), "https://example.org/images/12345/full/1024,/0/default.png");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// And on the off chance that you already have a string and want an [`ImageRequest`], you can do
+/// that, too.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use iiif::{Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
+/// #
+/// # fn main() -> Result<()> {
+/// let image_request: ImageRequest = "https://example.org/images/12345/full/1024,/0/default.png".parse()?;
+/// assert_eq!(image_request.to_string(), "https://example.org/images/12345/full/1024,/0/default.png");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [image request]: https://iiif.io/api/image/2.0/#4-image-requests
+/// [typestate pattern]: https://stanford-cs242.github.io/f19/lectures/08-2-typestate.html
+#[derive(Clone, Debug)]
+pub struct ImageRequest {
+    uri: Uri,
+    region: Region,
+    size: Size,
+    rotation: Rotation,
+    quality: Quality,
+    format: Format,
+}
+
+impl Display for ImageRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}/{}/{}/{}/{}.{}",
+            self.uri, self.region, self.size, self.rotation, self.quality, self.format
+        )
+    }
+}
+
+impl FromStr for ImageRequest {
+    type Err = IiifError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let url = url::Url::parse(s).map_err(IiifError::from)?;
+
+        let region: Region;
+        let size: Size;
+        let rotation: Rotation;
+        let quality: Quality;
+        let format: Format;
+        let mut params: Vec<&str> = url.path_segments().map_or_else(Vec::new, |v| v.collect());
+        if let Some(file) = params.pop() {
+            if let Some((q, f)) = file.split_once('.') {
+                format = f.parse()?;
+                quality = q.parse()?;
+            } else {
+                return Err(IiifError::MissingFormat(s.to_string()));
+            }
+        } else {
+            return Err(IiifError::MissingFormat(s.to_string()));
+        }
+        if let Some(r) = params.pop() {
+            rotation = r.parse()?;
+        } else {
+            return Err(IiifError::MissingRotation(s.to_string()));
+        }
+        if let Some(s) = params.pop() {
+            size = s.parse()?;
+        } else {
+            return Err(IiifError::MissingSize(s.to_string()));
+        }
+        if let Some(r) = params.pop() {
+            region = r.parse()?;
+        } else {
+            return Err(IiifError::MissingRegion(s.to_string()));
+        }
+
+        let uri = Uri::from_str(
+            format!(
+                "{}://{}/{}",
+                url.scheme(),
+                url.host_str().map_or("", |v| v),
+                params.join("/")
+            )
+            .as_str(),
+        )?;
+
+        Ok(Self {
+            uri,
+            region,
+            size,
+            rotation,
+            quality,
+            format,
+        })
+    }
+}
+
+impl ImageRequest {
+    /// Constructs a new request.
+    pub fn new(
+        uri: Uri,
+        region: Region,
+        size: Size,
+        rotation: Rotation,
+        quality: Quality,
+        format: Format,
+    ) -> Self {
+        Self {
+            uri,
+            region,
+            size,
+            rotation,
+            quality,
+            format,
+        }
+    }
+
+    /// Returns a new builder.
+    pub fn builder() -> Builder<Unset, Unset, Unset, Unset, Unset, Unset> {
+        Builder::default()
+    }
+}
+
+/// An IIIF image request response.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ImageResponse(Bytes);
+
+impl From<Bytes> for ImageResponse {
+    fn from(value: Bytes) -> Self {
+        ImageResponse(value)
+    }
+}
+
+impl From<ImageResponse> for Bytes {
+    fn from(value: ImageResponse) -> Self {
+        value.0
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 struct Partial {
     uri: Option<Uri>,
@@ -1040,6 +1040,7 @@ impl<A, B, C, D, E, F> Builder<A, B, C, D, E, F> {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
