@@ -55,10 +55,14 @@ pub use self::image_request::{
 pub use self::information_request::InformationRequest;
 pub use self::uri::Uri;
 
-/// Used to indicate that a component not set for a partially-constructed value
-#[derive(Debug, Clone, Copy)]
-pub struct Unset;
+#[doc(hidden)]
+pub mod builder {
 
-/// Used to indicate that a component is set for a partially-constructed value
-#[derive(Debug, Clone, Copy)]
-pub struct Set;
+    /// Used to indicate that a component not set for a partially-constructed value
+    #[derive(Debug, Clone, Copy)]
+    pub struct Unset;
+
+    /// Used to indicate that a component is set for a partially-constructed value
+    #[derive(Debug, Clone, Copy)]
+    pub struct Set;
+}

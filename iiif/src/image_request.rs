@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{cmp::Ordering, fmt::Display};
 
-use crate::{IiifError, Set, Unset, Uri};
+use crate::{
+    IiifError, Uri,
+    builder::{Set, Unset},
+};
 
 /// Defines a [floating point] percentage.
 ///
