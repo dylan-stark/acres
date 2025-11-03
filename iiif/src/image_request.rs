@@ -286,7 +286,15 @@ mod degree_tests {
 ///
 /// # fn main() -> Result<()> {
 /// let region: Region = "pct:41.6,7.5,40,70".parse()?;
-/// assert_eq!(region.to_string(), "pct:41.6,7.5,40,70");
+/// assert_eq!(
+///     region,
+///     Region::Percentage(
+///         41.6_f32.try_into()?,
+///         7.5_f32.try_into()?,
+///         40_f32.try_into()?,
+///         70_f32.try_into()?,
+///     ),
+/// );
 /// # Ok(())
 /// # }
 /// ```
@@ -385,7 +393,7 @@ impl FromStr for Region {
 ///
 /// # fn main() -> Result<()> {
 /// let size: Size = "!640,480".parse()?;
-/// assert_eq!(size.to_string(), "!640,480");
+/// assert_eq!(size, Size::BestFit(640, 480));
 /// # Ok(())
 /// # }
 /// ```
@@ -489,7 +497,7 @@ impl FromStr for Size {
 ///
 /// # fn main() -> Result<()> {
 /// let rotation: Rotation = "180".parse()?;
-/// assert_eq!(rotation.to_string(), "180");
+/// assert_eq!(rotation, Rotation::Degrees(180_f32.try_into()?));
 /// # Ok(())
 /// # }
 /// ```
@@ -557,7 +565,7 @@ impl FromStr for Rotation {
 ///
 /// # fn main() -> Result<()> {
 /// let quality: Quality = "color".parse()?;
-/// assert_eq!(quality.to_string(), "color");
+/// assert_eq!(quality, Quality::Color);
 /// # Ok(())
 /// # }
 /// ```
@@ -626,7 +634,7 @@ impl FromStr for Quality {
 ///
 /// # fn main() -> Result<()> {
 /// let format: Format = "png".parse()?;
-/// assert_eq!(format.to_string(), "png");
+/// assert_eq!(format, Format::Png);
 /// # Ok(())
 /// # }
 /// ```
