@@ -27,6 +27,21 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! If you already have the full URL for an image request, you can use that, too.
+//!
+//! ```rust
+//! # use anyhow::Result;
+//! # use std::str::FromStr;
+//! use iiif::{ImageRequest};
+//!
+//! # fn main() -> Result<()> {
+//! let image_request: ImageRequest = "https://example.org/image-service/abcd1234 \
+//!     /1E34750D-38DB-4825-A38A-B60A345E591C \
+//!     /full/843,/0/default.jpg".parse()?;
+//! # Ok(())
+//! # }
+//! ```
 
 mod errors;
 mod image_request;
