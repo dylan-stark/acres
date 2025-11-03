@@ -120,7 +120,7 @@ mod percentage_tests {
     #[rstest]
     #[case(0.0, "0")]
     #[case(4.2, "4.2")]
-    #[case(1 as f32/3 as f32, "0.33")]
+    #[case(1_f32/3_f32, "0.33")]
     #[case(100.0, "100")]
     fn try_from_f32(#[case] value: f32, #[case] expected: &str) {
         assert_eq!(
@@ -256,7 +256,7 @@ mod degree_tests {
     #[rstest]
     #[case(0.0, "0")]
     #[case(4.2, "4.2")]
-    #[case(33.0 + 1 as f32/3 as f32, "33.33")]
+    #[case(33.0 + 1_f32/3_f32, "33.33")]
     #[case(360.0, "360")]
     fn try_from_f33(#[case] value: f32, #[case] expected: &str) {
         assert_eq!(format!("{}", Degree::try_from(value).unwrap()), expected);
