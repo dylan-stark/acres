@@ -147,7 +147,7 @@ async fn main() -> Result<(), Report> {
                     Arg::new("alphabet")
                         .long("alphabet")
                         .help("alphabet to use")
-                        .value_parser(Alphabet::parse),
+                        .value_parser(value_parser!(Alphabet)),
                 )
                 .arg(
                     Arg::new("brightness-offset")
@@ -159,7 +159,7 @@ async fn main() -> Result<(), Report> {
                     Arg::new("conversion-algorithm")
                         .long("conversion-algorithm")
                         .help("alphabet to use")
-                        .value_parser(ConversionAlgorithm::parse),
+                        .value_parser(value_parser!(ConversionAlgorithm)),
                 )
                 .arg(
                     Arg::new("font")

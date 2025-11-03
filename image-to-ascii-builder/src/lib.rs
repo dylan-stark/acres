@@ -1,7 +1,9 @@
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
-
-//! Ergonomic builder for the image-to-ascii crate.
+// TODO: Fill in an example or two.
+//! Simple, ergonomic builder for the [`image-to-ascii` crate].
+//!
+//! [`image-to-ascii` crate]: https://crates.io/crates/image-to-ascii
 
 use anyhow::Context;
 use bytes::{Buf, Bytes};
@@ -10,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     io::{Cursor, Read},
+    str::FromStr,
 };
 
 use anyhow::Result;
@@ -34,8 +37,26 @@ pub enum ImageToAsciiBuilderError {
     UnexpectedError(#[from] anyhow::Error),
 }
 
-/// Conversion algorithm.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+/// Defines a conversion algorithm.
+///
+/// There are four options: `base`, `edge`, `edge-augmented` and `two-pass`; and `edge-augmented`
+/// is the default.
+///
+/// You can create one from a string, if that's what you have, or directly if you know what you
+/// want.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use image_to_ascii_builder::ConversionAlgorithm;
+///
+/// # fn main() -> Result<()> {
+/// let algo: ConversionAlgorithm = "two-pass".parse()?;
+/// assert_eq!(algo, ConversionAlgorithm::TwoPass);
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, Hash)]
 pub enum ConversionAlgorithm {
     /// Base.
     Base,
@@ -67,34 +88,55 @@ impl Display for ConversionAlgorithm {
     }
 }
 
-impl TryFrom<&str> for ConversionAlgorithm {
-    type Error = ImageToAsciiBuilderError;
+impl FromStr for ConversionAlgorithm {
+    type Err = ImageToAsciiBuilderError;
 
-    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
-        match value {
-            _ if value == "base" => Ok(ConversionAlgorithm::Base),
-            _ if value == "edge" => Ok(ConversionAlgorithm::Edge),
-            _ if value == "edge-augmented" => Ok(ConversionAlgorithm::EdgeAugmented),
-            _ if value == "two-pass" => Ok(ConversionAlgorithm::TwoPass),
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            _ if s == "base" => Ok(ConversionAlgorithm::Base),
+            _ if s == "edge" => Ok(ConversionAlgorithm::Edge),
+            _ if s == "edge-augmented" => Ok(ConversionAlgorithm::EdgeAugmented),
+            _ if s == "two-pass" => Ok(ConversionAlgorithm::TwoPass),
             _ => Err(ImageToAsciiBuilderError::ValidationError(format!(
                 "{} is not a supported metric",
-                value
+                s
             ))),
         }
     }
 }
 
-impl ConversionAlgorithm {
-    /// Conversion algorithm parser.
-    pub fn parse(value: &str) -> Result<ConversionAlgorithm, String> {
-        match value.try_into() {
-            Ok(algorithm) => Ok(algorithm),
-            Err(error) => Err(error.to_string()),
-        }
-    }
-}
-
-/// Built-in alphabets.
+/// Defines an alphabet.
+///
+/// There are seven options: `alphabet`, `fast`, `letters`, `lowercase`, `minimal`, `symbols`, and
+/// `uppercase`; and `alphabet` is the default.
+///
+/// You can create one from a string, if that's what you have, or directly if you know what you
+/// want.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use image_to_ascii_builder::Alphabet;
+///
+/// # fn main() -> Result<()> {
+/// let alpha: Alphabet = "fast".parse()?;
+/// assert_eq!(alpha, Alphabet::Fast);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// We implement conversion to `bytes::Bytes` and `Vec<char>` so that can easily get the backing content for any of the variants.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use image_to_ascii_builder::Alphabet;
+/// # fn main() -> Result<()> {
+/// let content: bytes::Bytes = Alphabet::Fast.into();
+/// let content: Vec<char> = Alphabet::Fast.into();
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Alphabet {
     /// The alphabet alphabet.
@@ -139,6 +181,26 @@ impl Display for Alphabet {
     }
 }
 
+impl FromStr for Alphabet {
+    type Err = ImageToAsciiBuilderError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            _ if s == "alphabet" => Ok(Alphabet::Alphabet),
+            _ if s == "fast" => Ok(Alphabet::Fast),
+            _ if s == "letters" => Ok(Alphabet::Letters),
+            _ if s == "lowercase" => Ok(Alphabet::Lowercase),
+            _ if s == "minimal" => Ok(Alphabet::Minimal),
+            _ if s == "symbols" => Ok(Alphabet::Symbols),
+            _ if s == "uppercase" => Ok(Alphabet::Uppercase),
+            _ => Err(ImageToAsciiBuilderError::ValidationError(format!(
+                "{} is not a supported alphabet",
+                s
+            ))),
+        }
+    }
+}
+
 impl From<Alphabet> for Bytes {
     fn from(value: Alphabet) -> Self {
         match value {
@@ -153,7 +215,6 @@ impl From<Alphabet> for Bytes {
     }
 }
 
-/// Sets the alphabet from reader.
 impl From<Alphabet> for Vec<char> {
     fn from(value: Alphabet) -> Self {
         let mut reader = Bytes::from(value).reader();
@@ -162,36 +223,6 @@ impl From<Alphabet> for Vec<char> {
             .read_to_end(&mut bytes)
             .context("failed to read to end of alphabet");
         bytes.iter().map(|&c| c as char).collect()
-    }
-}
-
-impl TryFrom<&str> for Alphabet {
-    type Error = ImageToAsciiBuilderError;
-
-    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
-        match value {
-            _ if value == "alphabet" => Ok(Alphabet::Alphabet),
-            _ if value == "fast" => Ok(Alphabet::Fast),
-            _ if value == "letters" => Ok(Alphabet::Letters),
-            _ if value == "lowercase" => Ok(Alphabet::Lowercase),
-            _ if value == "minimal" => Ok(Alphabet::Minimal),
-            _ if value == "symbols" => Ok(Alphabet::Symbols),
-            _ if value == "uppercase" => Ok(Alphabet::Uppercase),
-            _ => Err(ImageToAsciiBuilderError::ValidationError(format!(
-                "{} is not a supported alphabet",
-                value
-            ))),
-        }
-    }
-}
-
-impl Alphabet {
-    /// Alphabet parser.
-    pub fn parse(value: &str) -> Result<Alphabet, String> {
-        match value.try_into() {
-            Ok(alphabet) => Ok(alphabet),
-            Err(error) => Err(error.to_string()),
-        }
     }
 }
 
