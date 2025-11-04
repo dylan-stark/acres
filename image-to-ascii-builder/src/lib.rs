@@ -226,13 +226,65 @@ impl From<Alphabet> for Vec<char> {
     }
 }
 
-/// Brightness offset.
-#[derive(Clone, Debug)]
+/// Defines a brightness offset.
+///
+/// You can create one from an `f32` or a string.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use image_to_ascii_builder::BrightnessOffset;
+///
+/// # fn main() -> Result<()> {
+/// let from_f32: BrightnessOffset = 4.2_f32.try_into()?;
+/// let from_str: BrightnessOffset = "4.2".parse()?;
+/// assert_eq!(from_f32, from_str);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// And you can get back to an `f32` easily enough.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use image_to_ascii_builder::BrightnessOffset;
+/// # fn main() -> Result<()> {
+/// let default: f32 = BrightnessOffset::default().into();
+/// assert_eq!(default, 0.0);
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct BrightnessOffset(f32);
 
-impl Default for BrightnessOffset {
-    fn default() -> Self {
-        Self(0.0)
+impl Display for BrightnessOffset {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}", self.0))
+    }
+}
+
+impl FromStr for BrightnessOffset {
+    type Err = ImageToAsciiBuilderError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.parse::<f32>() {
+            Ok(offset) => offset.try_into(),
+            Err(error) => Err(ImageToAsciiBuilderError::ValidationError(error.to_string())),
+        }
+    }
+}
+
+impl TryFrom<f32> for BrightnessOffset {
+    type Error = ImageToAsciiBuilderError;
+
+    fn try_from(value: f32) -> std::result::Result<Self, Self::Error> {
+        match value {
+            _ if (0.0..=255.0).contains(&value) => Ok(Self(value)),
+            _ => Err(ImageToAsciiBuilderError::ValidationError(String::from(
+                "brightness offset must be between 0 and 225",
+            ))),
+        }
     }
 }
 
@@ -242,38 +294,43 @@ impl From<BrightnessOffset> for f32 {
     }
 }
 
-impl TryFrom<&str> for BrightnessOffset {
-    type Error = ImageToAsciiBuilderError;
-
-    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
-        match value.parse::<f32>() {
-            Ok(offset) => Ok(BrightnessOffset(offset)),
-            Err(error) => Err(ImageToAsciiBuilderError::ValidationError(error.to_string())),
-        }
-    }
-}
-
 impl BrightnessOffset {
     /// Creates a new brightness offset value.
-    pub fn new(offset: f32) -> Result<Self, ImageToAsciiBuilderError> {
-        match offset {
-            _ if (0.0..=255.0).contains(&offset) => Ok(Self(offset)),
-            _ => Err(ImageToAsciiBuilderError::ValidationError(String::from(
-                "brightness offset must be between 0 and 225",
-            ))),
-        }
-    }
-
-    /// Brightness offset parser.
-    pub fn parse(value: &str) -> Result<BrightnessOffset, String> {
-        match BrightnessOffset::try_from(value) {
-            Ok(offset) => Ok(offset),
-            Err(error) => Err(error.to_string()),
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
-/// Built-in fonts.
+/// Defines a font.
+///
+/// There are two options: `bitocra-13`, the default, and `courier`.
+///
+/// You can create one from a string, if that's what you have, or directly if you know what you
+/// want.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use image_to_ascii_builder::Font;
+///
+/// # fn main() -> Result<()> {
+/// let font: Font = "courier".parse()?;
+/// assert_eq!(font, Font::Courier);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// We implement conversion to `bytes::Bytes` so that can easily get the backing content for any of the variants.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// # use image_to_ascii_builder::Font;
+/// # fn main() -> Result<()> {
+/// let content: bytes::Bytes = Font::Courier.into();
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Font {
     /// The courier font
@@ -286,40 +343,6 @@ pub enum Font {
 /// All fonts.
 pub const FONTS: &[Font] = &[Font::Courier, Font::BitOcra13];
 
-impl From<Font> for Bytes {
-    fn from(value: Font) -> Self {
-        match value {
-            Font::Courier => Bytes::from_static(include_bytes!("../.data/courier.bdf")),
-            Font::BitOcra13 => Bytes::from_static(include_bytes!("../.data/bitocra-13.bdf")),
-        }
-    }
-}
-
-impl TryFrom<&str> for Font {
-    type Error = ImageToAsciiBuilderError;
-
-    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
-        match value {
-            _ if value == "courier" => Ok(Font::Courier),
-            _ if value == "bitocra-13" => Ok(Font::BitOcra13),
-            _ => Err(ImageToAsciiBuilderError::ValidationError(format!(
-                "{} is not a supported font",
-                value
-            ))),
-        }
-    }
-}
-
-impl Font {
-    /// Font parser.
-    pub fn parse(value: &str) -> Result<Font, String> {
-        match value.try_into() {
-            Ok(font) => Ok(font),
-            Err(error) => Err(error.to_string()),
-        }
-    }
-}
-
 impl Display for Font {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -329,7 +352,48 @@ impl Display for Font {
     }
 }
 
-/// Metrics.
+impl FromStr for Font {
+    type Err = ImageToAsciiBuilderError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            _ if s == "courier" => Ok(Font::Courier),
+            _ if s == "bitocra-13" => Ok(Font::BitOcra13),
+            _ => Err(ImageToAsciiBuilderError::ValidationError(format!(
+                "{} is not a supported font",
+                s
+            ))),
+        }
+    }
+}
+
+impl From<Font> for Bytes {
+    fn from(value: Font) -> Self {
+        match value {
+            Font::Courier => Bytes::from_static(include_bytes!("../.data/courier.bdf")),
+            Font::BitOcra13 => Bytes::from_static(include_bytes!("../.data/bitocra-13.bdf")),
+        }
+    }
+}
+
+/// Defines a metric.
+///
+/// There are 11 options and `direction-and-intensity` is the default.
+///
+/// You can create one from a string, if that's what you have, or directly if you know what you
+/// want.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use image_to_ascii_builder::Metric;
+///
+/// # fn main() -> Result<()> {
+/// let metric: Metric = "intensity-jaccard".parse()?;
+/// assert_eq!(metric, Metric::IntensityJaccard);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Metric {
     /// Dot.
@@ -390,48 +454,82 @@ impl Display for Metric {
     }
 }
 
-impl TryFrom<&str> for Metric {
-    type Error = ImageToAsciiBuilderError;
+impl FromStr for Metric {
+    type Err = ImageToAsciiBuilderError;
 
-    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
-        match value {
-            _ if value == "dot" => Ok(Metric::Dot),
-            _ if value == "jaccard" => Ok(Metric::Jaccard),
-            _ if value == "occlusion" => Ok(Metric::Occlusion),
-            _ if value == "color" => Ok(Metric::Color),
-            _ if value == "clear" => Ok(Metric::Clear),
-            _ if value == "fast" => Ok(Metric::Fast),
-            _ if value == "intensity" => Ok(Metric::Intensity),
-            _ if value == "grad" => Ok(Metric::Grad),
-            _ if value == "direction-and-intensity" => Ok(Metric::DirectionAndIntensity),
-            _ if value == "direction" => Ok(Metric::Direction),
-            _ if value == "intensity-jaccard" => Ok(Metric::IntensityJaccard),
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            _ if s == "dot" => Ok(Metric::Dot),
+            _ if s == "jaccard" => Ok(Metric::Jaccard),
+            _ if s == "occlusion" => Ok(Metric::Occlusion),
+            _ if s == "color" => Ok(Metric::Color),
+            _ if s == "clear" => Ok(Metric::Clear),
+            _ if s == "fast" => Ok(Metric::Fast),
+            _ if s == "intensity" => Ok(Metric::Intensity),
+            _ if s == "grad" => Ok(Metric::Grad),
+            _ if s == "direction-and-intensity" => Ok(Metric::DirectionAndIntensity),
+            _ if s == "direction" => Ok(Metric::Direction),
+            _ if s == "intensity-jaccard" => Ok(Metric::IntensityJaccard),
             _ => Err(ImageToAsciiBuilderError::ValidationError(format!(
                 "{} is not a supported metric",
-                value
+                s
             ))),
         }
     }
 }
 
-impl Metric {
-    /// Metric parser.
-    pub fn parse(value: &str) -> Result<Metric, String> {
-        match Metric::try_from(value) {
-            Ok(metric) => Ok(metric),
-            Err(error) => Err(error.to_string()),
-        }
-    }
-}
-
-/// Width in characters.
-#[derive(Clone, Debug, Default)]
+/// Defines a width in chars.
+///
+/// This can be either whatever the image's width is in chars (the default) or a specific number of
+/// chars.
+///
+/// You can create one from a string, if that's what you have, or directly if you know what you
+/// want.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use image_to_ascii_builder::CharWidth;
+///
+/// # fn main() -> Result<()> {
+/// let image_width: CharWidth = "image-width".parse()?;
+/// assert_eq!(image_width, CharWidth::ImageWidthInChars);
+///
+/// let specific_width: CharWidth = "480".parse()?;
+/// assert_eq!(specific_width, CharWidth::CharsWide(480));
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
 pub enum CharWidth {
     /// Use number of chars needed to cover image width
     #[default]
     ImageWidthInChars,
     /// Use this many chars
     CharsWide(usize),
+}
+
+impl Display for CharWidth {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CharWidth::ImageWidthInChars => f.write_str("image-width"),
+            CharWidth::CharsWide(width) => f.write_fmt(format_args!("{width}")),
+        }
+    }
+}
+
+impl FromStr for CharWidth {
+    type Err = ImageToAsciiBuilderError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            _ if s == "image-width" => Ok(CharWidth::ImageWidthInChars),
+            _ => match s.parse() {
+                Ok(width) => Ok(CharWidth::CharsWide(width)),
+                Err(error) => Err(ImageToAsciiBuilderError::ValidationError(error.to_string())),
+            },
+        }
+    }
 }
 
 impl From<CharWidth> for Option<usize> {
@@ -443,29 +541,24 @@ impl From<CharWidth> for Option<usize> {
     }
 }
 
-impl TryFrom<&str> for CharWidth {
-    type Error = ImageToAsciiBuilderError;
-
-    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
-        match value.parse::<usize>() {
-            Ok(width) => Ok(CharWidth::CharsWide(width)),
-            Err(error) => Err(ImageToAsciiBuilderError::ValidationError(error.to_string())),
-        }
-    }
-}
-
-impl CharWidth {
-    /// Character-width parser.
-    pub fn parse(value: &str) -> Result<CharWidth, String> {
-        match CharWidth::try_from(value) {
-            Ok(width) => Ok(width),
-            Err(error) => Err(error.to_string()),
-        }
-    }
-}
-
-/// ASCII.
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+/// Defines ASCII.
+///
+/// You can generate ASCII using a builder.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use image_to_ascii_builder::{Alphabet, Ascii, Font};
+///
+/// # fn main() -> Result<()> {
+/// let ascii = Ascii::builder()
+///     .alphabet(Alphabet::Fast)
+///     .font(Font::Courier)
+///     .build();
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Ascii(String);
 
 impl Display for Ascii {
@@ -475,6 +568,11 @@ impl Display for Ascii {
 }
 
 impl Ascii {
+    /// Creates default ASCII.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Creates a new ASCII builder.
     pub fn builder() -> AsciiBuilder {
         AsciiBuilder::default()
@@ -500,42 +598,32 @@ impl AsciiBuilder {
     }
 
     /// Sets the alphabet from built-in.
-    pub fn alphabet(mut self, alphabet: Option<Alphabet>) -> Self {
-        if let Some(alphabet) = alphabet {
-            self.alphabet = alphabet;
-        }
+    pub fn alphabet(mut self, alphabet: Alphabet) -> Self {
+        self.alphabet = alphabet;
         self
     }
 
     /// Sets the brightness-offset.
-    pub fn brightness_offset(mut self, offset: Option<BrightnessOffset>) -> Self {
-        if let Some(offset) = offset {
-            self.brightness_offset = offset;
-        }
+    pub fn brightness_offset(mut self, offset: BrightnessOffset) -> Self {
+        self.brightness_offset = offset;
         self
     }
 
     /// Sets desired width in chars.
-    pub fn chars_wide(mut self, width: Option<CharWidth>) -> Self {
-        if let Some(width) = width {
-            self.chars_wide = width;
-        }
+    pub fn chars_wide(mut self, width: CharWidth) -> Self {
+        self.chars_wide = width;
         self
     }
 
     /// Sets conversion algorithm.
-    pub fn conversion_algorithm(mut self, algorithm: Option<ConversionAlgorithm>) -> Self {
-        if let Some(algorithm) = algorithm {
-            self.conversion_algorithm = algorithm;
-        }
+    pub fn conversion_algorithm(mut self, algorithm: ConversionAlgorithm) -> Self {
+        self.conversion_algorithm = algorithm;
         self
     }
 
     /// Sets the font from built-in.
-    pub fn font(mut self, font: Option<Font>) -> Self {
-        if let Some(font) = font {
-            self.font = font;
-        }
+    pub fn font(mut self, font: Font) -> Self {
+        self.font = font;
         self
     }
 
@@ -557,10 +645,8 @@ impl AsciiBuilder {
     }
 
     /// Sets the metric.
-    pub fn metric(mut self, metric: Option<Metric>) -> Self {
-        if let Some(metric) = metric {
-            self.metric = metric;
-        }
+    pub fn metric(mut self, metric: Metric) -> Self {
+        self.metric = metric;
         self
     }
 

@@ -147,37 +147,43 @@ async fn main() -> Result<(), Report> {
                     Arg::new("alphabet")
                         .long("alphabet")
                         .help("alphabet to use")
+                        .default_value(Alphabet::default().to_string())
                         .value_parser(value_parser!(Alphabet)),
                 )
                 .arg(
                     Arg::new("brightness-offset")
                         .long("brightness-offset")
                         .help("brightness offset")
-                        .value_parser(BrightnessOffset::parse),
+                        .default_value(BrightnessOffset::default().to_string())
+                        .value_parser(value_parser!(BrightnessOffset)),
                 )
                 .arg(
                     Arg::new("conversion-algorithm")
                         .long("conversion-algorithm")
                         .help("alphabet to use")
+                        .default_value(ConversionAlgorithm::default().to_string())
                         .value_parser(value_parser!(ConversionAlgorithm)),
                 )
                 .arg(
                     Arg::new("font")
                         .long("font")
                         .help("font to use")
-                        .value_parser(Font::parse),
+                        .default_value(Font::default().to_string())
+                        .value_parser(value_parser!(Font)),
                 )
                 .arg(
                     Arg::new("metric")
                         .long("metric")
                         .help("the metric to use")
-                        .value_parser(Metric::parse),
+                        .default_value(Metric::default().to_string())
+                        .value_parser(value_parser!(Metric)),
                 )
                 .arg(
                     Arg::new("width")
                         .long("width")
                         .help("how many characters wide")
-                        .value_parser(CharWidth::parse),
+                        .default_value(CharWidth::default().to_string())
+                        .value_parser(value_parser!(CharWidth)),
                 ),
         )
         .subcommand(
@@ -314,20 +320,42 @@ async fn main() -> Result<(), Report> {
             let art = Ascii::builder()
                 .input_reader(image_reader)
                 .context("failed to read input image")?
-                .alphabet(matches.get_one::<Alphabet>("alphabet").cloned())
+                .alphabet(
+                    matches
+                        .get_one::<Alphabet>("alphabet")
+                        .cloned()
+                        .expect("at least default set"),
+                )
                 .brightness_offset(
                     matches
                         .get_one::<BrightnessOffset>("brightness-offset")
-                        .cloned(),
+                        .cloned()
+                        .expect("at least default set"),
                 )
                 .conversion_algorithm(
                     matches
                         .get_one::<ConversionAlgorithm>("conversion-algorithm")
-                        .cloned(),
+                        .cloned()
+                        .expect("at least default set"),
                 )
-                .chars_wide(matches.get_one::<CharWidth>("width").cloned())
-                .font(matches.get_one::<Font>("font").cloned())
-                .metric(matches.get_one::<Metric>("metric").cloned())
+                .chars_wide(
+                    matches
+                        .get_one::<CharWidth>("width")
+                        .cloned()
+                        .expect("at least default set"),
+                )
+                .font(
+                    matches
+                        .get_one::<Font>("font")
+                        .cloned()
+                        .expect("at least default set"),
+                )
+                .metric(
+                    matches
+                        .get_one::<Metric>("metric")
+                        .cloned()
+                        .expect("at least default set"),
+                )
                 .build()
                 .context("failed to build art")?;
             println!("{}\n", art);

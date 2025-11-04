@@ -34,13 +34,13 @@ enum Focus {
 
 pub struct ImageToAsciiBuilder {
     image: Option<Bytes>,
-    alphabet: Option<Alphabet>,
+    alphabet: Alphabet,
     alphabet_list: BrowserList<Alphabet>,
-    conversion_algorithm: Option<ConversionAlgorithm>,
+    conversion_algorithm: ConversionAlgorithm,
     conversion_algorithm_list: BrowserList<ConversionAlgorithm>,
-    font: Option<Font>,
+    font: Font,
     font_list: BrowserList<Font>,
-    metric: Option<Metric>,
+    metric: Metric,
     metric_list: BrowserList<Metric>,
     focus: Option<Focus>,
     action_tx: UnboundedSender<Action>,
@@ -51,14 +51,14 @@ impl ImageToAsciiBuilder {
     pub fn new(action_tx: UnboundedSender<Action>) -> Self {
         Self {
             image: None,
-            alphabet: None,
+            alphabet: Alphabet::default(),
             alphabet_list: BrowserList::new(ALPHABETS),
-            conversion_algorithm: None,
+            conversion_algorithm: ConversionAlgorithm::default(),
             conversion_algorithm_list: BrowserList::new(CONVERSION_ALGORITHMS),
-            font: None,
+            font: Font::default(),
             font_list: BrowserList::new(FONTS),
             focus: None,
-            metric: None,
+            metric: Metric::default(),
             metric_list: BrowserList::new(METRICS),
             action_tx,
         }
@@ -101,7 +101,7 @@ impl ImageToAsciiBuilder {
 
     /// Update alphabet.
     fn update_alphabet(&mut self, alphabet: Alphabet) -> Option<Action> {
-        self.alphabet = Some(alphabet);
+        self.alphabet = alphabet;
         Some(Action::ImageToAsciiBuilderBuildAscii)
     }
 
@@ -110,19 +110,19 @@ impl ImageToAsciiBuilder {
         &mut self,
         conversion_algorithm: ConversionAlgorithm,
     ) -> Option<Action> {
-        self.conversion_algorithm = Some(conversion_algorithm);
+        self.conversion_algorithm = conversion_algorithm;
         Some(Action::ImageToAsciiBuilderBuildAscii)
     }
 
     /// Update font.
     fn update_font(&mut self, font: Font) -> Option<Action> {
-        self.font = Some(font);
+        self.font = font;
         Some(Action::ImageToAsciiBuilderBuildAscii)
     }
 
     /// Update metric.
     fn update_metric(&mut self, metric: Metric) -> Option<Action> {
-        self.metric = Some(metric);
+        self.metric = metric;
         Some(Action::ImageToAsciiBuilderBuildAscii)
     }
 
