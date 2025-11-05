@@ -915,7 +915,6 @@ type SetType<A, B, C, D, E, F> = (
     PhantomData<F>,
 );
 
-/// An image request builder.
 #[derive(Debug)]
 pub struct Builder<A, B, C, D, E, F> {
     under_construction: Partial,
@@ -939,7 +938,6 @@ impl Default for Builder<Unset, Unset, Unset, Unset, Unset, Unset> {
 }
 
 impl Builder<Set, Set, Set, Set, Set, Set> {
-    /// Builds the full image request.
     pub fn build(&self) -> ImageRequest {
         self.under_construction.clone().into()
     }
