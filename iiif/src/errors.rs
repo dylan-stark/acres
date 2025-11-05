@@ -30,6 +30,9 @@ pub enum IiifError {
     /// Unusable percentage string.
     #[error("unable to parse percentage: {0}")]
     InvalidPercentageString(#[from] ParseFloatError),
+    /// Unable to parse provided URI.
+    #[error("unable to parse URI: {0}")]
+    InvalidUri(#[from] url::ParseError),
     /// Format is missing.
     #[error("missing format in URL: {0}")]
     MissingFormat(String),
@@ -54,9 +57,6 @@ pub enum IiifError {
     /// Info part is missing.
     #[error("missing info part in URL: {0}")]
     MissingInfoPart(String),
-    /// Unable to parse provided URI.
-    #[error("unable to parse URI: {0}")]
-    ParseUri(#[from] url::ParseError),
     /// Something unexpected went wrong.
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),

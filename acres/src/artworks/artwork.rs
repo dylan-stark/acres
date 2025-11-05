@@ -135,7 +135,7 @@ impl TryFrom<ArtworkInfo> for iiif::Uri {
             .config
             .iiif_url
             .join(&artwork.data.image_id)
-            .map_err(IiifError::ParseUri)
+            .map_err(IiifError::InvalidUri)
             .map_err(AcresError::Iiif)?
             .as_str()
             .parse::<iiif::Uri>()
