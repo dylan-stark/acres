@@ -776,7 +776,7 @@ impl FromStr for Format {
 ///
 /// [image request]: https://iiif.io/api/image/2.0/#4-image-requests
 /// [typestate pattern]: https://stanford-cs242.github.io/f19/lectures/08-2-typestate.html
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ImageRequest {
     uri: Uri,
     region: Region,
