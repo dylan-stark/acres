@@ -1,5 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
+use serde::{Deserialize, Serialize};
+
 use crate::errors::IiifError;
 
 /// A [base URI] for an IIIF image API.
@@ -25,7 +27,7 @@ use crate::errors::IiifError;
 ///
 /// [Base URI]: https://iiif.io/api/image/3.0/#2-uri-syntax
 /// [IiifError]: enum.IiifError
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Uri {
     scheme: String,
     server: String,
