@@ -40,7 +40,7 @@ use crate::ImageToAsciiBuilderError;
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, Hash, PartialOrd, Ord)]
 pub enum ConversionAlgorithm {
     /// Base.
     Base,
@@ -121,7 +121,7 @@ impl FromStr for ConversionAlgorithm {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub enum Alphabet {
     /// The alphabet alphabet.
     #[default]
@@ -210,6 +210,51 @@ impl From<Alphabet> for Vec<char> {
     }
 }
 
+/// Defines a [floating point] offset.
+///
+/// These are used when setting [`BrightnessOffset`].
+///
+/// You can create one from an `f32` or a string.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::Offset;
+///
+/// # fn main() -> Result<()> {
+/// let from_f32: Offset = 4.2.try_into()?;
+/// let from_str: Offset = "4.2".parse()?;
+/// assert_eq!(from_f32, from_str);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [floating point]: https://iiif.io/api/image/2.0/#image-request-parameters
+/// [`BrightnessOffset`]: struct.BrightnessOffset.html
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub struct Offset(f32);
+
+impl FromStr for Offset {
+    type Err = ImageToAsciiBuilderError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value: f32 = s.parse().map_err(ImageToAsciiBuilderError::from)?;
+        Ok(Self(value))
+    }
+}
+
+impl Display for Offset {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(format!("{}", self.0).as_str())
+    }
+}
+
+impl Offset {
+    pub fn new(offset: f32) -> Self {
+        Self(offset)
+    }
+}
+
 /// Defines a brightness offset.
 ///
 /// You can create one from an `f32` or a string.
@@ -239,8 +284,8 @@ impl From<Alphabet> for Vec<char> {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
-pub struct BrightnessOffset(f32);
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub struct BrightnessOffset(Offset);
 
 impl Display for BrightnessOffset {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -263,25 +308,25 @@ impl TryFrom<f32> for BrightnessOffset {
     type Error = ImageToAsciiBuilderError;
 
     fn try_from(value: f32) -> std::result::Result<Self, Self::Error> {
-        match value {
-            _ if (0.0..=255.0).contains(&value) => Ok(Self(value)),
-            _ => Err(ImageToAsciiBuilderError::ValidationError(String::from(
-                "brightness offset must be between 0 and 225",
-            ))),
-        }
+        BrightnessOffset::new(value)
     }
 }
 
 impl From<BrightnessOffset> for f32 {
     fn from(value: BrightnessOffset) -> Self {
-        value.0
+        value.0.0
     }
 }
 
 impl BrightnessOffset {
     /// Creates a new brightness offset value.
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(value: f32) -> Result<Self, ImageToAsciiBuilderError> {
+        match value {
+            _ if (0.0..=255.0).contains(&value) => Ok(Self(Offset::new(value))),
+            _ => Err(ImageToAsciiBuilderError::ValidationError(String::from(
+                "brightness offset must be between 0 and 225",
+            ))),
+        }
     }
 }
 
@@ -315,7 +360,7 @@ impl BrightnessOffset {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub enum Font {
     /// The courier font
     Courier,
@@ -378,7 +423,7 @@ impl From<Font> for Bytes {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub enum Metric {
     /// Dot.
     Dot,
@@ -484,7 +529,7 @@ impl FromStr for Metric {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
 pub enum CharWidth {
     /// Use number of chars needed to cover image width
     #[default]
@@ -543,7 +588,7 @@ impl From<CharWidth> for Option<usize> {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct Ascii(String);
 
 impl Display for Ascii {
