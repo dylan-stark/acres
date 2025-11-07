@@ -210,26 +210,9 @@ impl From<Alphabet> for Vec<char> {
     }
 }
 
-/// Defines a [floating point] offset.
+/// Defines a floating point offset.
 ///
 /// These are used when setting [`BrightnessOffset`].
-///
-/// You can create one from an `f32` or a string.
-///
-/// ```rust
-/// # use anyhow::Result;
-/// # use std::str::FromStr;
-/// use iiif::Offset;
-///
-/// # fn main() -> Result<()> {
-/// let from_f32: Offset = 4.2.try_into()?;
-/// let from_str: Offset = "4.2".parse()?;
-/// assert_eq!(from_f32, from_str);
-/// # Ok(())
-/// # }
-/// ```
-///
-/// [floating point]: https://iiif.io/api/image/2.0/#image-request-parameters
 /// [`BrightnessOffset`]: struct.BrightnessOffset.html
 #[derive(Clone, Debug, Default, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Offset(f32);
@@ -250,6 +233,14 @@ impl Display for Offset {
 }
 
 impl Offset {
+    /// Constructs a new offset.
+    ///
+    /// Offsets must be between 0 and 255.
+    ///
+    /// # Error
+    ///
+    /// The contructor will raise a validation error if the supplied offset is outside of the
+    /// allowed range.
     pub fn new(offset: f32) -> Self {
         Self(offset)
     }
@@ -609,6 +600,11 @@ impl Ascii {
     }
 }
 
+/// ASCII [builder].
+///
+/// Construct one through [`Ascii::builder`], and finalize with [`Builder::build`].
+///
+/// [builder]: https://rust-unofficial.github.io/patterns/patterns/creational/builder.html
 #[derive(Debug, Default)]
 pub struct Builder {
     alphabet: Alphabet,
