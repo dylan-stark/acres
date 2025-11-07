@@ -87,6 +87,7 @@ impl Api {
 }
 
 impl Api {
+    // TODO: Clean up optional query params handling. Passing usize here is a hack.
     /// Fetch
     pub async fn fetch<T>(
         &self,

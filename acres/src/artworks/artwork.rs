@@ -4,27 +4,17 @@ use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
 use iiif::IiifError;
 use serde::{Deserialize, Serialize};
-use tracing::debug;
 
-use crate::{AcresError, artworks::Artworks};
-
-use super::artwork_builder::{ArtworkBuilder, ManifestBuilder};
+use crate::{AcresError, Api, artworks::Artworks};
 
 /// Artwork from the AIC collection.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Artwork(serde_json::Value);
 
 impl Display for Artwork {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let json = serde_json::to_string(&self.0).map_err(|_| std::fmt::Error)?;
         f.write_str(json.as_str())
-    }
-}
-
-impl Artwork {
-    /// Load from reader.
-    pub fn load<R: std::io::Read>(reader: R) -> Option<Self> {
-        serde_json::from_reader(reader).ok()
     }
 }
 
@@ -35,35 +25,62 @@ impl From<Bytes> for Artwork {
     }
 }
 
+impl TryFrom<Artwork> for iiif::ImageRequest {
+    type Error = AcresError;
+
+    fn try_from(value: Artwork) -> Result<Self, Self::Error> {
+        let ifff_url = value.0["config"]["iiif_url"]
+            .as_str()
+            .context("artwork JSON is missing .config.iiif_url")?;
+        let identifier = value.0["data"]["image_id"]
+            .as_str()
+            .context("artwork JSON is missing .data.image_id")?;
+        let uri = format!("{}/{}", ifff_url, identifier);
+        Ok(iiif::ImageRequest::builder()
+            .uri(uri.parse()?)
+            .region(iiif::Region::Full)
+            .size(iiif::Size::Width(843))
+            .rotation(iiif::Rotation::default())
+            .quality(iiif::Quality::Default)
+            .format(iiif::Format::Jpg)
+            .build())
+    }
+}
+
 impl Artwork {
     #[doc(hidden)]
     pub fn new(response: serde_json::Value) -> Self {
         Artwork(response)
     }
 
-    /// Constructs the IIIF image URL.
-    ///
-    /// The AIC uses IIIF's Image API 2.0: <https://iiif.io/api/image/2.0/>.
-    pub fn to_iiif(&self) -> Result<String, AcresError> {
-        let ifff_url = self.0["config"]["iiif_url"]
-            .as_str()
-            .context("artwork JSON is missing .config.iiif_url")?;
-        let identifier = self.0["data"]["image_id"]
-            .as_str()
-            .context("artwork JSON is missing .data.image_id")?;
-        let region = "full";
-        let size = "843,";
-        let rotation = 0;
-        let quality = "default";
-        let format = "jpg";
-        debug!(
-            ifff_url,
-            identifier, region, size, rotation, quality, format
-        );
-        Ok(format!(
-            "{ifff_url}/{identifier}/{region}/{size}/{rotation}/{quality}.{format}"
-        ))
+    /// Load from reader.
+    pub fn load<R: std::io::Read>(reader: R) -> Option<Self> {
+        serde_json::from_reader(reader).ok()
     }
+
+    // /// Constructs the IIIF image URL.
+    // ///
+    // /// The AIC uses IIIF's Image API 2.0: <https://iiif.io/api/image/2.0/>.
+    // //pub fn to_iiif(&self) -> Result<String, AcresError> {
+    //    let ifff_url = self.0["config"]["iiif_url"]
+    //        .as_str()
+    //        .context("artwork JSON is missing .config.iiif_url")?;
+    //    let identifier = self.0["data"]["image_id"]
+    //        .as_str()
+    //        .context("artwork JSON is missing .data.image_id")?;
+    //    let region = "full";
+    //    let size = "843,";
+    //    let rotation = 0;
+    //    let quality = "default";
+    //    let format = "jpg";
+    //    debug!(
+    //        ifff_url,
+    //        identifier, region, size, rotation, quality, format
+    //    );
+    //    Ok(format!(
+    //        "{ifff_url}/{identifier}/{region}/{size}/{rotation}/{quality}.{format}"
+    //    ))
+    //}
 
     /// Creates an artwork builder.
     pub fn builder() -> ArtworkBuilder {
@@ -177,5 +194,54 @@ impl Manifest {
     /// Returns a new manifest builder.
     pub fn builder() -> ManifestBuilder {
         ManifestBuilder::default()
+    }
+}
+
+/// An artwork builder.
+#[derive(Debug, Default)]
+pub struct ArtworkBuilder {
+    api: Api,
+    id: u32,
+}
+
+impl ArtworkBuilder {
+    /// The artwork identifier.
+    pub fn id(mut self, id: Option<u32>) -> Self {
+        if let Some(id) = id {
+            self.id = id;
+        }
+        self
+    }
+
+    /// Build the actual artwork.
+    pub async fn build(&self) -> Result<Artwork, AcresError> {
+        tracing::info!(msg = "Getting artwork", ?self);
+        let endpoint = format!("{}/artworks/{}", self.api.base_uri, self.id);
+        self.api.fetch::<Artwork>(endpoint, None::<usize>).await
+    }
+}
+
+/// An artwork builder.
+#[derive(Debug, Default)]
+pub struct ManifestBuilder {
+    api: Api,
+    id: u32,
+}
+
+impl ManifestBuilder {
+    /// The artwork identifier.
+    pub fn id(mut self, id: Option<u32>) -> Self {
+        if let Some(id) = id {
+            self.id = id;
+        }
+        self
+    }
+
+    /// Build the actual artwork.
+    pub async fn build(&self) -> Result<Manifest, AcresError> {
+        tracing::info!(msg = "Getting artwork manifest", ?self);
+        let endpoint = format!("{}/artworks/{}/manifest", self.api.base_uri, self.id);
+        // TODO: Clean up optional query params handling. Passing usize here is a hack.
+        self.api.fetch::<Manifest>(endpoint, None::<usize>).await
     }
 }

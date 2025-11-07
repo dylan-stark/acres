@@ -3,20 +3,27 @@
 
 //! Simple and ergonomic access to the Art Institute of Chicago's [public APIs].
 //!
-//! Create an API client and list artworks with
+//! This library powers the [`acres-cli`] and [`acres-tui`].
 //!
-//! ```no_run
-//! use acres::artworks;
+//! We provide [builders] for most everything. Where possible, sensible defaults are used so that
+//! you only need provide specific details for your use case.
+//!
+//! For instance, if you need a specific artwork, you can get that with just the ID.
+//!
+//! ```ignore,no_run
 //! # use anyhow::Result;
+//! use acres::artworks::Artwork;
 //! # #[tokio::main]
 //! # async fn main() -> Result<()> {
-//! let collection = artworks::CollectionBuilder::new().build().await?;
+//! let collection = Artwork::builder().id(77733).build();
 //! println!("{}", collection);
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
+//! [`acres-cli`]: ../acres_cli/index.html
+//! [`acres-tui`]: ../acres_tui/index.html
 
 mod api;
 pub mod artworks;
