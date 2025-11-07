@@ -35,9 +35,11 @@ impl TryFrom<Artwork> for iiif::ImageRequest {
         let identifier = value.0["data"]["image_id"]
             .as_str()
             .context("artwork JSON is missing .data.image_id")?;
-        let uri = format!("{}/{}", ifff_url, identifier);
+        let uri: iiif::Uri = format!("{}/{}", ifff_url, identifier)
+            .parse()
+            .context("failed to parse IIIF URI")?;
         Ok(iiif::ImageRequest::builder()
-            .uri(uri.parse()?)
+            .uri(uri)
             .region(iiif::Region::Full)
             .size(iiif::Size::Width(843))
             .rotation(iiif::Rotation::default())
