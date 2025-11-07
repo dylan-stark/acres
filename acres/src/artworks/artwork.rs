@@ -58,30 +58,6 @@ impl Artwork {
         serde_json::from_reader(reader).ok()
     }
 
-    // /// Constructs the IIIF image URL.
-    // ///
-    // /// The AIC uses IIIF's Image API 2.0: <https://iiif.io/api/image/2.0/>.
-    // //pub fn to_iiif(&self) -> Result<String, AcresError> {
-    //    let ifff_url = self.0["config"]["iiif_url"]
-    //        .as_str()
-    //        .context("artwork JSON is missing .config.iiif_url")?;
-    //    let identifier = self.0["data"]["image_id"]
-    //        .as_str()
-    //        .context("artwork JSON is missing .data.image_id")?;
-    //    let region = "full";
-    //    let size = "843,";
-    //    let rotation = 0;
-    //    let quality = "default";
-    //    let format = "jpg";
-    //    debug!(
-    //        ifff_url,
-    //        identifier, region, size, rotation, quality, format
-    //    );
-    //    Ok(format!(
-    //        "{ifff_url}/{identifier}/{region}/{size}/{rotation}/{quality}.{format}"
-    //    ))
-    //}
-
     /// Creates an artwork builder.
     pub fn builder() -> ArtworkBuilder {
         ArtworkBuilder::default()
