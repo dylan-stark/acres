@@ -53,11 +53,6 @@ impl Artwork {
         Artwork(response)
     }
 
-    /// Load from reader.
-    pub fn load<R: std::io::Read>(reader: R) -> Option<Self> {
-        serde_json::from_reader(reader).ok()
-    }
-
     /// Creates an artwork builder.
     pub fn builder() -> ArtworkBuilder {
         ArtworkBuilder::default()
