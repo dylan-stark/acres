@@ -1,13 +1,13 @@
 [package]
 name = "iiif"
 version = "0.1.0"
+edition = "2024"
 description = "Simple, ergonomic access for working with IIIF API 2.0 services."
 keywords = [ "cli", "tui" ]
 categories = [ "command-line-utilities" ]
 repository = "https://github.com/dylan-stark/acres"
 authors = [ "Dylan Stark <dylan.stark@gmail.com>" ]
 license = "MIT OR Apache-2.0"
-edition = "2024"
 
 [dependencies]
 anyhow = "1.0.98"
