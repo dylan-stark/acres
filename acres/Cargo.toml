@@ -2,6 +2,12 @@
 name = "acres"
 version = "0.1.0"
 edition = "2024"
+description = "Simple and ergonomic access to the Art Institute of Chicago's public APIs."
+keywords = []
+categories = []
+repository = "https://github.com/dylan-stark/acres"
+authors = [ "Dylan Stark <dylan.stark@gmail.com>" ]
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "1.0.98"
