@@ -8,7 +8,7 @@ use std::io::{self, Write};
 
 use acres::{
     AcresError, Api,
-    artworks::{self, Artwork},
+    artworks::{self, Artwork, Collection},
 };
 use clap::{Arg, Command, command, value_parser};
 use clap_stdin::FileOrStdin;
@@ -273,7 +273,9 @@ async fn main() -> Result<(), Report> {
             }
         }
         Some(("artworks", matches)) => {
+            let api = Api::new();
             match artworks::Collection::builder()
+                .base_uri(api.base_uri())
                 .ids(
                     matches
                         .get_many::<u32>("ids")
@@ -292,9 +294,13 @@ async fn main() -> Result<(), Report> {
                         .map(|include| include.cloned().collect()),
                 )
                 .build()
-                .await
             {
-                Ok(collection) => println!("{}", collection),
+                Ok(request) => {
+                    let collection: Collection = api
+                        .fetch(request.to_string(), None as Option<usize>)
+                        .await?;
+                    println!("{}", collection)
+                }
                 Err(error) => return Err(error).wrap_err("We couldn't get that list ..."),
             }
         }

@@ -6,7 +6,7 @@ use bytes::{Buf, Bytes};
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Serialize};
 
-use crate::{AcresError, api::Api};
+use crate::AcresError;
 
 /// A collection of artworks.
 ///
@@ -44,6 +44,29 @@ impl Collection {
     }
 }
 
+/// An artworks collection request.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct Request(String);
+
+impl Default for Request {
+    fn default() -> Self {
+        Self(String::from("https://api.artic.edu/api/v1/artworks"))
+    }
+}
+
+impl Display for Request {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
+
+impl Request {
+    /// Constructs a collection request builder.
+    pub fn builder() -> Builder {
+        Builder::default()
+    }
+}
+
 /// An artworks collection collection operation.
 ///
 /// This corresonds to the [`GET /artworks`] endpoint on the public API.
@@ -51,7 +74,7 @@ impl Collection {
 /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Builder {
-    api: Api,
+    base_uri: String,
     ids: Option<Vec<u32>>,
     limit: Option<u32>,
     page: Option<u32>,
@@ -77,10 +100,10 @@ impl Builder {
     /// use acres::artworks::request::artworks::Builder;
     ///
     /// let api = Api::builder().use_cache(false).build();
-    /// Builder::new().api(api);
+    /// Builder::new().base_uri(api.base_uri());
     /// ```
-    pub fn api(mut self, api: Api) -> Self {
-        self.api = api;
+    pub fn base_uri(mut self, base_uri: String) -> Self {
+        self.base_uri = base_uri;
         self
     }
 
@@ -173,36 +196,8 @@ impl Builder {
         self
     }
 
-    /// Builds artworks collection.
-    ///
-    /// This will fetch backing data from the AIC API.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use acres::artworks::request::artworks::Builder;
-    /// # use anyhow::Result;
-    /// # #[tokio::main]
-    /// # async fn main() -> Result<()> {
-    /// # let mock_server = wiremock::MockServer::start().await;
-    /// # let mock_uri = format!("{}/api/v1", mock_server.uri());
-    /// # wiremock::Mock::given(wiremock::matchers::any())
-    /// #     .and(wiremock::matchers::path("/api/v1/artworks"))
-    /// #     .respond_with(wiremock::ResponseTemplate::new(200).set_body_string("{}"))
-    /// #     .expect(1)
-    /// #     .mount(&mock_server)
-    /// #     .await;
-    /// let builder = Builder::new();
-    /// # let api = acres::Api::builder().base_uri(&mock_uri).use_cache(false).build();
-    /// # let builder = Builder::new().api(api);
-    /// let collection = builder.build().await?;
-    /// println!("{}", collection);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn build(&self) -> Result<Collection, AcresError> {
-        tracing::info!(msg = "Getting artworks collection", ?self);
-        let endpoint = format!("{}/artworks", self.api.base_uri);
+    /// Builds request for artworks collection.
+    pub fn build(&self) -> Result<Request, AcresError> {
         let query_params = CollectionQueryParams {
             ids: self.ids.clone(),
             limit: self.limit,
@@ -210,9 +205,8 @@ impl Builder {
             fields: self.fields.clone(),
             include: self.include.clone(),
         };
-        self.api
-            .fetch::<Collection>(endpoint, Some(query_params))
-            .await
+        let request = format!("{}/artworks{}", self.base_uri, query_params);
+        Ok(Request(request))
     }
 }
 
@@ -223,6 +217,39 @@ pub(super) struct CollectionQueryParams {
     pub(super) page: Option<u32>,
     pub(super) fields: Vec<String>,
     pub(super) include: Vec<String>,
+}
+
+impl Display for CollectionQueryParams {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut params: Vec<String> = vec![];
+        if let Some(ids) = &self.ids {
+            let ids = ids
+                .iter()
+                .map(|id| id.to_string())
+                .collect::<Vec<String>>()
+                .join(",");
+            params.push(format!("ids={ids}"));
+        }
+        if let Some(limit) = &self.limit {
+            params.push(format!("limit={limit}"));
+        }
+        if let Some(page) = &self.page {
+            params.push(format!("page={page}"));
+        }
+        if !self.fields.is_empty() {
+            let fields = self.fields.join(",");
+            params.push(format!("fields={fields}"));
+        }
+        if !self.include.is_empty() {
+            let include = self.include.join(",");
+            params.push(format!("include={include}"));
+        }
+        if params.is_empty() {
+            Ok(())
+        } else {
+            f.write_str(format!("?{}", params.join("&")).as_str())
+        }
+    }
 }
 
 impl Serialize for CollectionQueryParams {
@@ -254,13 +281,11 @@ impl Serialize for CollectionQueryParams {
         seq.end()
     }
 }
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
     use crate::common;
-    use serde_json::Value;
-    use wiremock::matchers::{any, path, query_param};
-    use wiremock::{Mock, ResponseTemplate};
 
     #[test]
     fn artworks_collection_to_string() {
@@ -316,173 +341,83 @@ pub mod tests {
         assert_eq!(collection_value, json_value);
     }
 
-    #[tokio::test]
-    async fn api_artworks_collection() {
-        let mock_server = wiremock::MockServer::start().await;
-        let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_collection = common::tests::collection_with_numero_uno();
-        Mock::given(any())
-            .and(path("/api/v1/artworks"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(mock_collection.to_string()))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-        let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
-        assert_eq!(api.base_uri, mock_uri);
+    #[test]
+    fn api_artworks_collection() {
+        let base_uri = String::from("https://example.org/api/v1");
 
-        let collection: Collection = Builder::new().api(api).build().await.unwrap();
+        let request = Builder::new().base_uri(base_uri.clone()).build().unwrap();
 
-        assert_eq!(collection.to_string(), mock_collection.to_string());
+        assert_eq!(request.to_string(), format!("{base_uri}/artworks"));
     }
 
-    #[tokio::test]
-    async fn api_artworks_collection_by_ids() {
-        let mock_server = wiremock::MockServer::start().await;
-        let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_collection = common::tests::collection_with_numeros_uno_and_tres();
-        Mock::given(any())
-            .and(path("/api/v1/artworks"))
-            .and(query_param("ids", "1,3"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(mock_collection.to_string()))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-        let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
-        assert_eq!(api.base_uri, mock_uri);
+    #[test]
+    fn api_artworks_collection_by_ids() {
+        let base_uri = String::from("https://example.org/api/v1");
 
-        let collection: Collection = Builder::new()
-            .api(api)
+        let request = Builder::new()
+            .base_uri(base_uri.clone())
             .ids(Some(vec![1, 3]))
             .build()
-            .await
             .unwrap();
 
-        assert_eq!(collection.to_string(), mock_collection.to_string());
+        assert_eq!(request.to_string(), format!("{base_uri}/artworks?ids=1,3"));
     }
 
     #[tokio::test]
     async fn api_artworks_collection_with_limit() {
-        let mock_server = wiremock::MockServer::start().await;
-        let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_collection = common::tests::collection_with_numeros_uno_and_tres();
-        Mock::given(any())
-            .and(path("/api/v1/artworks"))
-            .and(query_param("limit", "2"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(mock_collection.to_string()))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-        let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
-        assert_eq!(api.base_uri, mock_uri);
+        let base_uri = String::from("https://example.org/api/v1");
 
-        let collection: Collection = Builder::new()
-            .api(api)
+        let request = Builder::new()
+            .base_uri(base_uri.clone())
             .limit(Some(2))
             .build()
-            .await
             .unwrap();
 
-        assert_eq!(collection.to_string(), mock_collection.to_string());
+        assert_eq!(request.to_string(), format!("{base_uri}/artworks?limit=2"));
     }
 
-    #[tokio::test]
-    async fn error_from_api_artworks_collection_with_limit() {
-        let mock_server = wiremock::MockServer::start().await;
-        let mock_uri = format!("{}/api/v1", mock_server.uri());
-        let mock_error: Value =
-            serde_json::from_str(r#"{"status":403,"error":"Invalid limit","detail":"You have requested too many resources per page. Please set a smaller limit."}"#).unwrap();
-        Mock::given(any())
-            .and(path("/api/v1/artworks"))
-            .and(query_param("limit", "1000"))
-            .respond_with(ResponseTemplate::new(403).set_body_json(&mock_error))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-        let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
-        assert_eq!(api.base_uri, mock_uri);
+    #[test]
+    fn api_artworks_collection_with_page() {
+        let base_uri = String::from("https://example.org/api/v1");
 
-        let error = Builder::new()
-            .api(api)
-            .limit(Some(1000))
+        let request = Builder::new()
+            .base_uri(base_uri.clone())
+            .page(Some(2))
             .build()
-            .await
-            .err()
+            .unwrap();
+
+        assert_eq!(request.to_string(), format!("{base_uri}/artworks?page=2"));
+    }
+
+    #[test]
+    fn api_artworks_collection_with_fields() {
+        let base_uri = String::from("https://example.org/api/v1");
+
+        let request = Builder::new()
+            .base_uri(base_uri.clone())
+            .fields(Some(vec!["title".into(), "description".into()]))
+            .build()
             .unwrap();
 
         assert_eq!(
-            error.to_string(),
-            format!(
-                "{}: {}",
-                mock_error.get("error").unwrap(),
-                mock_error.get("detail").unwrap()
-            )
+            request.to_string(),
+            format!("{base_uri}/artworks?fields=title,description")
         );
     }
 
     #[tokio::test]
-    async fn api_artworks_collection_with_page() {
-        let mock_server = wiremock::MockServer::start().await;
-        let mock_uri = format!("{}/api/v1", mock_server.uri());
-        Mock::given(any())
-            .and(path("/api/v1/artworks"))
-            .and(query_param("page", "2"))
-            .respond_with(ResponseTemplate::new(200).set_body_string("{}"))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-        let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
-        assert_eq!(api.base_uri, mock_uri);
-
-        Builder::new().api(api).page(Some(2)).build().await.unwrap();
-
-        // Then page query param is set to 2, as asserted by the mock
-    }
-
-    #[tokio::test]
-    async fn api_artworks_collection_with_fields() {
-        let mock_server = wiremock::MockServer::start().await;
-        let mock_uri = format!("{}/api/v1", mock_server.uri());
-        Mock::given(any())
-            .and(path("/api/v1/artworks"))
-            .and(query_param("fields", "title,description"))
-            .respond_with(ResponseTemplate::new(200).set_body_string("{}"))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-        let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
-        assert_eq!(api.base_uri, mock_uri);
-
-        Builder::new()
-            .api(api)
-            .fields(Some(vec!["title".into(), "description".into()]))
-            .build()
-            .await
-            .unwrap();
-
-        // Then fields query param is set to "title,description", as asserted by the mock
-    }
-
-    #[tokio::test]
     async fn api_artworks_collection_with_include() {
-        let mock_server = wiremock::MockServer::start().await;
-        let mock_uri = format!("{}/api/v1", mock_server.uri());
-        Mock::given(any())
-            .and(path("/api/v1/artworks"))
-            .and(query_param("include", "date,place_pivots"))
-            .respond_with(ResponseTemplate::new(200).set_body_string("{}"))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-        let api = Api::builder().base_uri(&mock_uri).use_cache(false).build();
-        assert_eq!(api.base_uri, mock_uri);
+        let base_uri = String::from("https://example.org/api/v1");
 
-        Builder::new()
-            .api(api)
+        let request = Builder::new()
+            .base_uri(base_uri.clone())
             .include(Some(vec!["date".into(), "place_pivots".into()]))
             .build()
-            .await
             .unwrap();
 
-        // Then include query param is set to "date,place_pivots", as asserted by the mock
+        assert_eq!(
+            request.to_string(),
+            format!("{base_uri}/artworks?include=date,place_pivots")
+        );
     }
 }

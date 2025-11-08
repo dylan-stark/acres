@@ -26,6 +26,6 @@ pub mod request {
 
     /// Collection request.
     pub mod artworks {
-        pub use crate::artworks::collection::Builder;
+        pub use crate::artworks::collection::{Builder, Request};
     }
 }
