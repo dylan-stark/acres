@@ -1,14 +1,12 @@
 //! Artworks.
 
 mod artwork;
-mod artwork_info;
 mod artwork_list;
 mod collection;
 mod manifest;
 mod search;
 
-pub use artwork::Artwork;
-pub use artwork_info::ArtworkInfo;
+pub use artwork::ArtworkInfo;
 pub use artwork_list::Artworks;
 pub use collection::Collection;
 pub use manifest::Manifest;
