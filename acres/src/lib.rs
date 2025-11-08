@@ -27,7 +27,6 @@
 
 mod api;
 pub mod artworks;
-mod common;
 mod config;
 
 pub use api::fetch;
