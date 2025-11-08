@@ -7,8 +7,8 @@
 use std::io::{self, Write};
 
 use acres::{
-    AcresError, Api,
-    artworks::{self, Artwork, Collection, Manifest, request::artwork},
+    AcresError, Api, Cached,
+    artworks::{self, Collection, Manifest, request::artwork},
 };
 use clap::{Arg, Command, command, value_parser};
 use clap_stdin::FileOrStdin;
@@ -257,7 +257,7 @@ async fn main() -> Result<(), Report> {
                 .copied()
                 .expect("clap ensures this is provided");
             let request = artwork::Request::new(api.base_uri(), id);
-            let artwork: Artwork = Api::new()
+            let artwork: Cached = Api::new()
                 .fetch(request.to_string(), None as Option<usize>)
                 .await?;
             println!("{}", artwork)

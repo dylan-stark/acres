@@ -2,9 +2,29 @@ use std::fmt::{Debug, Display};
 
 use crate::{AcresError, config::Config};
 use anyhow::{Context, anyhow};
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 use reqwest::StatusCode;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+
+/// A cached bytes newtype.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct Cached(serde_json::Value);
+
+impl Display for Cached {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string(&self.0).map_err(|_| std::fmt::Error)?;
+        f.write_str(json.as_str())
+    }
+}
+
+impl TryFrom<Bytes> for Cached {
+    type Error = AcresError;
+
+    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+        let reader = value.reader();
+        serde_json::from_reader(reader).map_err(|e| AcresError::Unexpected(anyhow!(e.to_string())))
+    }
+}
 
 /// The top-level API client.
 ///
@@ -95,7 +115,7 @@ impl Api {
         query_params: Option<impl Serialize + Debug>,
     ) -> Result<T, AcresError>
     where
-        T: From<Bytes>,
+        T: TryFrom<Bytes>,
     {
         let cached: Option<Bytes> = self.load_from_cache(&endpoint, &query_params)?;
         let results: Bytes = match cached {
@@ -103,7 +123,9 @@ impl Api {
             None => fetch(&endpoint, &query_params).await?,
         };
         let results = self.store_in_cache(&endpoint, query_params, results)?;
-        Ok(T::from(results))
+        T::try_from(results)
+            .map_err(|_| anyhow!("failed to store in cache"))
+            .map_err(AcresError::from)
     }
 
     /// Stores an item in cache.

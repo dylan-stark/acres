@@ -30,8 +30,8 @@ pub mod artworks;
 mod common;
 mod config;
 
-pub use api::Api;
 pub use api::fetch;
+pub use api::{Api, Cached};
 
 /// An Acres error.
 #[derive(Debug, thiserror::Error)]
