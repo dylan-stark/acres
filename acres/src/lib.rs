@@ -24,6 +24,7 @@
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 //! [`acres-cli`]: ../acres_cli/index.html
 //! [`acres-tui`]: ../acres_tui/index.html
+//! [builders]: https://rust-unofficial.github.io/patterns/patterns/creational/builder.html
 
 mod api;
 pub mod artworks;
