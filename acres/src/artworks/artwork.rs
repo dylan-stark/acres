@@ -55,27 +55,22 @@ impl Artwork {
     }
 }
 
-pub mod requests {
-    use serde::{Deserialize, Serialize};
-    use std::fmt::Display;
+/// Defines a request for artwork.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct Request {
+    base_uri: String,
+    id: u32,
+}
 
-    /// Defines a request for artwork.
-    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-    pub struct Artwork {
-        base_uri: String,
-        id: u32,
+impl Display for Request {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}/artworks/{}", self.base_uri, self.id))
     }
+}
 
-    impl Display for Artwork {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.write_fmt(format_args!("{}/artworks/{}", self.base_uri, self.id))
-        }
-    }
-
-    impl Artwork {
-        /// Constructs a new artwork request.
-        pub fn new(base_uri: String, id: u32) -> Self {
-            Self { base_uri, id }
-        }
+impl Request {
+    /// Constructs a new artwork request.
+    pub fn new(base_uri: String, id: u32) -> Self {
+        Self { base_uri, id }
     }
 }

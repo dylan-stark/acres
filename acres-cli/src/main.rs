@@ -256,10 +256,7 @@ async fn main() -> Result<(), Report> {
                 .get_one::<u32>("id")
                 .copied()
                 .expect("clap ensures this is provided");
-            let request = artworks::requests::Artwork::new(api.base_uri(), id);
-            //print!("request: {request}");
-            //let artwork = "{}";
-
+            let request = artworks::request::artwork::Request::new(api.base_uri(), id);
             let artwork: Artwork = Api::new()
                 .fetch(request.to_string(), None as Option<usize>)
                 .await?;
