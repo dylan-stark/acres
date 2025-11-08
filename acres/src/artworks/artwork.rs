@@ -2,10 +2,9 @@ use std::fmt::Display;
 
 use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
-use iiif::IiifError;
 use serde::{Deserialize, Serialize};
 
-use crate::{AcresError, Api, artworks::Artworks};
+use crate::AcresError;
 
 /// Artwork from the AIC collection.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -54,167 +53,29 @@ impl Artwork {
     pub fn new(response: serde_json::Value) -> Self {
         Artwork(response)
     }
-
-    /// Creates an artwork builder.
-    pub fn builder() -> ArtworkBuilder {
-        ArtworkBuilder::default()
-    }
 }
 
-/// Artwork config.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct ArtworkInfoConfig {
-    /// IIIF URL.
-    pub iiif_url: url::Url,
-}
+pub mod requests {
+    use serde::{Deserialize, Serialize};
+    use std::fmt::Display;
 
-/// Artwork data.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct ArtworkInfoData {
-    /// ID.
-    pub id: u32,
-    /// Image ID.
-    pub image_id: String,
-    /// Title.
-    pub title: String,
-}
-
-/// Artwork.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct ArtworkInfo {
-    /// Config.
-    pub config: ArtworkInfoConfig,
-    /// Data.
-    pub data: ArtworkInfoData,
-}
-
-impl Display for ArtworkInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{} ({})", self.data.title, self.data.id))
-    }
-}
-
-impl From<Artworks> for Vec<ArtworkInfo> {
-    fn from(value: Artworks) -> Self {
-        let iiif_url = url::Url::parse(&value.config.iiif_url).expect("received valid URL");
-        value
-            .data
-            .iter()
-            // ArtworkInfos must have IIIF URIs, so they must have image IDs
-            .filter_map(|data| {
-                data.image_id.clone().map(|image_id| ArtworkInfo {
-                    config: ArtworkInfoConfig {
-                        iiif_url: iiif_url.clone(),
-                    },
-                    data: ArtworkInfoData {
-                        id: data.id as u32,
-                        image_id: image_id.clone(),
-                        title: data.title.clone(),
-                    },
-                })
-            })
-            .collect()
-    }
-}
-
-impl TryFrom<ArtworkInfo> for iiif::Uri {
-    type Error = AcresError;
-
-    fn try_from(artwork: ArtworkInfo) -> std::result::Result<Self, Self::Error> {
-        artwork
-            .config
-            .iiif_url
-            .join(&artwork.data.image_id)
-            .map_err(IiifError::InvalidUri)
-            .map_err(AcresError::Iiif)?
-            .as_str()
-            .parse::<iiif::Uri>()
-            .map_err(AcresError::Iiif)
-    }
-}
-
-impl ArtworkInfo {
-    /// Load from reader.
-    pub fn load<R: std::io::Read>(reader: R) -> Option<Self> {
-        serde_json::from_reader(reader).ok()
-    }
-}
-
-/// Artwork manifest from the AIC collection.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-pub struct Manifest(serde_json::Value);
-
-impl Display for Manifest {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let json = serde_json::to_string(&self.0).map_err(|_| std::fmt::Error)?;
-        f.write_str(json.as_str())
-    }
-}
-
-impl From<Bytes> for Manifest {
-    fn from(value: Bytes) -> Self {
-        let reader = value.reader();
-        serde_json::from_reader(reader).unwrap()
-    }
-}
-
-impl Manifest {
-    #[doc(hidden)]
-    pub fn new(response: serde_json::Value) -> Self {
-        Manifest(response)
+    /// Defines a request for artwork.
+    #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    pub struct Artwork {
+        base_uri: String,
+        id: u32,
     }
 
-    /// Returns a new manifest builder.
-    pub fn builder() -> ManifestBuilder {
-        ManifestBuilder::default()
-    }
-}
-
-/// An artwork builder.
-#[derive(Debug, Default)]
-pub struct ArtworkBuilder {
-    api: Api,
-    id: u32,
-}
-
-impl ArtworkBuilder {
-    /// The artwork identifier.
-    pub fn id(mut self, id: Option<u32>) -> Self {
-        if let Some(id) = id {
-            self.id = id;
+    impl Display for Artwork {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_fmt(format_args!("{}/artworks/{}", self.base_uri, self.id))
         }
-        self
     }
 
-    /// Build the actual artwork.
-    pub async fn build(&self) -> Result<Artwork, AcresError> {
-        tracing::info!(msg = "Getting artwork", ?self);
-        let endpoint = format!("{}/artworks/{}", self.api.base_uri, self.id);
-        self.api.fetch::<Artwork>(endpoint, None::<usize>).await
-    }
-}
-
-/// An artwork builder.
-#[derive(Debug, Default)]
-pub struct ManifestBuilder {
-    api: Api,
-    id: u32,
-}
-
-impl ManifestBuilder {
-    /// The artwork identifier.
-    pub fn id(mut self, id: Option<u32>) -> Self {
-        if let Some(id) = id {
-            self.id = id;
+    impl Artwork {
+        /// Constructs a new artwork request.
+        pub fn new(base_uri: String, id: u32) -> Self {
+            Self { base_uri, id }
         }
-        self
-    }
-
-    /// Build the actual artwork.
-    pub async fn build(&self) -> Result<Manifest, AcresError> {
-        tracing::info!(msg = "Getting artwork manifest", ?self);
-        let endpoint = format!("{}/artworks/{}/manifest", self.api.base_uri, self.id);
-        // TODO: Clean up optional query params handling. Passing usize here is a hack.
-        self.api.fetch::<Manifest>(endpoint, None::<usize>).await
     }
 }

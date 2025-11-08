@@ -6,7 +6,10 @@
 
 use std::io::{self, Write};
 
-use acres::{AcresError, Api, artworks};
+use acres::{
+    AcresError, Api,
+    artworks::{self, Artwork},
+};
 use clap::{Arg, Command, command, value_parser};
 use clap_stdin::FileOrStdin;
 use color_eyre::{
@@ -247,14 +250,21 @@ async fn main() -> Result<(), Report> {
         .get_matches();
 
     match matches.subcommand() {
-        Some(("artwork", matches)) => match artworks::Artwork::builder()
-            .id(matches.get_one::<u32>("id").copied())
-            .build()
-            .await
-        {
-            Ok(artwork) => println!("{}", artwork),
-            Err(error) => return Err(error).wrap_err("We couldn't get that artwork ..."),
-        },
+        Some(("artwork", matches)) => {
+            let api = Api::new();
+            let id = matches
+                .get_one::<u32>("id")
+                .copied()
+                .expect("clap ensures this is provided");
+            let request = artworks::requests::Artwork::new(api.base_uri(), id);
+            //print!("request: {request}");
+            //let artwork = "{}";
+
+            let artwork: Artwork = Api::new()
+                .fetch(request.to_string(), None as Option<usize>)
+                .await?;
+            println!("{}", artwork)
+        }
         Some(("artwork-manifest", matches)) => {
             match artworks::Manifest::builder()
                 .id(matches.get_one::<u32>("id").copied())
