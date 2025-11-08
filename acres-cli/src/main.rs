@@ -8,7 +8,7 @@ use std::io::{self, Write};
 
 use acres::{
     AcresError, Api,
-    artworks::{self, Artwork, Collection},
+    artworks::{self, Artwork, Collection, Manifest},
 };
 use clap::{Arg, Command, command, value_parser};
 use clap_stdin::FileOrStdin;
@@ -263,14 +263,16 @@ async fn main() -> Result<(), Report> {
             println!("{}", artwork)
         }
         Some(("artwork-manifest", matches)) => {
-            match artworks::Manifest::builder()
-                .id(matches.get_one::<u32>("id").copied())
-                .build()
-                .await
-            {
-                Ok(manifest) => println!("{}", manifest),
-                Err(error) => return Err(error).wrap_err("We couldn't get that manifest ..."),
-            }
+            let api = Api::new();
+            let id = matches
+                .get_one::<u32>("id")
+                .copied()
+                .expect("clap ensures id is provided");
+            let request = artworks::request::manifest::Request::new(api.base_uri(), id);
+            let manifest: Manifest = Api::new()
+                .fetch(request.to_string(), None as Option<usize>)
+                .await?;
+            println!("{}", manifest)
         }
         Some(("artworks", matches)) => {
             let api = Api::new();

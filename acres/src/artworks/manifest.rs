@@ -1,10 +1,7 @@
 use std::fmt::Display;
 
-use anyhow::Result;
 use bytes::{Buf, Bytes};
-use serde::Deserialize;
-
-use crate::{AcresError, Api};
+use serde::{Deserialize, Serialize};
 
 /// Artwork manifest from the AIC collection.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -29,34 +26,21 @@ impl Manifest {
     pub fn new(response: serde_json::Value) -> Self {
         Manifest(response)
     }
+}
 
-    /// Returns a new manifest builder.
-    pub fn builder() -> ManifestBuilder {
-        ManifestBuilder::default()
+/// A manifest request.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct Request(String);
+
+impl Display for Request {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
     }
 }
 
-/// An artwork builder.
-#[derive(Debug, Default)]
-pub struct ManifestBuilder {
-    api: Api,
-    id: u32,
-}
-
-impl ManifestBuilder {
-    /// The artwork identifier.
-    pub fn id(mut self, id: Option<u32>) -> Self {
-        if let Some(id) = id {
-            self.id = id;
-        }
-        self
-    }
-
-    /// Build the actual artwork.
-    pub async fn build(&self) -> Result<Manifest, AcresError> {
-        tracing::info!(msg = "Getting artwork manifest", ?self);
-        let endpoint = format!("{}/artworks/{}/manifest", self.api.base_uri, self.id);
-        // TODO: Clean up optional query params handling. Passing usize here is a hack.
-        self.api.fetch::<Manifest>(endpoint, None::<usize>).await
+impl Request {
+    /// Constructs a new manifest request.
+    pub fn new(base_uri: String, id: u32) -> Self {
+        Request(format!("{}/artworks/{}/manifest", base_uri, id))
     }
 }

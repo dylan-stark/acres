@@ -28,4 +28,9 @@ pub mod request {
     pub mod artworks {
         pub use crate::artworks::collection::{Builder, Request};
     }
+
+    /// Manifest request.
+    pub mod manifest {
+        pub use crate::artworks::manifest::Request;
+    }
 }
