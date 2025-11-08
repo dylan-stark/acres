@@ -6,8 +6,6 @@ mod artwork_list;
 mod collection;
 mod manifest;
 mod search;
-mod search_builder;
-mod search_query_params;
 
 pub use artwork::Artwork;
 pub use artwork_info::ArtworkInfo;
@@ -15,7 +13,6 @@ pub use artwork_list::Artworks;
 pub use collection::Collection;
 pub use manifest::Manifest;
 pub use search::Search;
-pub use search_builder::SearchBuilder;
 
 /// Various requests for resources from the Art Institute.
 pub mod request {
@@ -32,5 +29,10 @@ pub mod request {
     /// Manifest request.
     pub mod manifest {
         pub use crate::artworks::manifest::Request;
+    }
+
+    /// Collection request.
+    pub mod search {
+        pub use crate::artworks::search::{Builder, Request};
     }
 }

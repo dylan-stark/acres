@@ -307,7 +307,9 @@ async fn main() -> Result<(), Report> {
             }
         }
         Some(("artworks-search", matches)) => {
+            let api = Api::new();
             match artworks::Search::builder()
+                .base_uri(api.base_uri())
                 .q(matches.get_one::<String>("q").cloned())
                 .query(matches.get_one::<String>("query").cloned())
                 .sort(matches.get_one::<String>("sort").cloned())
@@ -321,7 +323,12 @@ async fn main() -> Result<(), Report> {
                 .build()
                 .await
             {
-                Ok(search) => println!("{}", search),
+                Ok(request) => {
+                    let search: Collection = api
+                        .fetch(request.to_string(), None as Option<usize>)
+                        .await?;
+                    println!("{}", search)
+                }
                 Err(error) => return Err(error).wrap_err("We couldn't complete that search ..."),
             }
         }
