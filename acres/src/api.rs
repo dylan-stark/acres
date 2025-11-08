@@ -98,11 +98,11 @@ impl Api {
         T: From<Bytes>,
     {
         let cached: Option<Bytes> = self.load_from_cache(&endpoint, &query_params)?;
-        let results: Result<Bytes, AcresError> = match cached {
-            Some(results) => Ok(results),
-            None => Ok(fetch(&endpoint, &query_params).await?),
+        let results: Bytes = match cached {
+            Some(results) => results,
+            None => fetch(&endpoint, &query_params).await?,
         };
-        let results = self.store_in_cache(&endpoint, query_params, results.unwrap())?;
+        let results = self.store_in_cache(&endpoint, query_params, results)?;
         Ok(T::from(results))
     }
 
