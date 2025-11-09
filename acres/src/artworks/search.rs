@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::AcresError;
 
 /// An artworks search.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Search(serde_json::Value);
 
 impl Display for Search {

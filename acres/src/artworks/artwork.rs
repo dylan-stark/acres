@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 use crate::{AcresError, artworks::Artworks};
 
 /// Artwork config.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ArtworkInfoConfig {
     /// IIIF URL.
     pub iiif_url: url::Url,
 }
 
 /// Artwork data.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ArtworkInfoData {
     /// ID.
     pub id: u32,
@@ -24,7 +24,7 @@ pub struct ArtworkInfoData {
 }
 
 /// Artwork.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ArtworkInfo {
     /// Config.
     pub config: ArtworkInfoConfig,

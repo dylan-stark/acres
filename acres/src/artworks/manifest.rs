@@ -4,7 +4,7 @@ use bytes::{Buf, Bytes};
 use serde::{Deserialize, Serialize};
 
 /// Artwork manifest from the AIC collection.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Deserialize)]
 pub struct Manifest(serde_json::Value);
 
 impl Display for Manifest {
