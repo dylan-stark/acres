@@ -20,11 +20,11 @@ impl Iiif {
     pub fn new(action_tx: UnboundedSender<Action>) -> Self {
         Self {
             base_uri: None,
-            region: Region::default(),
-            size: Size::default(),
-            rotation: Rotation::default(),
-            quality: Quality::default(),
-            format: Format::default(),
+            region: Region::Full,
+            size: Size::Width(843),
+            rotation: Rotation::Degrees(0.0.try_into().expect("0 degrees is a valid setting")),
+            quality: Quality::Default,
+            format: Format::Jpg,
             action_tx,
         }
     }
@@ -37,7 +37,10 @@ impl Component for Iiif {
     ) -> eyre::Result<Option<crate::action::Action>> {
         match action {
             Action::IiifUpdateBaseUri(artwork) => {
+                tracing::info!("updating base uri");
+                tracing::debug!(artwork = ?artwork);
                 self.base_uri = Some(artwork.try_into()?);
+                tracing::debug!(base_uri = ?self.base_uri);
                 Ok(Some(Action::IiifRequestImage))
             }
             Action::IiifRequestImage => {
@@ -50,11 +53,14 @@ impl Component for Iiif {
                         .quality(self.quality.clone())
                         .format(self.format.clone())
                         .build();
+                    tracing::debug!(image_request = %image_request, raw_image_request = ?image_request);
+
                     let action_tx = self.action_tx.clone();
                     tokio::spawn(async move {
                         let response: Option<bytes::Bytes> = Api::new()
                             .fetch(image_request.to_string(), None as Option<()>)
                             .await
+                            .inspect_err(|e| tracing::error!("failed to get image: {e}"))
                             .ok();
                         if let Some(response) = response {
                             let _ =
