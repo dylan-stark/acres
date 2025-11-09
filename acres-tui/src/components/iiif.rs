@@ -45,6 +45,7 @@ impl Component for Iiif {
             }
             Action::IiifRequestImage => {
                 if let Some(uri) = &self.base_uri {
+                    tracing::debug!(uri = %uri, raw_uri = ?uri);
                     let image_request = ImageRequest::builder()
                         .uri(uri.clone())
                         .region(self.region.clone())

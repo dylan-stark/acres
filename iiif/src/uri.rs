@@ -57,7 +57,9 @@ impl FromStr for Uri {
             .take_if(|v| !v.is_empty())
             .ok_or(IiifError::MissingIdentifier(s.into()))?
             .to_string();
+        tracing::debug!(path_segments = ?path_segments);
         let prefix = path_segments.join("/");
+        tracing::debug!(prefix = %prefix);
         let prefix = if !prefix.is_empty() {
             format!("/{}", prefix)
         } else {

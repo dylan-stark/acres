@@ -65,15 +65,24 @@ impl TryFrom<ArtworkInfo> for iiif::Uri {
     type Error = AcresError;
 
     fn try_from(artwork: ArtworkInfo) -> std::result::Result<Self, Self::Error> {
-        artwork
-            .config
-            .iiif_url
+        tracing::debug!(artwork = ?artwork);
+        let url = if artwork.config.iiif_url.as_str().ends_with("/") {
+            artwork.config.iiif_url.clone()
+        } else {
+            let mut path = artwork.config.iiif_url.path().to_string();
+            path.push('/');
+            let mut url = artwork.config.iiif_url.clone();
+            url.set_path(path.as_str());
+            url
+        };
+        tracing::debug!(url = ?url);
+        let url = url
             .join(&artwork.data.image_id)
             .map_err(IiifError::InvalidUri)
-            .map_err(AcresError::Iiif)?
-            .as_str()
-            .parse::<iiif::Uri>()
-            .map_err(AcresError::Iiif)
+            .map_err(AcresError::Iiif)?;
+        tracing::debug!(url = %url);
+        tracing::trace!(url = ?url);
+        url.as_str().parse::<iiif::Uri>().map_err(AcresError::Iiif)
     }
 }
 
