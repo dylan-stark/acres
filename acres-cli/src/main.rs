@@ -315,7 +315,6 @@ async fn main() -> Result<(), Report> {
                         .map(|facets| facets.cloned().collect()),
                 )
                 .build()
-                .await
             {
                 Ok(request) => {
                     let search: Cached = api.fetch(request.to_string()).await?;

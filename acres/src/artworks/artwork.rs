@@ -23,7 +23,8 @@ pub struct ArtworkInfoData {
     pub title: String,
 }
 
-/// Artwork.
+// TODO: Finish out the implementation of this type and document.
+#[doc(hidden)]
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ArtworkInfo {
     /// Config.
@@ -92,7 +93,16 @@ impl ArtworkInfo {
         serde_json::from_reader(reader).ok()
     }
 }
-/// Defines a request for artwork.
+
+/// A [`GET /artworks/{id}`] request.
+///
+/// ```rust
+/// use acres::{Api, artworks::request::artwork::Request};
+///
+/// let request = Request::new(Api::new().base_uri(), 4);
+/// ```
+///
+/// [`GET /artworks/{id}`]: https://api.artic.edu/docs/#get-artworks-id
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Request {
     base_uri: String,

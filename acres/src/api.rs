@@ -6,7 +6,7 @@ use bytes::{Buf, Bytes};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 
-/// A cached bytes newtype.
+#[doc(hidden)]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Cached(serde_json::Value);
 
@@ -26,14 +26,12 @@ impl TryFrom<Bytes> for Cached {
     }
 }
 
-/// The top-level API client.
+/// A helper for fetching resources form the [AIC public APIs].
 ///
-/// All access to the [AIC public APIs] goes through one of these.
+/// Responses are cached by default, but this behavior can be turned off.
 ///
-/// # Examples
-///
-/// ```
-/// let api = acres::Api::new();
+/// ```rust
+/// let api_sans_caching = acres::Api::builder().use_cache(false).build();
 /// ```
 ///
 /// [AIC public APIs]: https://api.artic.edu/docs/#introduction
@@ -149,9 +147,6 @@ impl Api {
     }
 
     /// Loads an item from cache.
-    ///
-    /// If `id` is not in the cache, returns Ok(None). Otherwise, loads
-    /// the data and returns result of applying the provided closure f().
     pub fn load_from_cache(&self, endpoint: &String) -> Result<Option<Bytes>, AcresError> {
         if !self.use_cache {
             return Ok(None);
@@ -263,7 +258,12 @@ impl Default for ApiBuilder {
     }
 }
 
-/// Fetch.
+/// Helper for fetching resources.
+///
+/// This method does not implement response caching. Use [`Api::fetch()`] fetch
+/// with caching.
+///
+/// [`Api::fetch()`]: struct.Api.html#method.fetch
 pub async fn fetch(endpoint: &String) -> Result<Bytes, AcresError> {
     let client = reqwest::Client::new();
     let mut headers = reqwest::header::HeaderMap::new();

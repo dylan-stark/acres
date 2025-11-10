@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::AcresError;
 
-/// An artworks search.
+// TODO: Finish out the implementation of this type and document.
+#[doc(hidden)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Search(serde_json::Value);
 
@@ -55,7 +56,22 @@ impl Search {
     }
 }
 
-/// A search request.
+/// A [`GET /artworks/search`] request.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// use acres::{Api, artworks::request::search};
+///
+/// # fn main() -> Result<()> {
+/// let request = search::Request::builder()
+///     .base_uri(Api::new().base_uri())
+///     .q(Some("monet".to_string()))
+///     .build()?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [`GET /artworks/search`]: https://api.artic.edu/docs/#get-artworks-search
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Request(String);
 
@@ -78,11 +94,21 @@ impl Request {
     }
 }
 
-/// An artworks collection search.
+/// A [`GET /artworks/search`] request builder.
 ///
-/// This corresponds to the [`GET /artworks/search`] endpoint on the public API.
+/// ```rust
+/// # use anyhow::Result;
+/// use acres::{Api, artworks::request::search};
 ///
-/// [`GET /artworks/search`]: https://api.artic.edu/docs/#get-artworks-search-2
+/// # fn main() -> Result<()> {
+/// let builder = search::Request::builder()
+///     .base_uri(Api::new().base_uri())
+///     .q(Some("monet".to_string()));
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [`GET /artworks/search`]: https://api.artic.edu/docs/#get-artworks-search
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Builder {
     base_uri: String,
@@ -170,7 +196,7 @@ impl Builder {
     }
 
     /// Builds artworks search.
-    pub async fn build(&self) -> Result<Request, AcresError> {
+    pub fn build(&self) -> Result<Request, AcresError> {
         let query_params = SearchQueryParams {
             q: self.q.clone(),
             query: self.query.clone(),

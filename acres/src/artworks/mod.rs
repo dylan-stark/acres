@@ -1,4 +1,6 @@
-//! Artworks.
+//! Modules and types for working with the [Artworks Collection].
+//!
+//! [Artworks Collection]: https://api.artic.edu/docs/#artworks
 
 mod artwork;
 mod collection;
@@ -10,24 +12,34 @@ pub use collection::Artworks;
 pub use manifest::Manifest;
 pub use search::Search;
 
-/// Various requests for resources from the Art Institute.
+/// Modules for requesting items from the [Artworks Collection].
+///
+/// [Artworks Collection]: https://api.artic.edu/docs/#artworks
 pub mod request {
-    /// Artwork request.
+    /// A [`GET /artworks/{id}`] request.
+    ///
+    /// [`GET /artworks/{id}`]: https://api.artic.edu/docs/#get-artworks-id
     pub mod artwork {
         pub use crate::artworks::artwork::Request;
     }
 
-    /// Collection request.
+    /// A [`GET /artworks`] request.
+    ///
+    /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
     pub mod artworks {
         pub use crate::artworks::collection::{Builder, Request};
     }
 
-    /// Manifest request.
+    /// A [`GET /artworks/{id}/manifest.json`] request.
+    ///
+    /// [`GET /artworks/{id}/manifest.json`]: https://api.artic.edu/docs/#get-artworks-id-manifest-json
     pub mod manifest {
         pub use crate::artworks::manifest::Request;
     }
 
-    /// Collection request.
+    /// A [`GET /artworks/search`] request.
+    ///
+    /// [`GET /artworks/search`]: https://api.artic.edu/docs/#get-artworks-search
     pub mod search {
         pub use crate::artworks::search::{Builder, Request};
     }

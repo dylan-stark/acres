@@ -3,7 +3,8 @@ use std::fmt::Display;
 use bytes::{Buf, Bytes};
 use serde::{Deserialize, Serialize};
 
-/// Artwork manifest from the AIC collection.
+// TODO: Finish out the implementation of this type and document.
+#[doc(hidden)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Deserialize)]
 pub struct Manifest(serde_json::Value);
 
@@ -28,7 +29,19 @@ impl Manifest {
     }
 }
 
-/// A manifest request.
+/// A [`GET /artworks/{id}/manifest.json`] request.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// use acres::{Api, artworks::request::manifest};
+///
+/// # fn main() -> Result<()> {
+/// let request = manifest::Request::new(Api::new().base_uri(), 2);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [`GET /artworks/{id}/manifest.json`]: https://api.artic.edu/docs/#get-artworks-id-manifest-json
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Request(String);
 

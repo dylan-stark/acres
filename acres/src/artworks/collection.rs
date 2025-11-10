@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::AcresError;
 
-/// A list of artworks
+// TODO: Finish out the implementation of this type and document.
+#[doc(hidden)]
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Artworks {
     /// Config
@@ -57,7 +58,24 @@ pub struct Pagination {
     total_pages: u64,
     current_page: u64,
 }
-/// An artworks collection request.
+
+/// A [`GET /artworks`] request.
+///
+/// ```rust
+/// # use anyhow::Result;
+/// use acres::{Api, artworks::request::artworks};
+///
+/// # fn main() -> Result<()> {
+/// let request = artworks::Request::builder()
+///     .base_uri(Api::new().base_uri())
+///     .limit(Some(2))
+///     .fields(Some(vec!["id".into(), "title".into(), "api_link".into()]))
+///     .build()?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Request(String);
 
@@ -80,9 +98,20 @@ impl Request {
     }
 }
 
-/// An artworks collection collection operation.
+/// A [`GET /artworks`] request builder.
 ///
-/// This corresonds to the [`GET /artworks`] endpoint on the public API.
+/// ```rust
+/// # use anyhow::Result;
+/// use acres::{Api, artworks::request::artworks};
+///
+/// # fn main() -> Result<()> {
+/// let builder = artworks::Request::builder()
+///     .base_uri(Api::new().base_uri())
+///     .limit(Some(2))
+///     .fields(Some(vec!["id".into(), "title".into(), "api_link".into()]));
+/// # Ok(())
+/// # }
+/// ```
 ///
 /// [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
 #[derive(Clone, Debug, Default, PartialEq)]
