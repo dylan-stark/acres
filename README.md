@@ -175,6 +175,7 @@ acres-cli ascii-art <image>
 Following on from the previous examples,
 
 ```sh
+% curl $(acres-cli iiif 77333.json) --output 77333.jpg
 % acres-cli ascii-art 77333.jpg
 @0WggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggWggggggggggg@
 @#*4###44##################44#############################44###########44444**C]
@@ -206,6 +207,12 @@ Following on from the previous examples,
 @H_-!:-=`!-_-_-_--`}sL:"C/"*/"=`!~}*c+_'-://+++//++lLcjJs}+:!"--_+\Ljj47****}LS]
 @HL,-,---_`'-`-'---/-"!cf;4LcJL\:-+:L}Y4jLLlLllLcJY*LLLLlLL}**7*}}LLLLLLLLLlll5]
 @g55SSSSSSSSSS555555$$5$$$$$5$55N55555$$$$$$$$$$$$$$$$$$$$$$$$$$$N$$NNNNNNNNNNg@
+```
+
+Of course you can mix and match settings, like changing the image quality to bi-tonal and setting the alphabet to use for the ASCII art to fast (just `#`s):
+
+```sh
+curl -s $(acres-cli iiif 77333.json --quality bitonal) | acres-cli ascii-art - --alphabet fast
 ```
 
 By default, this will match the width of your terminal.
