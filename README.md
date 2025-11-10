@@ -74,8 +74,9 @@ We're using `jq` here to pare down the results and pretty-print them.
 acres-cli artworks-search
 ```
 
-> ***Coming soon!***
-
+```sh
+acres-cli artworks-search --q monet
+```
 
 [Get a specific piece from the collection](https://api.artic.edu/docs/#get-artworks-id-2) with
 
@@ -106,12 +107,14 @@ Again, the output from the CLI is the full JSON and we're just using `jq` to wra
 [Get manifest for a specific piece from the collection](https://api.artic.edu/docs/#get-artworks-id-manifest-json-2) with
 
 ```sh
-acres-cli artwork <id> manifest
+acres-cli artwork-manifest <id>
 ```
 
 Following the example from the website would look like
 
-> ***Coming soon!***
+```sh
+acres-cli artworks-manifest 4
+```
 
 
 If you're looking for programmatic access to the artworks collection directly in Rust, check out the `acres` crate.
