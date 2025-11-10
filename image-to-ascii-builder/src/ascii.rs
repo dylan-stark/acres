@@ -367,7 +367,7 @@ impl Display for Font {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Font::Courier => f.write_str("courier"),
-            Font::BitOcra13 => f.write_str("bitorcra13"),
+            Font::BitOcra13 => f.write_str("bitocra-13"),
         }
     }
 }
