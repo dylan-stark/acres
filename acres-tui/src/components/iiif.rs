@@ -59,7 +59,7 @@ impl Component for Iiif {
                     let action_tx = self.action_tx.clone();
                     tokio::spawn(async move {
                         let response: Option<bytes::Bytes> = Api::new()
-                            .fetch(image_request.to_string(), None as Option<()>)
+                            .fetch(image_request.to_string())
                             .await
                             .inspect_err(|e| tracing::error!("failed to get image: {e}"))
                             .ok();

@@ -257,9 +257,7 @@ async fn main() -> Result<(), Report> {
                 .copied()
                 .expect("clap ensures this is provided");
             let request = artwork::Request::new(api.base_uri(), id);
-            let artwork: Cached = Api::new()
-                .fetch(request.to_string(), None as Option<usize>)
-                .await?;
+            let artwork: Cached = Api::new().fetch(request.to_string()).await?;
             println!("{}", artwork)
         }
         Some(("artwork-manifest", matches)) => {
@@ -269,9 +267,7 @@ async fn main() -> Result<(), Report> {
                 .copied()
                 .expect("clap ensures id is provided");
             let request = artworks::request::manifest::Request::new(api.base_uri(), id);
-            let manifest: Manifest = Api::new()
-                .fetch(request.to_string(), None as Option<usize>)
-                .await?;
+            let manifest: Manifest = Api::new().fetch(request.to_string()).await?;
             println!("{}", manifest)
         }
         Some(("artworks", matches)) => {
@@ -298,9 +294,7 @@ async fn main() -> Result<(), Report> {
                 .build()
             {
                 Ok(request) => {
-                    let collection: Cached = api
-                        .fetch(request.to_string(), None as Option<usize>)
-                        .await?;
+                    let collection: Cached = api.fetch(request.to_string()).await?;
                     println!("{}", collection)
                 }
                 Err(error) => return Err(error).wrap_err("We couldn't get that list ..."),
@@ -324,9 +318,7 @@ async fn main() -> Result<(), Report> {
                 .await
             {
                 Ok(request) => {
-                    let search: Cached = api
-                        .fetch(request.to_string(), None as Option<usize>)
-                        .await?;
+                    let search: Cached = api.fetch(request.to_string()).await?;
                     println!("{}", search)
                 }
                 Err(error) => return Err(error).wrap_err("We couldn't complete that search ..."),
@@ -428,9 +420,8 @@ async fn main() -> Result<(), Report> {
             match matches.get_one::<IiifTo>("to") {
                 Some(IiifTo::Url) => println!("{}", image_request),
                 Some(IiifTo::Bytes) => {
-                    let response: bytes::Bytes = Api::new()
-                        .fetch(image_request.to_string(), None as Option<()>)
-                        .await?;
+                    let response: bytes::Bytes =
+                        Api::new().fetch(image_request.to_string()).await?;
                     io::stdout()
                         .write_all(&response)
                         .context("failed to write image bytes")?;
@@ -448,9 +439,7 @@ async fn main() -> Result<(), Report> {
             )
             .ok_or(AcresError::LoadArtworkInfo)?;
             let request: iiif::InformationRequest = iiif::Uri::try_from(artwork)?.into();
-            let response: bytes::Bytes = Api::new()
-                .fetch(request.to_string(), None as Option<()>)
-                .await?;
+            let response: bytes::Bytes = Api::new().fetch(request.to_string()).await?;
             io::stdout()
                 .write_all(&response)
                 .context("failed to write json bytes")?;

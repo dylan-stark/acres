@@ -55,7 +55,7 @@
 //! # let api = acres::Api::builder().base_uri(&mock_uri).use_cache(false).build();
 //!
 //! let request = artwork::Request::new(api.base_uri(), 4);
-//! let json: acres::Cached = api.fetch(request.to_string(), None as Option<usize>).await?;
+//! let json: acres::Cached = api.fetch(request.to_string()).await?;
 //! # Ok(())
 //! # }
 //! ```

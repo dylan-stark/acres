@@ -109,38 +109,27 @@ impl Api {
 impl Api {
     // TODO: Clean up optional query params handling. Passing usize here is a hack.
     /// Fetch
-    pub async fn fetch<T>(
-        &self,
-        endpoint: String,
-        query_params: Option<impl Serialize + Debug>,
-    ) -> Result<T, AcresError>
+    pub async fn fetch<T>(&self, endpoint: String) -> Result<T, AcresError>
     where
         T: TryFrom<Bytes>,
     {
-        let cached: Option<Bytes> = self.load_from_cache(&endpoint, &query_params)?;
+        let cached: Option<Bytes> = self.load_from_cache(&endpoint)?;
         let results: Bytes = match cached {
             Some(results) => results,
-            None => fetch(&endpoint, &query_params).await?,
+            None => fetch(&endpoint).await?,
         };
-        let results = self.store_in_cache(&endpoint, query_params, results)?;
+        let results = self.store_in_cache(&endpoint, results)?;
         T::try_from(results)
             .map_err(|_| anyhow!("failed to store in cache"))
             .map_err(AcresError::from)
     }
 
     /// Stores an item in cache.
-    pub fn store_in_cache(
-        &self,
-        endpoint: &String,
-        query_params: impl Debug,
-        data: Bytes,
-    ) -> Result<Bytes, AcresError> {
+    pub fn store_in_cache(&self, endpoint: &String, data: Bytes) -> Result<Bytes, AcresError> {
         if !self.use_cache {
             return Ok(data);
         }
-        let id =
-            xxhash_rust::xxh3::xxh3_64(format!("{:?}-{:?}", endpoint, query_params).as_bytes())
-                .to_string();
+        let id = xxhash_rust::xxh3::xxh3_64(format!("{:?}", endpoint).as_bytes()).to_string();
         tracing::debug!("Looking to store id '{}' to cache", &id);
         let cache_file_path = match Config::new() {
             Ok(config) => config.cache_dir.join(&id),
@@ -163,17 +152,11 @@ impl Api {
     ///
     /// If `id` is not in the cache, returns Ok(None). Otherwise, loads
     /// the data and returns result of applying the provided closure f().
-    pub fn load_from_cache(
-        &self,
-        endpoint: &String,
-        query_params: &Option<impl Serialize + Debug>,
-    ) -> Result<Option<Bytes>, AcresError> {
+    pub fn load_from_cache(&self, endpoint: &String) -> Result<Option<Bytes>, AcresError> {
         if !self.use_cache {
             return Ok(None);
         }
-        let id =
-            xxhash_rust::xxh3::xxh3_64(format!("{:?}-{:?}", endpoint, query_params).as_bytes())
-                .to_string();
+        let id = xxhash_rust::xxh3::xxh3_64(format!("{:?}", endpoint).as_bytes()).to_string();
         tracing::debug!("Looking to load id '{}' from cache", id);
         let cache_file_path = match Config::new() {
             Ok(config) => config.cache_dir.join(&id),
@@ -281,10 +264,7 @@ impl Default for ApiBuilder {
 }
 
 /// Fetch.
-pub async fn fetch(
-    endpoint: &String,
-    query_params: &Option<impl Serialize>,
-) -> Result<Bytes, AcresError> {
+pub async fn fetch(endpoint: &String) -> Result<Bytes, AcresError> {
     let client = reqwest::Client::new();
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
@@ -299,10 +279,7 @@ pub async fn fetch(
             .parse()
             .context("failed constructing ACRES-User-Agent header")?,
     );
-    let mut request = client.get(endpoint).headers(headers);
-    if query_params.is_some() {
-        request = request.query(&query_params);
-    }
+    let request = client.get(endpoint).headers(headers);
     let response = request
         .send()
         .await
