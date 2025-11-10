@@ -131,7 +131,7 @@ acres-cli iiif <artwork-info>
 For example,
 
 ```sh
-% acres-cli artwork 77333 | arcres-cli iiif -
+% acres-cli artwork 77333 | acres-cli iiif -
 https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/default.jpg
 ```
 
@@ -139,7 +139,7 @@ Or, without the piping,
 
 ```sh
 % acres-cli artwork 77333 > 77333.json
-% arcres-cli iiif 77333.json
+% acres-cli iiif 77333.json
 https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/default.jpg
 ```
 
@@ -149,27 +149,17 @@ So you could have some intermediate filtering, like
 
 ```sh
 % acres-cli artwork 77333 \
-    | jq '{ config: { iiif_url: .config.iiif_url }, data: { image_id: .data.image_id } }' \
-    | arcres-cli iiif -
+    | jq '{ config: { iiif_url: .config.iiif_url }, data: { id: .data.id,  image_id: .data.image_id, title: .data.title  } }'
+    | acres-cli iiif -
 https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/default.jpg
 ```
 
-By default, we'll use the `image_id`.
-But the above technique is handy for when you want to use one of the alternate image IDs for an artwork:
-
-```sh
-% acres-cli artwork 75644 \
-    | jq '{ config: { iiif_url: .config.iiif_url }, data: { image_id: .data.alt_image_ids[2] } }' \
-    | arcres-cli iiif -
-https://www.artic.edu/iiif/2/1d59d547-aad0-50f5-ac1c-6e516eea146b/full/843,/0/default.jpg
-```
-
 The recommended default URL is easy enough to construct from the IIIF URL and image ID.
-But the real power of the `image` tool comes in when you want to adjust the request.
+But the strength of the `image` tool comes in when you want to adjust the request.
 For example, you can change the quality to retrieve the black-and-white variant as a PNG:
 
 ```sh
-% arcres-cli iiif 77333.json --quality bitonal --format png
+% acres-cli iiif 77333.json --quality bitonal --format png
 https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/bitonal.png
 ```
 
