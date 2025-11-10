@@ -128,6 +128,21 @@
 //! # }
 //! ```
 //!
+//! We currently support the following endpoints under the Artworks collection:
+//!
+//! - [`GET /artworks`] via [`acres::artworks::request::artworks`]
+//! - [`GET /artworks/search`] via [`acres::artworks::request::search`]
+//! - [`GET /artworks/{id}`] via [`acres::artworks::request::artwork`]
+//! - [`GET /artworks/{id}/manifest.json`] via [`acres::artworks::request::manifest`]
+//!
+//! [`GET /artworks`]: https://api.artic.edu/docs/#get-artworks
+//! [`acres::artworks::request::artworks`]: artworks/request/artworks/index.html
+//! [`GET /artworks/search`]: https://api.artic.edu/docs/#get-artworks-search
+//! [`acres::artworks::request::search`]: artworks/request/search/index.html
+//! [`GET /artworks/{id}`]: https://api.artic.edu/docs/#get-artworks-id
+//! [`acres::artworks::request::artwork`]: artworks/request/artwork/index.html
+//! [`GET /artworks/{id}/manifest.json`]: https://api.artic.edu/docs/#get-artworks-id-manifest-json
+//! [`acres::artworks::request::manifest`]: artworks/request/manifest/index.html
 //! [Artworks collection]: https://api.artic.edu/docs/#artworks
 //! [API helper]: struct.Api.html
 //! [fetch function]: fn.fetch.html
