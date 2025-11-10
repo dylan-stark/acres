@@ -187,24 +187,16 @@ Of course you can mix and match settings, like changing the image quality to bi-
 curl -s $(acres-cli iiif 77333.json --quality bitonal) | acres-cli ascii-art - --alphabet fast
 ```
 
+![Example showing artwork 77333 as ASCII art with quality set to bitonal and alphabet set to fast.](acres-cli-ascii-art-77333.jpg)
+
 By default, this will match the width of your terminal.
 But you can control how wide it is by setting `--width` like so
 
 ```sh
-% acres-cli ascii-art 77333.jpg --width 32
-@AAAAAAAAAAZZZAAZZZZAAAAAAAAAAZW
-Q?cs????#?##44Y???????????????#o
-]44?????4}}/L*c*???????????????o
-]#4??V?}!!--"+c*C*#????????????o
-QfC?47Y#*\!-!rl}c**#?????VVVV??o
-]*cLl*j}L+L!=+/l\L}}4#???VVVV?#o
-]L+:=///+!;\!++//lLL}*#??V?Cs#Ls
-Q///\++:+C?s?\\llllc}}*4#}LY}/+s
-]LlLcJ}sY4*f*f4}LllL}}c}*}}llc}C
-]4*LLc}*44j*L=l\/:/}}*}LL+rj}+:s
-Q!:!=++r}Ll/Ll!=l\r\ll\rrL//\l+o
-]\\\+++;Lcj*cLjJjc*JJC4*jjC#JJ*S
+% acres-cli ascii-art 77333.jpg --width 64
 ```
+
+![Example showing artwork 77333 as ASCII art with width set to 64 characters.](acres-cli-ascii-art-77333.jpg)
 
 As before, you can pipe bytes into this:
 
