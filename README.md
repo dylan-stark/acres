@@ -187,7 +187,7 @@ Of course you can mix and match settings, like changing the image quality to bi-
 curl -s $(acres-cli iiif 77333.json --quality bitonal) | acres-cli ascii-art - --alphabet fast
 ```
 
-![Example showing artwork 77333 as ASCII art with quality set to bitonal and alphabet set to fast.](acres-cli-ascii-art-77333.jpg)
+![Example showing artwork 77333 as ASCII art with quality set to bitonal and alphabet set to fast.](acres-cli-ascii-art-77333-bitonal-fast.jpg)
 
 By default, this will match the width of your terminal.
 But you can control how wide it is by setting `--width` like so
@@ -196,7 +196,7 @@ But you can control how wide it is by setting `--width` like so
 % acres-cli ascii-art 77333.jpg --width 64
 ```
 
-![Example showing artwork 77333 as ASCII art with width set to 64 characters.](acres-cli-ascii-art-77333.jpg)
+![Example showing artwork 77333 as ASCII art with width set to 64 characters.](acres-cli-ascii-art-77333-width-64.jpg)
 
 As before, you can pipe bytes into this:
 
