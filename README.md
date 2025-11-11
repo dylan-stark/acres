@@ -34,6 +34,11 @@ To change them, hit the corresponding key to bring up the pop-up and select a se
 
 When you're done, you can hit `q`, `ctrl-d`, or `ctrl-c` to quit.
 
+<img src="https://vhs.charm.sh/vhs-6Ngcq2i1ITFXOYZflDiIRe.gif" alt="Made with VHS">
+<a href="https://vhs.charm.sh">
+  <img src="https://stuff.charm.sh/vhs/badge.svg">
+</a>
+
 ## The CLI
 
 ### Working with the Artworks Collection
