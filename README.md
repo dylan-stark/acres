@@ -221,7 +221,7 @@ But you can control how wide it is by setting `--width` like so
 % acres-cli ascii-art 77333.jpg --width 64
 ```
 
-<img src="acres-cli-ascii-art-77333-width-64.jpg" alt="Example showing artwork 77333 as ASCII art with width set to 64 characters." width="902px">
+<img src="acres-cli-ascii-art-77333-width-64.jpg" alt="Example showing artwork 77333 as ASCII art with width set to 64 characters." width="300px">
 
 As before, you can pipe bytes into this:
 
