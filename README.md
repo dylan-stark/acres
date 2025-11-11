@@ -14,6 +14,26 @@ Currently, it includes
 - an [`iiif` command](#working-with-iiif-urls) for constructing IIIF URLs for downloading images for the artwork you find, and
 - an [`ascii-art` tool](#working-with-ascii-art) for rendering those images as ASCII art directly in the terminal.
 
+The TUI is, essentially, no surprise, the interactive equivalent of the CLI.
+You start it with some artworks search results.
+
+```sh
+acres-cli artworks > artworks.json
+acres-tui artworks.json
+```
+
+Once in, hit `esc` to bring up the list of artworks.
+Use `j` to move down and `k` to move up.
+And hit `enter` or `x` to select the piece.
+
+Behind the scenes the image will be fetched from the Art Institute's collection, converted to ASCII, and displayed.
+From here you can select something else or hit `esc` again to close the pop-up.
+
+We currently support adjusting the font (`f`), alphabet (`a`), conversion algorithm (`c`), and metric (`m`).
+To change them, hit the corresponding key to bring up the pop-up and select a setting.
+
+When you're done, you can hit `q`, `ctrl-d`, or `ctrl-c` to quit.
+
 ## The CLI
 
 ### Working with the Artworks Collection
