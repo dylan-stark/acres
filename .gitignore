@@ -1,5 +1,6 @@
 /scratch
 /target
+/target-docker
 /.vscode
 .data/*.jpg
 .data/*.json
