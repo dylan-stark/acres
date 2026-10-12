@@ -1,5 +1,8 @@
 build: reformat test
 
+check: reformat lint test docs
+.PHONY: check
+
 docs:
 	cargo doc --workspace --no-deps
 

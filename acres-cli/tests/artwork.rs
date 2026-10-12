@@ -30,7 +30,7 @@ async fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>
     let stdout = String::from_utf8(output.stdout)?;
     // And we're able to deserialize it so some valid JSON
     let value: serde_json::Value =
-        serde_json::from_str(&stdout).context(format!("failed to parse stdout: '{}'", &stdout))?;
+        serde_json::from_str(&stdout).context(format!("failed to parse stdout: '{}'", stdout))?;
     assert_eq!(value["data"]["id"].as_i64(), Some(id));
 
     Ok(())
@@ -87,7 +87,7 @@ async fn artwork_manifest_command_outputs_json() -> Result<(), Box<dyn std::erro
     let stdout = String::from_utf8(output.stdout)?;
     // And we're able to deserialize it so some valid JSON
     let value: serde_json::Value =
-        serde_json::from_str(&stdout).context(format!("failed to parse stdout: '{}'", &stdout))?;
+        serde_json::from_str(&stdout).context(format!("failed to parse stdout: '{}'", stdout))?;
     assert_eq!(value["@type"], "sc:Manifest");
 
     Ok(())
