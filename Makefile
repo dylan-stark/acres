@@ -1,7 +1,16 @@
 build: reformat test
 
-check: reformat lint test docs
+check: check-toolchain reformat lint test docs
 .PHONY: check
+
+# Fails if the active rustc differs from the version pinned in rust-toolchain.toml (and CI).
+check-toolchain:
+	@pinned=$$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml); \
+	actual=$$(rustc --version | cut -d' ' -f2); \
+	if [ "$$pinned" != "$$actual" ]; then \
+		echo "rustc $$actual != pinned $$pinned (rust-toolchain.toml); install rustup so the pin takes effect" >&2; exit 1; \
+	fi
+.PHONY: check-toolchain
 
 docs:
 	cargo doc --workspace --no-deps
