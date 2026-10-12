@@ -20,6 +20,7 @@ Dependencies only point downward: `iiif`/`image-to-ascii-builder` â†’ `acres` â†
 ## Conventions
 
 - Commit messages: one terse past-tense sentence ending in a period, e.g. `Fixes filenames.`
+- Workflow: never commit directly to `agent-harness` or `main`. Do each piece of work on its own branch off the integration branch (`agent-harness` for harness issues), push it, and open a PR against that branch with `gh pr create` (body says `Closes #N`). `make check` must pass first. Don't merge your own PR.
 - Never read, modify, or commit `scratch/` or `target/`.
 - Tests must mock the network. Never hit the live AIC API from tests.
 - TUI keybindings live in `acres-tui/.config/config.json5`.
