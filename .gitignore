@@ -6,7 +6,7 @@
 .data/*.log
 .data/*.txt
 !.data/alphabet.txt
-!.data/bitocra-13.pdf
+!.data/bitocra-13.bdf
 scratch/
 !scratch/README.md
 demo.gif

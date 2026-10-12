@@ -138,7 +138,7 @@ acres-cli artwork-manifest <id>
 Following the example from the website would look like
 
 ```sh
-acres-cli artworks-manifest 4
+acres-cli artwork-manifest 4
 ```
 
 
@@ -168,7 +168,7 @@ Or, without the piping,
 https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/default.jpg
 ```
 
-But we're not super strict about what the input for the `image` tool.
+But we're not super strict about what the input for the `iiif` tool.
 It really only needs to have the necessary information.
 So you could have some intermediate filtering, like
 
@@ -180,7 +180,7 @@ https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/de
 ```
 
 The recommended default URL is easy enough to construct from the IIIF URL and image ID.
-But the strength of the `image` tool comes in when you want to adjust the request.
+But the strength of the `iiif` tool comes in when you want to adjust the request.
 For example, you can change the quality to retrieve the black-and-white variant as a PNG:
 
 ```sh
