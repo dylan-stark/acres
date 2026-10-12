@@ -1,6 +1,6 @@
-build: reformat test
+build: reformat-check test
 
-check: check-toolchain reformat lint test docs
+check: check-toolchain reformat-check lint test docs
 .PHONY: check
 
 # Fails if the active rustc differs from the version pinned in rust-toolchain.toml (and CI).
@@ -19,6 +19,9 @@ docs-all:
 	cargo doc --workspace --no-deps --document-private-items
 
 reformat:
+	cargo fmt --all
+
+reformat-check:
 	cargo fmt --all --check
 
 lint:
