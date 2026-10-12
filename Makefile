@@ -12,6 +12,12 @@ check-toolchain:
 	fi
 .PHONY: check-toolchain
 
+# Builds the dev image and runs `make check` inside it (see Dockerfile).
+docker-check:
+	docker build -t acres-dev .
+	docker run --rm --user "$${SUDO_UID:-$$(id -u)}:$${SUDO_GID:-$$(id -g)}" -e HOME=/tmp -e CARGO_HOME=/tmp/cargo -e CARGO_TARGET_DIR=/work/target-docker -v "$(CURDIR)":/work acres-dev
+.PHONY: docker-check
+
 docs:
 	cargo doc --workspace --no-deps
 
