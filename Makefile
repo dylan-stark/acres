@@ -15,7 +15,7 @@ check-toolchain:
 # Builds the dev image and runs `make check` inside it (see Dockerfile).
 docker-check:
 	docker build -t acres-dev .
-	docker run --rm --user "$(shell id -u):$(shell id -g)" -e HOME=/tmp -e CARGO_HOME=/tmp/cargo -v "$(CURDIR)":/work acres-dev
+	docker run --rm --user "$${SUDO_UID:-$$(id -u)}:$${SUDO_GID:-$$(id -g)}" -e HOME=/tmp -e CARGO_HOME=/tmp/cargo -v "$(CURDIR)":/work acres-dev
 .PHONY: docker-check
 
 docs:
