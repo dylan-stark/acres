@@ -25,3 +25,9 @@ Dependencies only point downward: `iiif`/`image-to-ascii-builder` â†’ `acres` â†
 - Never read, modify, or commit `scratch/` or `target/`.
 - Tests must mock the network. Never hit the live AIC API from tests.
 - TUI keybindings live in `acres-tui/.config/config.json5`.
+
+## Environment
+
+- `.envrc` (direnv) sets `ACRES_TUI_CONFIG`, `ACRES_TUI_DATA` and `ACRES_TUI_LOGLEVEL`, the variables `acres-tui` reads.
+- `Dockerfile` provides the pinned toolchain plus `jq`, `vhs`, `ttyd` and `ffmpeg`: `docker build -t acres-dev . && docker run --rm -v "$PWD":/work acres-dev` runs `make check`.
+- Parallel work: `git worktree add ../acres-<branch> -b <branch> agent-harness`. Each worktree gets its own `target/` (isolated, slower first build). To share build artifacts, set `CARGO_TARGET_DIR=~/.cache/acres-target`; cargo locks the directory, so concurrent builds serialize.
