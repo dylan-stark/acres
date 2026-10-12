@@ -5,6 +5,7 @@ Rust workspace of tools for the [Art Institute of Chicago API](https://api.artic
 ## Commands
 
 - `make check` — the single "done" command: reformat check, clippy (`-D warnings`), tests, docs. Run it before finishing any change.
+- The Rust toolchain is pinned in `rust-toolchain.toml` (rustup required) and CI uses the same version. To bump Rust, change both `rust-toolchain.toml` and the `dtolnay/rust-toolchain@<version>` refs in `.github/workflows/ci.yml`. A weekly canary workflow runs clippy on stable/beta to flag upcoming breakage.
 - Individual steps: `make reformat` (`cargo fmt --check`; run `cargo fmt --all` to fix), `make lint`, `make test`, `make docs`.
 
 ## Crates and dependency direction

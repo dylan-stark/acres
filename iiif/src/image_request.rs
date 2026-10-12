@@ -113,7 +113,6 @@ impl Percentage {
 
 #[cfg(test)]
 mod percentage_tests {
-    use core::f32;
 
     use rstest::rstest;
 
@@ -249,7 +248,6 @@ impl Degree {
 
 #[cfg(test)]
 mod degree_tests {
-    use core::f32;
 
     use rstest::rstest;
 
