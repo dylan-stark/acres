@@ -13,6 +13,9 @@ pub mod home;
 pub mod iiif;
 pub mod image_to_ascii_builder;
 
+#[cfg(test)]
+pub(crate) mod test_support;
+
 /// `Component` is a trait that represents a visual and interactive element of the user interface.
 ///
 /// Implementors of this trait can be registered with the main application loop and will be able to

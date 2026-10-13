@@ -433,3 +433,45 @@ impl<T: Display> From<&BrowserItem<T>> for ListItem<'_> {
         ListItem::new(line)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use tokio::sync::mpsc::unbounded_channel;
+
+    use super::*;
+    use crate::components::test_support::render;
+
+    fn builder() -> ImageToAsciiBuilder {
+        let (tx, _rx) = unbounded_channel();
+        ImageToAsciiBuilder::new(tx)
+    }
+
+    #[test]
+    fn draws_nothing_in_view_mode() {
+        let mut builder = builder();
+        assert!(render(&mut builder, 40, 14).trim().is_empty());
+    }
+
+    #[test]
+    fn renders_alphabets_browser() {
+        let mut builder = builder();
+        builder.update(Action::EnterBrowseAlphabetsMode).unwrap();
+        insta::assert_snapshot!(render(&mut builder, 40, 14));
+    }
+
+    #[test]
+    fn renders_metrics_browser_after_move() {
+        let mut builder = builder();
+        builder.update(Action::EnterBrowseMetricsMode).unwrap();
+        builder.update(Action::MoveDown).unwrap();
+        insta::assert_snapshot!(render(&mut builder, 40, 14));
+    }
+
+    #[test]
+    fn escape_returns_to_view_mode() {
+        let mut builder = builder();
+        builder.update(Action::EnterBrowseFontsMode).unwrap();
+        builder.update(Action::EnterViewMode).unwrap();
+        assert!(render(&mut builder, 40, 14).trim().is_empty());
+    }
+}

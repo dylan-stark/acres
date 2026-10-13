@@ -1,0 +1,45 @@
+{
+  "pagination": {
+    "total": 5,
+    "limit": 5,
+    "offset": 0,
+    "total_pages": 1,
+    "current_page": 1
+  },
+  "data": [
+    {
+      "id": 27992,
+      "title": "A Sunday on La Grande Jatte — 1884",
+      "image_id": "2d484387-2509-5e8e-2c43-22f9981972eb"
+    },
+    {
+      "id": 28560,
+      "title": "The Bedroom",
+      "image_id": "25c31d8d-21a4-9ea1-1d73-6a2eca4dda7e"
+    },
+    {
+      "id": 129884,
+      "title": "Starry Night and the Astronauts",
+      "image_id": "e966799b-97ee-1cc6-bd2f-a94b4b8bb8f9"
+    },
+    {
+      "id": 111628,
+      "title": "Nighthawks",
+      "image_id": "831a5c5e-e1de-3a47-fdd9-c0ddc1bf15cd"
+    },
+    {
+      "id": 20684,
+      "title": "Water Lilies",
+      "image_id": "3c27b499-af56-f0d5-93b5-a7f2f1ad5813"
+    }
+  ],
+  "info": {
+    "license_text": "Fixture data for offline tests.",
+    "license_links": [],
+    "version": "fixture"
+  },
+  "config": {
+    "iiif_url": "http://127.0.0.1:8099/iiif",
+    "website_url": "http://127.0.0.1:8099"
+  }
+}

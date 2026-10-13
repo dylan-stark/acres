@@ -1,0 +1,14 @@
+---
+source: acres-tui/src/components/acres.rs
+expression: "render(&mut artworks, 50, 12)"
+---
+
+
+
+  ┌─────────────────────────────────────────────┐
+  │-A Sunday on La Grande Jatte — 1884 (27992)  │
+  │ The Bedroom (28560)                         │
+  │ Starry Night and the Astronauts (129884)    │
+  │ Nighthawks (111628)                         │
+  │ Water Lilies (20684)                        │
+  └─────────────────────────────────────────────┘

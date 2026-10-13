@@ -1,0 +1,5 @@
+---
+source: acres-tui/src/components/home.rs
+expression: "render(&mut home, 20, 6)"
+---
+
