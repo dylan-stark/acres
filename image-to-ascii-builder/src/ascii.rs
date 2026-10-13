@@ -700,3 +700,107 @@ impl Builder {
         )))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+
+    use image::{DynamicImage, ImageOutputFormat, Rgb, RgbImage};
+
+    use super::*;
+
+    /// A small horizontal gradient, encoded as PNG.
+    fn gradient_png() -> Bytes {
+        let image = RgbImage::from_fn(32, 32, |x, _| Rgb([(x * 8) as u8; 3]));
+        let mut png = Cursor::new(Vec::new());
+        DynamicImage::ImageRgb8(image)
+            .write_to(&mut png, ImageOutputFormat::Png)
+            .expect("png encodes");
+        Bytes::from(png.into_inner())
+    }
+
+    /// Drops ANSI escape sequences, leaving the visible characters.
+    fn visible(text: &str) -> String {
+        let mut out = String::new();
+        let mut in_escape = false;
+        for c in text.chars() {
+            match (in_escape, c) {
+                (false, '\u{1b}') => in_escape = true,
+                (true, 'm') => in_escape = false,
+                (false, c) => out.push(c),
+                _ => {}
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn builds_rows_of_requested_width() {
+        let ascii = Ascii::builder()
+            .input(gradient_png())
+            .chars_wide(CharWidth::CharsWide(8))
+            .build()
+            .unwrap();
+        let visible = visible(&ascii.to_string());
+        let rows: Vec<&str> = visible.lines().collect();
+        assert!(!rows.is_empty());
+        assert!(rows.iter().all(|row| row.chars().count() == 8));
+    }
+
+    #[test]
+    fn building_is_deterministic() {
+        let build = || {
+            Ascii::builder()
+                .input(gradient_png())
+                .chars_wide(CharWidth::CharsWide(8))
+                .build()
+                .unwrap()
+        };
+        assert_eq!(build(), build());
+    }
+
+    #[test]
+    fn invalid_image_bytes_fail() {
+        let result = Ascii::builder()
+            .input(Bytes::from_static(b"not an image"))
+            .build();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn input_reader_matches_input() {
+        let png = gradient_png();
+        let from_reader = Ascii::builder()
+            .input_reader(Cursor::new(png.to_vec()))
+            .unwrap()
+            .chars_wide(CharWidth::CharsWide(8))
+            .build()
+            .unwrap();
+        let from_bytes = Ascii::builder()
+            .input(png)
+            .chars_wide(CharWidth::CharsWide(8))
+            .build()
+            .unwrap();
+        assert_eq!(from_reader, from_bytes);
+    }
+
+    #[test]
+    fn brightness_offset_accepts_range_only() {
+        assert!(BrightnessOffset::new(0.0).is_ok());
+        assert!(BrightnessOffset::new(255.0).is_ok());
+        assert!(BrightnessOffset::new(-0.1).is_err());
+        assert!(BrightnessOffset::new(255.1).is_err());
+        assert!("abc".parse::<BrightnessOffset>().is_err());
+    }
+
+    #[test]
+    fn char_width_parses_and_displays() {
+        assert_eq!("12".parse::<CharWidth>().unwrap(), CharWidth::CharsWide(12));
+        assert_eq!(
+            "image-width".parse::<CharWidth>().unwrap(),
+            CharWidth::ImageWidthInChars
+        );
+        assert!("wide".parse::<CharWidth>().is_err());
+        assert_eq!(CharWidth::CharsWide(12).to_string(), "12");
+    }
+}

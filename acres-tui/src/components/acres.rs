@@ -222,3 +222,45 @@ impl Component for Artworks {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::components::test_support::{ARTWORKS_FIXTURE, render};
+
+    fn artworks() -> Artworks {
+        let fixture = serde_json::from_str(ARTWORKS_FIXTURE).expect("fixture parses");
+        Artworks::new(fixture)
+    }
+
+    #[test]
+    fn draws_nothing_until_focused() {
+        let mut artworks = artworks();
+        assert!(render(&mut artworks, 50, 12).trim().is_empty());
+    }
+
+    #[test]
+    fn renders_browse_list() {
+        let mut artworks = artworks();
+        artworks.update(Action::EnterBrowseArtworksMode).unwrap();
+        insta::assert_snapshot!(render(&mut artworks, 50, 12));
+    }
+
+    #[test]
+    fn renders_moved_selection() {
+        let mut artworks = artworks();
+        artworks.update(Action::EnterBrowseArtworksMode).unwrap();
+        artworks.update(Action::MoveDown).unwrap();
+        artworks.update(Action::MoveDown).unwrap();
+        insta::assert_snapshot!(render(&mut artworks, 50, 12));
+    }
+
+    #[test]
+    fn select_requests_image_for_highlighted_artwork() {
+        let mut artworks = artworks();
+        artworks.update(Action::EnterBrowseArtworksMode).unwrap();
+        artworks.update(Action::MoveDown).unwrap();
+        let next = artworks.update(Action::Select).unwrap();
+        assert!(matches!(next, Some(Action::IiifUpdateBaseUri(_))));
+    }
+}
