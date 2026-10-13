@@ -6,6 +6,9 @@ Rust workspace of tools for the [Art Institute of Chicago API](https://api.artic
 
 - `make check` — the single "done" command: reformat check, clippy (`-D warnings`), tests, docs. Run it before finishing any change.
 - The Rust toolchain is pinned in `rust-toolchain.toml` (rustup required) and CI uses the same version. To bump Rust, change both `rust-toolchain.toml` and the `dtolnay/rust-toolchain@<version>` refs in `.github/workflows/ci.yml`. A weekly canary workflow runs clippy on stable/beta to flag upcoming breakage.
+- `make demo` — records `demo.gif` offline (needs `vhs` and `ttyd`, both in the Docker image): serves `acres-tui/tests/fixtures/` images on `127.0.0.1:8099` and runs `demo.tape` against `acres-tui/tests/fixtures/artworks.json`.
+- `make coverage` — report-only `cargo llvm-cov` summary (needs `cargo install cargo-llvm-cov`).
+- TUI render tests are `insta` snapshots (`acres-tui/src/components/snapshots/`). After an intended UI change run `cargo insta review` (or `INSTA_UPDATE=always cargo test -p acres-tui`) and commit the `.snap` changes.
 - Individual steps: `make reformat-check` (`cargo fmt --check`), `make reformat` (applies formatting), `make lint`, `make test`, `make docs`.
 
 ## Crates and dependency direction
