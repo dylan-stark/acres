@@ -98,3 +98,40 @@ impl<'a> Component for Home<'a> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use image_to_ascii_builder::Ascii;
+
+    use super::*;
+    use crate::components::test_support::render;
+
+    fn ascii(text: &str) -> Ascii {
+        serde_json::from_value(serde_json::json!(text)).expect("ascii deserializes")
+    }
+
+    #[test]
+    fn renders_empty() {
+        let mut home = Home::new();
+        insta::assert_snapshot!(render(&mut home, 20, 6));
+    }
+
+    #[test]
+    fn renders_ascii_centered() {
+        let mut home = Home::new();
+        home.update(Action::UpdateAscii(ascii("@@@@\n#**#\n....")))
+            .unwrap();
+        insta::assert_snapshot!(render(&mut home, 20, 7));
+    }
+
+    #[test]
+    fn renders_logs_only_when_toggled() {
+        let mut home = Home::new();
+        home.update(Action::Log("first".into())).unwrap();
+        home.update(Action::Log("second".into())).unwrap();
+        assert!(!render(&mut home, 24, 4).contains("second"));
+
+        home.update(Action::ToggleLogs).unwrap();
+        insta::assert_snapshot!(render(&mut home, 24, 4));
+    }
+}

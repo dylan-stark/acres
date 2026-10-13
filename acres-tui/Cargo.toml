@@ -39,3 +39,6 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter", "serde"] }
 anyhow = "1.0.100"
 vergen-gix = { version = "1.0.9", features = ["build", "cargo"] }
 
+
+[dev-dependencies]
+insta = "1.43.2"

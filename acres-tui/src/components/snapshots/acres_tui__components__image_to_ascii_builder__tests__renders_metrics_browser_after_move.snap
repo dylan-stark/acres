@@ -1,0 +1,18 @@
+---
+source: acres-tui/src/components/image_to_ascii_builder.rs
+expression: "render(&mut builder, 40, 14)"
+---
+
+       ┌────────────────────────┐
+       │ dot                    │
+       │ jaccard                │
+       │ occlusion              │
+       │ color                  │
+       │ clear                  │
+       │ fast                   │
+       │ intensity              │
+       │ grad                   │
+       │ direction-and-intensity│
+       │-direction              │
+       │ intensity-jaccard      │
+       └────────────────────────┘
