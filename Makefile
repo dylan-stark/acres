@@ -18,6 +18,20 @@ docker-check:
 	docker run --rm --user "$${SUDO_UID:-$$(id -u)}:$${SUDO_GID:-$$(id -g)}" -e HOME=/tmp -e CARGO_HOME=/tmp/cargo -e CARGO_TARGET_DIR=/work/target-docker -v "$(CURDIR)":/work acres-dev
 .PHONY: docker-check
 
+# Records demo.gif offline: serves the fixture images on 127.0.0.1:8099 and runs vhs against the built TUI.
+# Needs vhs and ttyd on PATH (both are in the Docker image).
+demo:
+	cargo build --locked -p acres-tui
+	@python3 -m http.server 8099 --bind 127.0.0.1 --directory acres-tui/tests/fixtures >/dev/null 2>&1 & \
+	server=$$!; trap 'kill $$server' EXIT; \
+	PATH="$(CURDIR)/target/debug:$$PATH" ACRES_USE_CACHE=false vhs demo.tape
+.PHONY: demo
+
+# Prints a coverage summary (report only, no gate). Needs `cargo install cargo-llvm-cov` and the llvm-tools-preview component.
+coverage:
+	cargo llvm-cov --locked --all-features --workspace --summary-only
+.PHONY: coverage
+
 docs:
 	cargo doc --workspace --no-deps
 
