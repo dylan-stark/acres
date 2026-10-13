@@ -5,7 +5,7 @@ RUN go install github.com/charmbracelet/vhs@latest
 
 FROM rust:1.99.0
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends jq ffmpeg make git curl ca-certificates \
+    && apt-get install -y --no-install-recommends jq ffmpeg make git curl ca-certificates python3 \
     && rm -rf /var/lib/apt/lists/*
 # ttyd isn't packaged for this Debian release; use the upstream static binary.
 RUN curl -fsSL -o /usr/local/bin/ttyd \
