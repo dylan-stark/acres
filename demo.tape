@@ -6,18 +6,8 @@ Set FontSize 8
 Set Width 1200
 Set Height 600
 
-# Show results of getting artworks.
-Type "acres-cli artworks | jq"
-Sleep 500ms
-Enter
-Sleep 500ms
-
-# Start up TUI.
-Type "clear"
-Enter
-Type "acres-cli artworks > ./scratch/artworks.json"
-Enter
-Type "acres-tui ./scratch/artworks.json"
+# Start up TUI on the offline fixture (`make demo` serves its images locally).
+Type "acres-tui acres-tui/tests/fixtures/artworks.json"
 Sleep 500ms
 Enter
 Sleep 500ms
