@@ -1167,4 +1167,59 @@ mod tests {
             format!("invalid format: {value}")
         )
     }
+
+    fn uri() -> Uri {
+        Uri::from_str("https://www.artic.edu/iiif/2/abc").unwrap()
+    }
+
+    #[test]
+    fn builder_defaults_to_full_default_jpg() {
+        let request = ImageRequest::builder()
+            .uri(uri())
+            .region(Region::default())
+            .size(Size::default())
+            .rotation(Rotation::default())
+            .quality(Quality::default())
+            .format(Format::default())
+            .build();
+        assert_eq!(
+            request.to_string(),
+            "https://www.artic.edu/iiif/2/abc/full/full/0/default.jpg"
+        );
+    }
+
+    #[test]
+    fn builder_and_new_build_the_same_url() {
+        let region = Region::Absolute(10, 20, 300, 400);
+        let size = Size::from_str("843,").unwrap();
+        let built = ImageRequest::builder()
+            .uri(uri())
+            .region(region.clone())
+            .size(size.clone())
+            .rotation(Rotation::default())
+            .quality(Quality::default())
+            .format(Format::Png)
+            .build();
+        let new = ImageRequest::new(
+            uri(),
+            region,
+            size,
+            Rotation::default(),
+            Quality::default(),
+            Format::Png,
+        );
+        assert_eq!(built.to_string(), new.to_string());
+        assert_eq!(
+            built.to_string(),
+            "https://www.artic.edu/iiif/2/abc/10,20,300,400/843,/0/default.png"
+        );
+    }
+
+    #[rstest]
+    #[case("https://www.artic.edu/iiif/2/abc/full/843,/0/default.jpg")]
+    #[case("https://www.artic.edu/iiif/2/abc/pct:10,10,50,50/!100,100/90/gray.webp")]
+    fn image_request_round_trips(#[case] url: &str) {
+        let request = ImageRequest::from_str(url).unwrap();
+        assert_eq!(request.to_string(), url);
+    }
 }
