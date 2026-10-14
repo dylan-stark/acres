@@ -25,6 +25,8 @@ Dependencies only point downward: `iiif`/`image-to-ascii-builder` â†’ `acres` â†
 
 - Commit messages: one terse past-tense sentence ending in a period, e.g. `Fixes filenames.`
 - Workflow: never commit directly to `agent-harness` or `main`. Do each piece of work on its own branch off the integration branch (`agent-harness` for harness issues), push it, and open a PR against that branch with `gh pr create` (body says `Closes #N`). `make check` must pass first. Don't merge your own PR.
+- Record non-obvious decisions as an ADR in `docs/decisions/` (copy `0000-template.md`, add it to the index in that folder's `README.md`).
+- Update `CHANGELOG.md` (under `[Unreleased]`, Keep a Changelog format) in the same commit as any user-visible change.
 - Never read, modify, or commit `scratch/` or `target/`.
 - Tests must mock the network. Never hit the live AIC API from tests.
 - TUI keybindings live in `acres-tui/.config/config.json5`.
