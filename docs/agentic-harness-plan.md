@@ -71,3 +71,17 @@ Each step is one small PR/commit on `agent-harness`, ordered by leverage per eff
 - Step 3: `rustc --version` matches the pin, and a clean devcontainer build runs `make check`.
 - Step 4: `cargo test` runs the new snapshot tests offline, and `make demo` produces a GIF without network.
 - Step 6: re-rate against the table above.
+
+## Re-rating after Step 6
+
+Re-rated from the repo state after Harness 1–6 (read-only survey plus the CI/agent files added in step 6; I did not observe a green CI run on the new workflows yet).
+
+| Subsystem | Before | After | Evidence |
+|---|---|---|---|
+| Instruction | 1 | **4** | `CLAUDE.md` (+ `AGENTS.md`) covers commands, crate map, dependency direction, commit/branch/PR workflow and test rules; README drift fixed. |
+| Tooling | 3 | **4** | `make check` as single done command, `.claude/settings.json` allowlist and fmt hook, `/check` command, `reviewer` subagent. No nextest or MCP config. |
+| Environment | 2 | **4** | `rust-toolchain.toml` mirrored in CI with a `check-toolchain` guard, fixed `.envrc`, Dockerfile with `vhs`/`ttyd`/`ffmpeg`, documented worktree use. |
+| State | 1 | **3** | `CHANGELOG.md`, ADRs 0001–0003 with a template, recorded conventions for both. No roadmap beyond GitHub issues. |
+| Feedback | 2 | **3** | `insta` render snapshots for TUI components, enforced in CI by `cargo insta test --check`; offline `make demo`; report-only `make coverage`. Coverage is ungated and `ascii.rs` is still thinly tested. |
+
+Overall: **~3.6/5**, every row ≥3.
