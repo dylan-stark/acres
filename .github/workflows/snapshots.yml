@@ -1,0 +1,22 @@
+name: Snapshots
+
+# Fails if an insta snapshot is out of date, pending, or unreferenced.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  insta:
+    name: Insta snapshots
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.99.0
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@cargo-insta
+      - name: Check snapshots
+        run: cargo insta test --check --unreferenced=reject --workspace --all-features
