@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `acres-cli` for fetching artworks, manifests and IIIF URLs/bytes and for rendering ASCII art, with JSON written to stdout (see [ADR 0002](docs/decisions/0002-cli-json-to-stdout.md)).
 - `acres-tui` now reads artworks from a JSON file produced by `acres-cli`.
 - Crate-level documentation, runnable examples and an expanded README.
+- CI snapshot check (`cargo insta test --check`), an optional Claude Code PR review workflow and a `reviewer` subagent.
 - Offline demo recording (`make demo`) and snapshot tests for TUI components.
 
 ### Changed
