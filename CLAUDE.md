@@ -20,7 +20,7 @@ Rust workspace of tools for the [Art Institute of Chicago API](https://api.artic
 - `acres-cli` — Clap CLI; depends on `acres`, `iiif`, `image-to-ascii-builder`
 - `acres-tui` — Ratatui TUI; depends on `acres`, `iiif`, `image-to-ascii-builder`
 
-Dependencies only point downward: `iiif`/`image-to-ascii-builder` → `acres` → `acres-cli`/`acres-tui`. Never add an upward dependency.
+Library crates never depend on their consumers: `iiif` and `image-to-ascii-builder` depend on nothing in the workspace, `acres` may depend only on `iiif`, and `acres-cli`/`acres-tui` may depend on `acres`, `iiif` and `image-to-ascii-builder`. Never add a dependency in the other direction.
 
 ## Conventions
 
