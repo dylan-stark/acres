@@ -13,6 +13,5 @@ Put IIIF URL construction in a standalone `iiif` crate with no workspace depende
 
 ## Consequences
 
-- Dependencies point strictly downward: `iiif` -> `acres` -> `acres-cli`/`acres-tui`. Never add an upward dependency.
+- Dependencies point strictly downward: `acres-cli`/`acres-tui` -> `acres` -> `iiif`. Never add an upward dependency.
 - `iiif` can be documented, tested and published independently.
-- Cross-crate changes to image requests require touching more than one crate.
