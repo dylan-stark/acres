@@ -346,41 +346,36 @@ impl Display for Region {
 impl FromStr for Region {
     type Err = IiifError;
 
+    /// Creates a Region from a character string.
+    ///
+    /// Valid strings are
+    ///
+    /// - 'full'
+    /// - 'x,y,w,h' (x, y, w, and h are non-negative integers)
+    /// - 'pct:x,y,w,h' (x, y, w, and h are non-negative floats)
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == "full" {
-            return Ok(Region::Full);
+        fn parse_xywh<T: FromStr>(input: &str) -> Option<[T; 4]> {
+            let values: Vec<T> = input
+                .split(',')
+                .map(|part| part.trim().parse().ok())
+                .collect::<Option<_>>()?;
+
+            values.try_into().ok()
         }
 
-        let is_pct = s.starts_with("pct:");
-        let xywh = if is_pct {
-            s.replacen("pct:", "", 1)
-        } else {
-            s.to_string()
-        };
+        let invalid = || IiifError::InvalidRegion(s.into());
 
-        let parts = xywh.split(",");
-        if is_pct {
-            let parts: Vec<Percentage> = parts
-                .filter_map(|part| part.trim().parse::<Percentage>().ok())
-                .collect();
-            if parts.len() == 4 {
-                return Ok(Region::Percentage(
-                    parts[0].clone(),
-                    parts[1].clone(),
-                    parts[2].clone(),
-                    parts[3].clone(),
-                ));
+        match s {
+            "full" => Ok(Region::Full),
+            _ if let Some(xywh) = s.strip_prefix("pct:") => {
+                let [x, y, w, h] = parse_xywh(xywh).ok_or_else(invalid)?;
+                Ok(Region::Percentage(x, y, w, h))
             }
-        } else {
-            let parts: Vec<u32> = parts
-                .filter_map(|part| part.trim().parse::<u32>().ok())
-                .collect();
-            if parts.len() == 4 {
-                return Ok(Region::Absolute(parts[0], parts[1], parts[2], parts[3]));
+            _ => {
+                let [x, y, w, h] = parse_xywh(s).ok_or_else(invalid)?;
+                Ok(Region::Absolute(x, y, w, h))
             }
         }
-
-        Err(IiifError::InvalidRegion(s.into()))
     }
 }
 
@@ -1059,12 +1054,16 @@ mod tests {
 
     #[rstest]
     #[case("ful")]
+    #[case("fully")]
     #[case("Full")]
     #[case("1,2,4")]
     #[case("1,2,,4")]
+    #[case("1,2,-3,4")]
     #[case("1,2,a,4")]
     #[case("1,2,3,4,5")]
+    #[case("1,2,3,4,abc")]
     #[case("pct:1.2,3.4,4.513")]
+    #[case("pct:-1.2,2.37,3.4,4.513")]
     fn parsing_region_fails(#[case] value: &str) {
         assert_eq!(
             Region::from_str(value).unwrap_err().to_string(),
