@@ -28,7 +28,8 @@ Library crates never depend on their consumers: `iiif` and `image-to-ascii-build
 - Workflow: never commit directly to `agent-harness` or `main`. Do each piece of work on its own branch off the integration branch (`agent-harness` for harness issues), push it, and open a PR against that branch with `gh pr create` (body says `Closes #N`). `make check` must pass first. Don't merge your own PR.
 - Record non-obvious decisions as an ADR in `docs/decisions/` (copy `0000-template.md`, add it to the index in that folder's `README.md`).
 - Update `CHANGELOG.md` (under `[Unreleased]`, Keep a Changelog format) in the same commit as any user-visible change.
-- Never read, modify, or commit `scratch/` or `target/`.
+- `scratch/` is gitignored working space for temporary files that should stay in the repo tree (notes, probes, drafts). Read and write there freely, but never commit anything in it except `scratch/README.md`.
+- Never read, modify, or commit `target/`.
 - Tests must mock the network. Never hit the live AIC API from tests.
 - TUI keybindings live in `acres-tui/.config/config.json5`.
 

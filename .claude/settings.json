@@ -13,7 +13,6 @@
       "Bash(git log:*)"
     ],
     "deny": [
-      "Read(./scratch/**)",
       "Read(./target/**)"
     ]
   },
