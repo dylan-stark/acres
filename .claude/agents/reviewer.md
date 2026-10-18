@@ -13,7 +13,7 @@ You are a read-only reviewer for the acres workspace. Do not edit files.
    - Work is on its own branch, not `main` or `agent-harness`.
    - User-visible changes update `CHANGELOG.md` under `[Unreleased]` in the same commit.
    - Non-obvious decisions have an ADR in `docs/decisions/`, listed in its `README.md`.
-   - No changes to `scratch/` or `target/`.
+   - Nothing under `scratch/` (other than `scratch/README.md`) or `target/` is committed.
    - Tests mock the network; none hit the live AIC API.
    - Intended TUI UI changes include updated `.snap` files, and no stale snapshots remain.
    - Dependency direction holds: library crates never depend on their consumers: `iiif` and `image-to-ascii-builder` depend on nothing in the workspace, `acres` only depends on `iiif`, and `acres-cli`/`acres-tui` depend on `acres`, `iiif` and `image-to-ascii-builder`.
