@@ -443,43 +443,43 @@ impl Display for Size {
 impl FromStr for Size {
     type Err = IiifError;
 
+    /// Creates a Size from a string.
+    ///
+    /// Valid strings are
+    ///
+    /// - full
+    /// - pct:n
+    /// - !w,h
+    /// - w,
+    /// - ,h
+    /// - w,h
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == "full" {
-            return Ok(Size::Full);
-        } else if s.starts_with("pct:") {
-            let n = s.replacen("pct:", "", 1).parse::<f32>().ok();
-            if let Some(n) = n {
-                return Ok(Size::Percentage(n.try_into()?));
-            }
-        } else if s.starts_with("!") {
-            let parts = s
-                .replacen("!", "", 1)
-                .split(",")
-                .filter_map(|part| part.trim().parse::<u32>().ok())
-                .collect::<Vec<u32>>();
-            if parts.len() == 2 {
-                return Ok(Size::BestFit(parts[0], parts[1]));
-            }
-        } else if s.starts_with(",") {
-            let height = s.replacen(",", "", 1).parse::<u32>().ok();
-            if let Some(height) = height {
-                return Ok(Size::Height(height));
-            }
-        } else if s.ends_with(",") {
-            let width = s.replacen(",", "", 1).parse::<u32>().ok();
-            if let Some(width) = width {
-                return Ok(Size::Width(width));
-            }
-        } else {
-            let parts = s
-                .split(",")
-                .filter_map(|part| part.trim().parse::<u32>().ok())
-                .collect::<Vec<u32>>();
-            if parts.len() == 2 {
-                return Ok(Size::Exactly(parts[0], parts[1]));
-            }
+        fn parse_wh(input: &str) -> Option<[Option<u32>; 2]> {
+            let values: Vec<_> = input
+                .split(',')
+                .map(|part| part.trim().parse().ok())
+                .collect();
+            values.try_into().ok()
         }
-        Err(IiifError::InvalidSize(s.into()))
+
+        let invalid = || IiifError::InvalidSize(s.into());
+
+        match s {
+            "full" => Ok(Size::Full),
+            _ if let Some(n) = s.strip_prefix("pct:") => {
+                Ok(Size::Percentage(n.trim().parse().map_err(|_| invalid())?))
+            }
+            _ if let Some(wh) = s.strip_prefix("!") => match parse_wh(wh).ok_or_else(invalid)? {
+                [Some(w), Some(h)] => Ok(Size::BestFit(w, h)),
+                _ => Err(IiifError::InvalidSize(s.into())),
+            },
+            _ => match parse_wh(s).ok_or_else(invalid)? {
+                [Some(w), None] => Ok(Size::Width(w)),
+                [None, Some(h)] => Ok(Size::Height(h)),
+                [Some(w), Some(h)] => Ok(Size::Exactly(w, h)),
+                [None, None] => Err(IiifError::InvalidSize(s.into())),
+            },
+        }
     }
 }
 
