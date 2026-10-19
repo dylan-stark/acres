@@ -540,14 +540,13 @@ impl FromStr for Rotation {
     type Err = IiifError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(degrees) = s.parse::<Degree>() {
-            return Ok(Rotation::Degrees(degrees));
-        }
-        if let Ok(degrees) = s.replacen("!", "", 1).parse::<Degree>() {
-            return Ok(Rotation::Mirrored(degrees));
-        }
+        let invalid = || IiifError::InvalidRotation(s.into());
 
-        Err(IiifError::InvalidRotation(s.into()))
+        if let Some(n) = s.strip_prefix('!') {
+            Ok(Rotation::Mirrored(n.trim().parse().map_err(|_| invalid())?))
+        } else {
+            Ok(Rotation::Degrees(s.trim().parse().map_err(|_| invalid())?))
+        }
     }
 }
 
