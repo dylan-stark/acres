@@ -58,7 +58,4 @@ pub enum IiifError {
     /// Info part is missing.
     #[error("missing info part in URL: {0}")]
     MissingInfoPart(String),
-    /// Something unexpected went wrong.
-    #[error(transparent)]
-    Unexpected(#[from] anyhow::Error),
 }
