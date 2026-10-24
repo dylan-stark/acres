@@ -2,6 +2,7 @@ use std::num::ParseFloatError;
 
 /// An IIIF error.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum IiifError {
     /// Unable to parse quality.
     #[error("invalid quality: {0}")]
