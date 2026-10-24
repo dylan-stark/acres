@@ -18,6 +18,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 - Renamed the project from `aic-tui` to `acres`.
 
+### Fixed
+
+- Parsing an `iiif::ImageRequest` from a string no longer drops a non-default port from the base URI.
+
 ## [0.2.0] - 2024-10-13
 
 ### Added

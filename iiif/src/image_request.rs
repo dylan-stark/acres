@@ -790,53 +790,41 @@ impl Display for ImageRequest {
     }
 }
 
+/// Image request syntax:
+///
+/// > {scheme}://{server}{/prefix}/{identifier}/{region}/{size}/{rotation}/{quality}.{format}
 impl FromStr for ImageRequest {
     type Err = IiifError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let url = url::Url::parse(s).map_err(IiifError::from)?;
+        let mut parts = s.rsplitn(5, '/');
 
-        let region: Region;
-        let size: Size;
-        let rotation: Rotation;
-        let quality: Quality;
-        let format: Format;
-        let mut params: Vec<&str> = url.path_segments().map_or_else(Vec::new, |v| v.collect());
-        if let Some(file) = params.pop() {
-            if let Some((q, f)) = file.split_once('.') {
-                format = f.parse()?;
-                quality = q.parse()?;
-            } else {
-                return Err(IiifError::MissingFormat(s.to_string()));
-            }
-        } else {
-            return Err(IiifError::MissingFormat(s.to_string()));
-        }
-        if let Some(r) = params.pop() {
-            rotation = r.parse()?;
-        } else {
-            return Err(IiifError::MissingRotation(s.to_string()));
-        }
-        if let Some(s) = params.pop() {
-            size = s.parse()?;
-        } else {
-            return Err(IiifError::MissingSize(s.to_string()));
-        }
-        if let Some(r) = params.pop() {
-            region = r.parse()?;
-        } else {
-            return Err(IiifError::MissingRegion(s.to_string()));
-        }
+        let (quality, format) = parts
+            .next()
+            .and_then(|file| file.split_once('.'))
+            .ok_or_else(|| IiifError::MissingFormat(s.into()))?;
+        let quality = quality.parse()?;
+        let format: Format = format.parse()?;
 
-        let uri = Uri::from_str(
-            format!(
-                "{}://{}/{}",
-                url.scheme(),
-                url.host_str().map_or("", |v| v),
-                params.join("/")
-            )
-            .as_str(),
-        )?;
+        let rotation = parts
+            .next()
+            .ok_or_else(|| IiifError::MissingRotation(s.into()))?
+            .parse()?;
+
+        let size = parts
+            .next()
+            .ok_or_else(|| IiifError::MissingSize(s.into()))?
+            .parse()?;
+
+        let region = parts
+            .next()
+            .ok_or_else(|| IiifError::MissingRegion(s.into()))?
+            .parse()?;
+
+        let uri = parts
+            .next()
+            .ok_or_else(|| IiifError::MissingIdentifier(s.into()))?
+            .parse()?;
 
         Ok(Self {
             uri,
@@ -1215,6 +1203,7 @@ mod tests {
 
     #[rstest]
     #[case("https://www.artic.edu/iiif/2/abc/full/843,/0/default.jpg")]
+    #[case("https://www.artic.edu:5555/iiif/2/abc/full/843,/0/default.jpg")]
     #[case("https://www.artic.edu/iiif/2/abc/pct:10,10,50,50/!100,100/90/gray.webp")]
     fn image_request_round_trips(#[case] url: &str) {
         let request = ImageRequest::from_str(url).unwrap();
