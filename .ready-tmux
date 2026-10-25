@@ -7,5 +7,4 @@ tmux new-window -n scratch
 tmux select-window -t acres:1
 
 tmux send-keys -t acres:1 "nvim ." Enter
-tmux send-keys -t acres:2 "make watch" Enter
-
+tmux send-keys -t acres:2 "bacon test" Enter
