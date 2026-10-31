@@ -34,6 +34,15 @@ pub enum IiifError {
     /// Unable to parse provided URI.
     #[error("unable to parse URI: {0}")]
     InvalidUri(#[from] url::ParseError),
+    /// Invalid prefix in URI.
+    #[error("invalid prefix in URI: {0}")]
+    InvalidUriPrefix(String),
+    /// Invalid identifier.
+    #[error("invalid identifier: {0}")]
+    InvalidIdentifier(String),
+    /// Invalid prefix.
+    #[error("invalid prefix: {0}")]
+    InvalidPrefix(String),
     /// Format is missing.
     #[error("missing format in URL: {0}")]
     MissingFormat(String),
@@ -50,8 +59,8 @@ pub enum IiifError {
     #[error("missing region in URL: {0}")]
     MissingRegion(String),
     /// Server is missing.
-    #[error("missing server")]
-    MissingServer,
+    #[error("missing server in URI: {0}")]
+    MissingServer(String),
     /// Identifier is missing.
     #[error("missing identifier in URL: {0}")]
     MissingIdentifier(String),
