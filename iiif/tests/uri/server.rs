@@ -3,7 +3,7 @@
 use iiif::IiifError;
 use rstest::rstest;
 
-use crate::{assert_displays_as, assert_rejected, assert_round_trips};
+use crate::{assert_displays_as, assert_round_trips};
 
 /// IIIF §2: hosts may be registered names or IP literals, with or without a port.
 #[rstest]
@@ -74,12 +74,9 @@ fn invalid_authority_is_rejected(#[case] s: &str) {
 /// and RFC 3986 §7.5 deprecates credentials in URIs.
 #[rstest]
 #[case::user_and_password("https://user:pw@example.org/abcd1234")]
-#[ignore]
 #[case::user("https://user@example.org/abcd1234")]
-#[ignore]
 #[case::empty_userinfo("https://@example.org/abcd1234")]
-#[ignore]
 #[case::empty_password("https://user:@example.org/abcd1234")]
 fn userinfo_is_rejected(#[case] s: &str) {
-    assert_rejected(s);
+    assert_err!(s, IiifError::InvalidUriWithUserInfo(_));
 }
