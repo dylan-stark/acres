@@ -23,6 +23,55 @@ const PREFIX: &AsciiSet = &CONTROLS
     .add(b'@')
     .add(b'%');
 
+/// Rejects anything outside RFC 3986: unreserved, reserved, and `%XX` escapes.
+fn validate_rfc3986(s: &str) -> Result<(), IiifError> {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'%' => {
+                let ok = bytes
+                    .get(i + 1..i + 3)
+                    .is_some_and(|h| h.iter().all(u8::is_ascii_hexdigit));
+                if !ok {
+                    return Err(IiifError::InvalidUriEscape(format!("at {}: {}", i, s)));
+                }
+                i += 3;
+            }
+            b if is_unreserved(b) || is_reserved(b) => i += 1,
+            _ => return Err(IiifError::InvalidUriChar(format!("at {}: {}", i, s))),
+        }
+    }
+    Ok(())
+}
+
+const fn is_unreserved(b: u8) -> bool {
+    matches!(b, b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~')
+}
+
+const fn is_reserved(b: u8) -> bool {
+    matches!(
+        b,
+        b':' | b'/'
+            | b'?'
+            | b'#'
+            | b'['
+            | b']'
+            | b'@'
+            | b'!'
+            | b'$'
+            | b'&'
+            | b'\''
+            | b'('
+            | b')'
+            | b'*'
+            | b'+'
+            | b','
+            | b';'
+            | b'='
+    )
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 enum Scheme {
     Http,
@@ -132,11 +181,21 @@ impl FromStr for Identifier {
 
 impl Identifier {
     fn from_encoded(s: &str) -> Result<Self, IiifError> {
-        let invalid_chars: Vec<char> = s.chars().filter(|c| matches!(c, ' ' | '>')).collect();
+        validate_rfc3986(s)?;
+        let invalid_chars: Vec<char> = s
+            .chars()
+            .filter(|c| matches!(c, ' ' | '<' | '>' | '^' | '`' | '/' | '{' | '}' | '|'))
+            .collect();
         if !invalid_chars.is_empty() {
             return Err(InvalidIdentifier(format!(
                 "invalid characters ({:?}): {}",
                 invalid_chars, s
+            )));
+        }
+        if s.contains("%2E") || s.contains("%2e") {
+            return Err(InvalidIdentifier(format!(
+                "encoded '.' (%2E) not allowed: {}",
+                s
             )));
         }
 
@@ -183,12 +242,17 @@ pub struct Uri {
     identifier: Identifier,
 }
 
-/// {scheme}://{server}{/prefix}/{identifier}
 impl FromStr for Uri {
     type Err = IiifError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        validate_rfc3986(s)?;
+
         let url = url::Url::parse(s).map_err(IiifError::InvalidUri)?;
+        if let Some(_) = url.password() {
+            return Err(IiifError::InvalidUriString(s.into()));
+        }
+
         let scheme: Scheme = url.scheme().parse()?;
 
         let host = url
