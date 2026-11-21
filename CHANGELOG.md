@@ -17,10 +17,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 
 - Renamed the project from `aic-tui` to `acres`.
+- Add catch-all variant and made `IiifError` `#[non_exhaustive]`.
 
 ### Fixed
 
 - Parsing an `iiif::ImageRequest` from a string no longer drops a non-default port from the base URI.
+- Malformed input no longer accepted during region/size/rotation parsing.
 
 ## [0.2.0] - 2024-10-13
 
