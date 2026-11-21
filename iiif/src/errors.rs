@@ -34,9 +34,9 @@ pub enum IiifError {
     /// Unable to parse provided URI.
     #[error("unable to parse URI: {0}")]
     InvalidUri(#[from] url::ParseError),
-    /// Invalid URI.
-    #[error("invalid URI: {0}")]
-    InvalidUriString(String),
+    /// Invalid URI with user info.
+    #[error("invalid URI with user info: {0}")]
+    InvalidUriWithUserInfo(String),
     /// Invalid char in URI.
     #[error("invalid char in URI: {0}")]
     InvalidUriChar(String),

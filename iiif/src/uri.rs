@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr};
+use std::{cell::Cell, fmt::Display, str::FromStr};
 
 use percent_encoding::{AsciiSet, CONTROLS, percent_decode_str, utf8_percent_encode};
 use serde::{Deserialize, Serialize};
@@ -248,9 +248,21 @@ impl FromStr for Uri {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         validate_rfc3986(s)?;
 
-        let url = url::Url::parse(s).map_err(IiifError::InvalidUri)?;
-        if let Some(_) = url.password() {
-            return Err(IiifError::InvalidUriString(s.into()));
+        let saw_credentials = Cell::new(false);
+        let url = url::Url::options()
+            // Detect userinfo during parsing: username, password, and an
+            // empty block like `https://@example.com` are all caught. The
+            // latter is silently dropped by `Url::parse()` and can't be
+            // caught with `username()` and `password()`.
+            .syntax_violation_callback(Some(&|violation| {
+                if violation == url::SyntaxViolation::EmbeddedCredentials {
+                    saw_credentials.set(true)
+                }
+            }))
+            .parse(s)
+            .map_err(IiifError::InvalidUri)?;
+        if saw_credentials.get() {
+            return Err(IiifError::InvalidUriWithUserInfo(s.into()));
         }
 
         let scheme: Scheme = url.scheme().parse()?;
