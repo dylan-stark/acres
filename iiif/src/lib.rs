@@ -37,8 +37,8 @@
 //! # fn main() -> Result<()> {
 //! let info_request: InformationRequest = "https://example.org/image-service/abcd1234/1E34750D-38DB-4825-A38A-B60A345E591C/info.json".parse()?;
 //!
-//! let image_request: ImageRequest = "https://example.org/image-service/abcd1234 \
-//!     /1E34750D-38DB-4825-A38A-B60A345E591C \
+//! let image_request: ImageRequest = "https://example.org/image-service/abcd1234\
+//!     /1E34750D-38DB-4825-A38A-B60A345E591C\
 //!     /full/843,/0/default.jpg".parse()?;
 //! # Ok(())
 //! # }
