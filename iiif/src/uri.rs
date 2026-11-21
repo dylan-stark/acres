@@ -1,7 +1,8 @@
-use std::{cell::Cell, fmt::Display, str::FromStr};
+use std::{cell::RefCell, fmt::Display, str::FromStr};
 
 use percent_encoding::{AsciiSet, CONTROLS, percent_decode_str, utf8_percent_encode};
 use serde::{Deserialize, Serialize};
+use url::SyntaxViolation;
 
 use crate::{IiifError::InvalidIdentifier, errors::IiifError};
 
@@ -248,20 +249,32 @@ impl FromStr for Uri {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         validate_rfc3986(s)?;
 
-        let saw_credentials = Cell::new(false);
+        let saw_violations: RefCell<Vec<SyntaxViolation>> = RefCell::new(Vec::new());
         let url = url::Url::options()
+            .syntax_violation_callback(Some(&|violation| match violation {
+                SyntaxViolation::EmbeddedCredentials | SyntaxViolation::ExpectedDoubleSlash => {
+                    saw_violations.borrow_mut().push(violation)
+                }
+                _ => (),
+            }))
+            .parse(s)
+            .map_err(IiifError::InvalidUri)?;
+        if saw_violations
+            .borrow()
+            .contains(&SyntaxViolation::ExpectedDoubleSlash)
+        {
+            // Detect missing or additional slashes after scheme. An extra
+            // slash like in `https:///foo` is silently dropped by `Url::parse()`.
+            return Err(IiifError::BadSlashes(s.into()));
+        }
+        if saw_violations
+            .borrow()
+            .contains(&SyntaxViolation::EmbeddedCredentials)
+        {
             // Detect userinfo during parsing: username, password, and an
             // empty block like `https://@example.com` are all caught. The
             // latter is silently dropped by `Url::parse()` and can't be
             // caught with `username()` and `password()`.
-            .syntax_violation_callback(Some(&|violation| {
-                if violation == url::SyntaxViolation::EmbeddedCredentials {
-                    saw_credentials.set(true)
-                }
-            }))
-            .parse(s)
-            .map_err(IiifError::InvalidUri)?;
-        if saw_credentials.get() {
             return Err(IiifError::InvalidUriWithUserInfo(s.into()));
         }
 
