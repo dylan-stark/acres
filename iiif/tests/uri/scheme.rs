@@ -51,16 +51,13 @@ fn non_hierarchical_schemes_are_rejected(#[case] s: &str) {
 /// RFC 3986 §3: `https:example.org/x` has no authority, so it has no server. Rejected rather
 /// than fixed up the way WHATWG URL parsers do.
 #[rstest]
-#[ignore]
 #[case::no_slashes("https:example.org/abcd1234")]
-#[ignore]
 #[case::one_slash("https:/example.org/abcd1234")]
-#[ignore]
 #[case::three_slashes("https:///example.org/abcd1234")]
 #[case::backslashes("https:\\\\example.org\\abcd1234")]
 fn missing_authority_is_rejected(#[case] s: &str) {
     assert_err!(
         s,
-        IiifError::InvalidUri(_) | IiifError::MissingServer(_) | IiifError::InvalidUriChar(_)
+        IiifError::InvalidUri(_) | IiifError::BadSlashes(_) | IiifError::InvalidUriChar(_)
     );
 }

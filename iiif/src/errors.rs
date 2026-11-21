@@ -52,6 +52,9 @@ pub enum IiifError {
     /// Invalid prefix.
     #[error("invalid prefix: {0}")]
     InvalidPrefix(String),
+    /// Bad slashes in URL.
+    #[error("bad slashes in URI: {0}")]
+    BadSlashes(String),
     /// Format is missing.
     #[error("missing format in URL: {0}")]
     MissingFormat(String),

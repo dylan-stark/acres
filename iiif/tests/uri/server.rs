@@ -52,7 +52,6 @@ fn ports_are_normalized(#[case] s: &str, #[case] expected: &str) {
 
 /// RFC 3986 §3.2: the authority must be a valid host and port.
 #[rstest]
-#[ignore]
 #[case::empty_host("http:///abcd1234")]
 #[case::bare_scheme("http:")]
 #[case::bare_authority("http://")]
@@ -66,7 +65,10 @@ fn ports_are_normalized(#[case] s: &str, #[case] expected: &str) {
 fn invalid_authority_is_rejected(#[case] s: &str) {
     assert_err!(
         s,
-        IiifError::InvalidUri(_) | IiifError::MissingServer(_) | IiifError::InvalidUriChar(_)
+        IiifError::InvalidUri(_)
+            | IiifError::BadSlashes(_)
+            | IiifError::MissingServer(_)
+            | IiifError::InvalidUriChar(_)
     );
 }
 
@@ -77,6 +79,7 @@ fn invalid_authority_is_rejected(#[case] s: &str) {
 #[case::user("https://user@example.org/abcd1234")]
 #[case::empty_userinfo("https://@example.org/abcd1234")]
 #[case::empty_password("https://user:@example.org/abcd1234")]
+#[case::user_with_later_violation("https://user@example.org/abc[d]")]
 fn userinfo_is_rejected(#[case] s: &str) {
     assert_err!(s, IiifError::InvalidUriWithUserInfo(_));
 }
