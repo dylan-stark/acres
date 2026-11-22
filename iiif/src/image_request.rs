@@ -93,7 +93,7 @@ impl FromStr for Percentage {
     type Err = IiifError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value: f32 = s.parse().map_err(IiifError::from)?;
+        let value: f32 = s.parse().map_err(IiifError::InvalidPercentageString)?;
         Self::try_from(value)
     }
 }
@@ -142,6 +142,14 @@ mod percentage_tests {
             format!("{}", Percentage::try_from(value).unwrap_err()),
             expected
         )
+    }
+
+    #[test]
+    fn from_str_fails_with_percentage_error() {
+        assert_eq!(
+            "abc".parse::<Percentage>().unwrap_err().to_string(),
+            "unable to parse percentage: invalid float literal"
+        );
     }
 }
 
@@ -228,7 +236,7 @@ impl FromStr for Degree {
     type Err = IiifError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value: f32 = s.parse().map_err(IiifError::from)?;
+        let value: f32 = s.parse().map_err(IiifError::InvalidDegreeString)?;
         Self::try_from(value)
     }
 }
@@ -274,6 +282,14 @@ mod degree_tests {
             format!("{}", Degree::try_from(value).unwrap_err()),
             expected
         )
+    }
+
+    #[test]
+    fn from_str_fails_with_degree_error() {
+        assert_eq!(
+            "abc".parse::<Degree>().unwrap_err().to_string(),
+            "unable to parse degree: invalid float literal"
+        );
     }
 }
 

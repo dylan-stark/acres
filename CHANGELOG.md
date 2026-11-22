@@ -20,9 +20,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `IiifError` is `#[non_exhaustive]`, so matching on it needs a wildcard arm.
 - `iiif::Uri` parsing follows IIIF Image API §2/§3/§9 and RFC 3986 strictly. It now rejects user info, missing or extra slashes after the scheme, queries, fragments, trailing slashes, empty path segments, unencoded `@ [ ]`, raw non-ASCII or other characters outside RFC 3986, malformed `%` escapes, and `.`/`..` identifiers (encoded or not). Valid but non-canonical input is still accepted and displayed in canonical form.
 - `IiifError` has new variants for these cases: `InvalidUriWithUserInfo`, `InvalidUriChar`, `InvalidUriEscape`, `InvalidUriPrefix`, `InvalidIdentifier`, `InvalidPrefix`, `BadSlashes`, `HasQuery`, `HasFragment` and `TrailingSlash`. `MissingServer` now carries the offending URI.
+- `IiifError` no longer implements `From<ParseFloatError>`; `InvalidPercentageString` is used only for percentages.
 
 ### Fixed
 
+- Parsing an `iiif::Degree` from a non-numeric string reports `IiifError::InvalidDegreeString` ("unable to parse degree") instead of a percentage error.
 - Parsing an `iiif::ImageRequest` from a string no longer drops a non-default port from the base URI.
 - Malformed input no longer accepted during region/size/rotation parsing.
 - Displaying an `iiif::Uri` re-encodes characters such as space, `"` and `{` in the prefix and identifier instead of writing them raw.
