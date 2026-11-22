@@ -30,7 +30,10 @@ pub enum IiifError {
     InvalidDegree(f32),
     /// Unusable percentage string.
     #[error("unable to parse percentage: {0}")]
-    InvalidPercentageString(#[from] ParseFloatError),
+    InvalidPercentageString(#[source] ParseFloatError),
+    /// Unusable degree string.
+    #[error("unable to parse degree: {0}")]
+    InvalidDegreeString(#[source] ParseFloatError),
     /// Unable to parse provided URI.
     #[error("unable to parse URI: {0}")]
     InvalidUri(#[from] url::ParseError),
