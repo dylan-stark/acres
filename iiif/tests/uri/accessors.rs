@@ -40,12 +40,3 @@ fn components_are_readable(
     assert_eq!(uri.prefix(), prefix);
     assert_eq!(uri.identifier(), identifier);
 }
-
-#[rstest]
-#[case("https://example.org/abcd1234")]
-#[case("http://[::1]:8080/a%2Fb/c%3Fd%23e")]
-#[case("https://example.org/%E2%98%83")]
-fn to_url_matches_display(#[case] s: &str) {
-    let uri = ok(s);
-    assert_eq!(uri.to_url().as_str(), uri.to_string());
-}

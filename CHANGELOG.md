@@ -14,7 +14,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - CI snapshot check (`cargo insta test --check`), an optional Claude Code PR review workflow and a `reviewer` subagent.
 - Offline demo recording (`make demo`) and snapshot tests for TUI components.
 - `iiif` types can be read back: `Percentage::value()` and `Degree::value()`; `ImageRequest::{uri, region, size, rotation, quality, format}()`; `InformationRequest::uri()`; and `Uri::{scheme, host, port, prefix, identifier}()` (prefix and identifier percent-decoded).
-- `iiif::Uri`, `ImageRequest` and `InformationRequest` have `to_url()`, returning a `url::Url` (see [ADR 0005](docs/decisions/0005-iiif-exposes-url.md)).
 
 ### Changed
 
