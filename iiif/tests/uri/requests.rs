@@ -75,7 +75,7 @@ fn requests_normalize_the_base_uri() {
 #[case::raw_at("https://example.org/a@b")]
 #[case::raw_non_ascii("https://example.org/☃")]
 #[case::bad_escape("https://example.org/abc%zz")]
-fn requests_propagate_identifier_errors(#[case] uri: &str) {
+fn requests_propagate_base_uri_errors(#[case] uri: &str) {
     let expected = uri.parse::<Uri>().expect_err("base URI should be invalid");
 
     let info = InformationRequest::from_str(&format!("{uri}/info.json"));
