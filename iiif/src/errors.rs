@@ -79,4 +79,10 @@ pub enum IiifError {
     /// Info part is missing.
     #[error("missing info part in URL: {0}")]
     MissingInfoPart(String),
+    /// IIIF URIs must not contain queries.
+    #[error("IIIF URIs must not contain queries: {0}")]
+    HasQuery(String),
+    /// IIIF URIs must not contain fragments.
+    #[error("IIIF URIs must not contain fragments: {0}")]
+    HasFragment(String),
 }

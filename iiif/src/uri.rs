@@ -295,6 +295,14 @@ impl FromStr for Uri {
             return Err(IiifError::MissingIdentifier(format!("not in path: {}", s)));
         };
 
+        if url.query().is_some() {
+            return Err(IiifError::HasQuery(s.into()));
+        }
+
+        if url.fragment().is_some() {
+            return Err(IiifError::HasFragment(s.into()));
+        }
+
         let encoded_identifier = segments
             .next()
             .ok_or_else(|| IiifError::MissingIdentifier(format!("not in path: {}", s)))?;
