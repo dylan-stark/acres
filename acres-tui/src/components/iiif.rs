@@ -51,8 +51,8 @@ impl Component for Iiif {
                         .region(self.region.clone())
                         .size(self.size.clone())
                         .rotation(self.rotation.clone())
-                        .quality(self.quality.clone())
-                        .format(self.format.clone())
+                        .quality(self.quality)
+                        .format(self.format)
                         .build();
                     tracing::debug!(image_request = %image_request, raw_image_request = ?image_request);
 

@@ -245,7 +245,7 @@ impl Identifier {
 /// A [base URI] for an IIIF image API.
 ///
 /// The base URI must use either Http or Https, include the host server, and provide the requested image identifier. It may also include a
-/// path segement.
+/// path prefix.
 ///
 /// ```rust
 /// # use anyhow::Result;
@@ -260,11 +260,10 @@ impl Identifier {
 /// # }
 /// ```
 ///
-/// If parsing fails, you'll get an [IiifError] that should help narrow down where the issue is and
+/// If parsing fails, you'll get an [`IiifError`] that should help narrow down where the issue is and
 /// how to correct it.
 ///
-/// [Base URI]: https://iiif.io/api/image/3.0/#2-uri-syntax
-/// [IiifError]: enum.IiifError
+/// [base URI]: https://iiif.io/api/image/2.0/#uri-syntax
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Uri {
     scheme: Scheme,

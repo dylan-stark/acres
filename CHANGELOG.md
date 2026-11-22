@@ -25,6 +25,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- `iiif::Quality` and `iiif::Format` are now `Copy`.
+- `iiif` no longer depends on `anyhow`, `bytes`, `strum` or `tracing`, and its crates.io keywords and categories describe the library instead of the CLI/TUI. Broken links in its docs are fixed.
 - `iiif::Percentage` and `iiif::Degree` compare numerically (so `9 < 10`) instead of as text, which also fixes the ordering of `Region`, `Size`, `Rotation` and `ImageRequest`. They are now `Copy`.
 - Deserializing `iiif` types now validates input the same way parsing does, so invalid values (e.g. a `Percentage` of `"banana"`) are rejected.
 - Parsing an `iiif::Degree` from a non-numeric string reports `IiifError::InvalidDegreeString` ("unable to parse degree") instead of a percentage error.
