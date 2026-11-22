@@ -2,8 +2,6 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{cmp::Ordering, fmt::Display};
 
-use serde::{Deserialize, Serialize};
-
 use crate::{
     IiifError, Uri,
     builder::{Set, Unset},
@@ -61,7 +59,7 @@ use crate::{
 /// [floating point]: https://iiif.io/api/image/2.0/#image-request-parameters
 /// [`Size`]: enum.Size.html
 /// [`Region`]: enum.Region.html
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Percentage(String);
 
 impl Default for Percentage {
@@ -204,7 +202,7 @@ mod percentage_tests {
 ///
 /// [floating point]: https://iiif.io/api/image/2.0/#image-request-parameters
 /// [`Rotatin`]: enum.Rotatin.html
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Degree(String);
 
 impl Default for Degree {
@@ -338,7 +336,7 @@ mod degree_tests {
 ///
 ///
 /// [region]: https://iiif.io/api/image/2.0/#region
-#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Region {
     /// The complete image.
     #[default]
@@ -426,7 +424,7 @@ impl FromStr for Region {
 /// ```
 ///
 /// [size]: https://iiif.io/api/image/2.0/#size
-#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Size {
     /// Don't scale.
     #[default]
@@ -529,7 +527,7 @@ impl FromStr for Size {
 /// # }
 /// ```
 /// [rotation]: https://iiif.io/api/image/2.0/#rotation
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Rotation {
     /// Clockwise rotation in degrees.
     Degrees(Degree),
@@ -597,7 +595,7 @@ impl FromStr for Rotation {
 /// ```
 ///
 /// [quality]: https://iiif.io/api/image/2.0/#quality
-#[derive(Clone, Debug, PartialEq, Default, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Default, Eq, PartialOrd, Ord, Hash)]
 pub enum Quality {
     /// Full color.
     Color,
@@ -666,7 +664,7 @@ impl FromStr for Quality {
 /// ```
 ///
 /// [format]: https://iiif.io/api/image/2.0/#format
-#[derive(Clone, Debug, PartialEq, Default, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Default, Eq, PartialOrd, Ord, Hash)]
 pub enum Format {
     /// JPEG format.
     #[default]
@@ -786,7 +784,7 @@ impl FromStr for Format {
 ///
 /// [image request]: https://iiif.io/api/image/2.0/#4-image-requests
 /// [typestate pattern]: https://stanford-cs242.github.io/f19/lectures/08-2-typestate.html
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ImageRequest {
     uri: Uri,
     region: Region,

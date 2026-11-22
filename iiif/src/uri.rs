@@ -1,7 +1,6 @@
 use std::{cell::RefCell, fmt::Display, str::FromStr};
 
 use percent_encoding::{AsciiSet, CONTROLS, percent_decode_str, utf8_percent_encode};
-use serde::{Deserialize, Serialize};
 use url::SyntaxViolation;
 
 use crate::{IiifError::InvalidIdentifier, errors::IiifError};
@@ -93,7 +92,7 @@ const fn is_reserved(b: u8) -> bool {
     )
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 enum Scheme {
     Http,
     Https,
@@ -120,7 +119,7 @@ impl FromStr for Scheme {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 struct Server {
     host: String,
     port: Option<u16>,
@@ -136,7 +135,7 @@ impl Display for Server {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 struct Prefix(Vec<String>);
 
 impl Display for Prefix {
@@ -202,7 +201,7 @@ impl Prefix {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 struct Identifier(String);
 
 impl Display for Identifier {
@@ -266,7 +265,7 @@ impl Identifier {
 ///
 /// [Base URI]: https://iiif.io/api/image/3.0/#2-uri-syntax
 /// [IiifError]: enum.IiifError
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Uri {
     scheme: Scheme,
     server: Server,

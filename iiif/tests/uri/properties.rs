@@ -159,11 +159,13 @@ proptest! {
         }
     }
 
-    /// Serialization keeps the full value.
+    /// Serialization keeps the full value, as the canonical string.
+    #[cfg(feature = "serde")]
     #[test]
     fn serde_round_trips(s in canonical_uri()) {
         let uri: Uri = s.parse().map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
         let json = serde_json::to_string(&uri).expect("serializes");
+        prop_assert_eq!(&json, &serde_json::to_string(&uri.to_string()).expect("serializes"));
         let back: Uri = serde_json::from_str(&json).expect("deserializes");
         prop_assert_eq!(back, uri);
     }
