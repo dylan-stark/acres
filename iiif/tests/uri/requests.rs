@@ -5,7 +5,8 @@
 use std::{mem::discriminant, str::FromStr};
 
 use iiif::{
-    Format, IiifError, ImageRequest, InformationRequest, Quality, Region, Rotation, Size, Uri,
+    Format, ImageRequest, InformationRequest, Quality, Region, RequestError, Rotation, Size, Uri,
+    UriError,
 };
 use rstest::rstest;
 
@@ -69,7 +70,7 @@ fn requests_normalize_the_base_uri() {
     );
 }
 
-/// Errors in the base URI come through request parsing unchanged: the request fails with the
+/// Errors in the base URI come through request parsing wrapped in `InvalidUri`, holding the
 /// same variant as parsing the base URI on its own (which `identifier.rs` pins down).
 #[rstest]
 #[case::raw_at("https://example.org/a@b")]
@@ -80,13 +81,13 @@ fn requests_propagate_base_uri_errors(#[case] uri: &str) {
 
     let info = InformationRequest::from_str(&format!("{uri}/info.json"));
     assert!(
-        matches!(&info, Err(e) if discriminant(e) == discriminant(&expected)),
+        matches!(&info, Err(RequestError::InvalidUri(e)) if discriminant(e) == discriminant(&expected)),
         "expected {expected:?}, got {info:?}"
     );
 
     let image = ImageRequest::from_str(&format!("{uri}/full/full/0/default.jpg"));
     assert!(
-        matches!(&image, Err(e) if discriminant(e) == discriminant(&expected)),
+        matches!(&image, Err(RequestError::InvalidUri(e)) if discriminant(e) == discriminant(&expected)),
         "expected {expected:?}, got {image:?}"
     );
 }
@@ -98,8 +99,48 @@ fn information_request_without_identifier_is_rejected() {
     assert!(
         matches!(
             info,
-            Err(IiifError::MissingIdentifier(_) | IiifError::InvalidIdentifier(_))
+            Err(RequestError::InvalidUri(
+                UriError::MissingIdentifier(_) | UriError::InvalidIdentifier(_)
+            ))
         ),
         "{info:?}"
     );
+}
+
+/// IIIF §2.1: an image request with too few segments has no base URI before its parameters.
+#[test]
+fn image_request_without_base_uri_is_rejected() {
+    let image = ImageRequest::from_str("full/843,/0/default.jpg");
+    assert!(
+        matches!(image, Err(RequestError::MissingUri(_))),
+        "{image:?}"
+    );
+}
+
+/// IIIF §2.2: an information request must end in `/info.json`.
+#[test]
+fn information_request_without_info_json_is_rejected() {
+    let info = InformationRequest::from_str("https://example.org/images/12345");
+    assert!(
+        matches!(info, Err(RequestError::MissingInfoJson(_))),
+        "{info:?}"
+    );
+}
+
+/// A wrapping error's message leaves its cause out and exposes it as `source()` instead, so
+/// reporters that walk the chain (eyre, anyhow) print each cause once.
+#[test]
+fn request_errors_expose_cause_as_source() {
+    use std::error::Error as _;
+
+    let err = ImageRequest::from_str("https://example.org/a@b/full/full/0/default.jpg")
+        .expect_err("base URI should be invalid");
+    let cause = err.source().expect("cause").to_string();
+    assert!(cause.starts_with("invalid identifier in URI"), "{cause}");
+    assert!(!err.to_string().contains(&cause), "{err}");
+
+    // `iiif::Error` is transparent: same message, same source.
+    let wrapped = iiif::Error::from(err);
+    assert_eq!(wrapped.to_string(), "invalid base URI in request");
+    assert_eq!(wrapped.source().expect("cause").to_string(), cause);
 }

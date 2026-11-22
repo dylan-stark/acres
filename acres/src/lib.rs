@@ -167,8 +167,11 @@ pub enum AcresError {
     #[error("unable to load artwork info")]
     LoadArtworkInfo,
     /// Unable to parse IIIF scheme
-    #[error("IIIF error: {0}")]
-    Iiif(#[from] iiif::IiifError),
+    #[error("IIIF error")]
+    Iiif(#[from] iiif::Error),
+    /// The artwork's image URL couldn't be built from its IIIF base URL and image ID.
+    #[error("invalid image URL")]
+    InvalidImageUrl(#[from] url::ParseError),
     /// A search query parameter error
     #[error("search query parameters error: {0}")]
     InvalidSearchQueryParams(String),

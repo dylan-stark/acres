@@ -6,7 +6,7 @@
 //! §9: to-encode = "/" / "?" / "#" / "[" / "]" / "@" / "%", plus any character outside
 //! US-ASCII.
 
-use iiif::IiifError;
+use iiif::UriError;
 use rstest::rstest;
 
 use crate::{assert_round_trips, ok};
@@ -74,7 +74,7 @@ fn permitted_raw_characters_round_trip(#[case] encoded: &str) {
 #[case::close_bracket("a]b")]
 #[case::both_brackets("[0]")]
 fn raw_special_characters_are_rejected(#[case] raw: &str) {
-    assert_err!(&format!("{BASE}{raw}"), IiifError::InvalidIdentifier(_));
+    assert_err!(&format!("{BASE}{raw}"), UriError::InvalidIdentifier(_));
 }
 
 /// IIIF §9: characters outside US-ASCII must be percent-encoded.
@@ -85,7 +85,7 @@ fn raw_special_characters_are_rejected(#[case] raw: &str) {
 #[case::rtl("صورة")]
 #[case::combining("e\u{301}")]
 fn raw_non_ascii_is_rejected(#[case] raw: &str) {
-    assert_err!(&format!("{BASE}{raw}"), IiifError::InvalidUriChar(_));
+    assert_err!(&format!("{BASE}{raw}"), UriError::InvalidChar(_));
 }
 
 /// RFC 3986 §2: characters outside the URI character set are not allowed at all.
@@ -103,7 +103,7 @@ fn raw_non_ascii_is_rejected(#[case] raw: &str) {
 #[case::nul("a\0b")]
 #[case::delete("a\u{7f}b")]
 fn characters_outside_rfc3986_are_rejected(#[case] raw: &str) {
-    assert_err!(&format!("{BASE}{raw}"), IiifError::InvalidUriChar(_));
+    assert_err!(&format!("{BASE}{raw}"), UriError::InvalidChar(_));
 }
 
 /// IIIF §9: `%` must be encoded, so every `%` has to start a valid `%XX` escape (RFC 3986
@@ -116,7 +116,7 @@ fn characters_outside_rfc3986_are_rejected(#[case] raw: &str) {
 #[case::only_percent("%")]
 #[case::unencoded_percent_literal("100%")]
 fn malformed_percent_encoding_is_rejected(#[case] raw: &str) {
-    assert_err!(&format!("{BASE}{raw}"), IiifError::InvalidUriEscape(_));
+    assert_err!(&format!("{BASE}{raw}"), UriError::InvalidEscape(_));
 }
 
 /// IIIF §9: percent-encoding encodes UTF-8 octets, so the decoded identifier has to be valid
@@ -128,7 +128,7 @@ fn malformed_percent_encoding_is_rejected(#[case] raw: &str) {
 #[case::overlong("%C0%AF")]
 #[case::surrogate("%ED%A0%80")]
 fn invalid_utf8_is_rejected(#[case] encoded: &str) {
-    assert_err!(&format!("{BASE}{encoded}"), IiifError::InvalidIdentifier(_));
+    assert_err!(&format!("{BASE}{encoded}"), UriError::InvalidIdentifier(_));
 }
 
 /// RFC 3986 §5.2.4, §2.3: `.` and `..` segments, encoded or not, are removed during resolution,
@@ -143,6 +143,6 @@ fn invalid_utf8_is_rejected(#[case] encoded: &str) {
 fn dot_segment_identifiers_are_rejected(#[case] raw: &str) {
     assert_err!(
         &format!("{BASE}{raw}"),
-        IiifError::InvalidIdentifier(_) | IiifError::MissingIdentifier(_)
+        UriError::InvalidIdentifier(_) | UriError::MissingIdentifier(_)
     );
 }
