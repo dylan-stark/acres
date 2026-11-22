@@ -85,4 +85,7 @@ pub enum IiifError {
     /// IIIF URIs must not contain fragments.
     #[error("IIIF URIs must not contain fragments: {0}")]
     HasFragment(String),
+    /// IIIF URIs must not have a trailing slash.
+    #[error("IIIF URIs must not have a trailing slash: {0}")]
+    TrailingSlash(String),
 }

@@ -289,11 +289,13 @@ impl FromStr for Uri {
             port,
         };
 
-        let mut segments = if let Some(segments) = url.path_segments() {
-            segments.rev()
-        } else {
-            return Err(IiifError::MissingIdentifier(format!("not in path: {}", s)));
-        };
+        if url.path() == "/" {
+            return Err(IiifError::MissingIdentifier(s.into()));
+        }
+
+        if url.path().ends_with('/') {
+            return Err(IiifError::TrailingSlash(s.into()));
+        }
 
         if url.query().is_some() {
             return Err(IiifError::HasQuery(s.into()));
@@ -302,6 +304,12 @@ impl FromStr for Uri {
         if url.fragment().is_some() {
             return Err(IiifError::HasFragment(s.into()));
         }
+
+        let mut segments = if let Some(segments) = url.path_segments() {
+            segments.rev()
+        } else {
+            return Err(IiifError::MissingIdentifier(format!("not in path: {}", s)));
+        };
 
         let encoded_identifier = segments
             .next()
