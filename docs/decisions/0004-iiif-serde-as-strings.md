@@ -1,6 +1,6 @@
 # 0004. Serialize IIIF types as strings, behind a feature
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-22
 
 ## Context
