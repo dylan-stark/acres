@@ -25,6 +25,12 @@ impl Hundredths {
         let frac: u32 = frac.parse().expect("`{:.2}` of a bounded value is digits");
         Self(whole * 100 + frac)
     }
+
+    /// The nearest `f32` to the stored value.
+    fn to_f32(self) -> f32 {
+        // Divide in `f64` so the result is the correctly rounded `f32` of `n / 100`.
+        (f64::from(self.0) / 100.0) as f32
+    }
 }
 
 impl Display for Hundredths {
@@ -94,6 +100,12 @@ mod hundredths_tests {
         #[test]
         fn display_matches_old_format(value in 0.0_f32..=360.0) {
             prop_assert_eq!(Hundredths::from_f32(value).to_string(), old_display(value));
+        }
+
+        #[test]
+        fn value_is_nearest_f32_to_display(n in 0_u32..=36000) {
+            let h = Hundredths(n);
+            prop_assert_eq!(h.to_f32(), h.to_string().parse::<f32>().unwrap());
         }
 
         #[test]
@@ -188,9 +200,19 @@ impl Display for Percentage {
 }
 
 impl Percentage {
-    /// Creates a Percentage with default of 0.
-    pub fn new() -> Self {
-        Self::default()
+    /// Returns the value as an `f32`, rounded to two fractional digits.
+    ///
+    /// ```rust
+    /// # use anyhow::Result;
+    /// use iiif::Percentage;
+    ///
+    /// # fn main() -> Result<()> {
+    /// assert_eq!(Percentage::try_from(10.3333333_f32)?.value(), 10.33);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn value(self) -> f32 {
+        self.0.to_f32()
     }
 }
 
@@ -319,9 +341,19 @@ impl Display for Degree {
 }
 
 impl Degree {
-    /// Creates a Degree with default of 0.
-    pub fn new() -> Self {
-        Self::default()
+    /// Returns the value as an `f32`, rounded to two fractional digits.
+    ///
+    /// ```rust
+    /// # use anyhow::Result;
+    /// use iiif::Degree;
+    ///
+    /// # fn main() -> Result<()> {
+    /// assert_eq!(Degree::try_from(10.3333333_f32)?.value(), 10.33);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn value(self) -> f32 {
+        self.0.to_f32()
     }
 }
 
@@ -948,6 +980,54 @@ impl ImageRequest {
     pub fn builder() -> Builder<Unset, Unset, Unset, Unset, Unset, Unset> {
         Builder::default()
     }
+
+    /// The base URI of the image service.
+    pub fn uri(&self) -> &Uri {
+        &self.uri
+    }
+
+    /// The region of the image to retrieve.
+    pub fn region(&self) -> &Region {
+        &self.region
+    }
+
+    /// How to scale the region.
+    pub fn size(&self) -> &Size {
+        &self.size
+    }
+
+    /// How to rotate and mirror the scaled region.
+    pub fn rotation(&self) -> &Rotation {
+        &self.rotation
+    }
+
+    /// The quality of the image.
+    pub fn quality(&self) -> Quality {
+        self.quality
+    }
+
+    /// The format of the image.
+    pub fn format(&self) -> Format {
+        self.format
+    }
+
+    /// Returns the request as a [`url::Url`].
+    ///
+    /// ```rust
+    /// # use anyhow::Result;
+    /// use iiif::ImageRequest;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let request: ImageRequest = "https://example.org/images/12345/full/1024,/0/default.png".parse()?;
+    /// let url = request.to_url();
+    /// assert_eq!(url.host_str(), Some("example.org"));
+    /// assert_eq!(url.path(), "/images/12345/full/1024,/0/default.png");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn to_url(&self) -> url::Url {
+        url::Url::parse(&self.to_string()).expect("an image request displays as a valid URL")
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -1286,6 +1366,33 @@ mod tests {
             built.to_string(),
             "https://www.artic.edu/iiif/2/abc/10,20,300,400/843,/0/default.png"
         );
+    }
+
+    #[test]
+    fn accessors_return_parts() {
+        let request = ImageRequest::from_str(
+            "https://www.artic.edu/iiif/2/abc/pct:10,10,50,50/!100,100/!90/gray.webp",
+        )
+        .unwrap();
+        assert_eq!(request.uri(), &uri());
+        assert_eq!(
+            request.region(),
+            &Region::from_str("pct:10,10,50,50").unwrap()
+        );
+        assert_eq!(request.size(), &Size::BestFit(100, 100));
+        assert_eq!(request.rotation(), &Rotation::from_str("!90").unwrap());
+        assert_eq!(request.quality(), Quality::Gray);
+        assert_eq!(request.format(), Format::WebP);
+    }
+
+    #[rstest]
+    #[case("https://www.artic.edu/iiif/2/abc/full/843,/0/default.jpg")]
+    #[case("https://www.artic.edu:5555/iiif/2/abc/full/843,/0/default.jpg")]
+    #[case("https://www.artic.edu/iiif/2/abc/pct:10,10,50,50/!100,100/90/gray.webp")]
+    #[case("https://example.org/a%2Fb/c%3Fd%23e/full/full/0/default.jpg")]
+    fn to_url_matches_display(#[case] url: &str) {
+        let request = ImageRequest::from_str(url).unwrap();
+        assert_eq!(request.to_url().as_str(), request.to_string());
     }
 
     #[rstest]

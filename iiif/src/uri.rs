@@ -364,6 +364,74 @@ impl FromStr for Uri {
     }
 }
 
+impl Uri {
+    /// The scheme: `"http"` or `"https"`.
+    pub fn scheme(&self) -> &'static str {
+        match self.scheme {
+            Scheme::Http => "http",
+            Scheme::Https => "https",
+        }
+    }
+
+    /// The server's host name or IP address, lowercased. IPv6 addresses keep their brackets.
+    pub fn host(&self) -> &str {
+        &self.server.host
+    }
+
+    /// The server's port, if one other than the scheme's default was given.
+    pub fn port(&self) -> Option<u16> {
+        self.server.port
+    }
+
+    /// The path segments between the server and the identifier, percent-decoded.
+    ///
+    /// ```rust
+    /// # use anyhow::Result;
+    /// use iiif::Uri;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let uri: Uri = "https://example.org/iiif/a%2Fb/12345".parse()?;
+    /// assert_eq!(uri.prefix(), ["iiif", "a/b"]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn prefix(&self) -> &[String] {
+        &self.prefix.0
+    }
+
+    /// The image identifier, percent-decoded.
+    ///
+    /// ```rust
+    /// # use anyhow::Result;
+    /// use iiif::Uri;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let uri: Uri = "https://example.org/images/ark:%2F12025%2F654xz321".parse()?;
+    /// assert_eq!(uri.identifier(), "ark:/12025/654xz321");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn identifier(&self) -> &str {
+        &self.identifier.0
+    }
+
+    /// Returns the URI as a [`url::Url`].
+    ///
+    /// ```rust
+    /// # use anyhow::Result;
+    /// use iiif::Uri;
+    ///
+    /// # fn main() -> Result<()> {
+    /// let uri: Uri = "https://example.org/images/12345".parse()?;
+    /// assert_eq!(uri.to_url().path(), "/images/12345");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn to_url(&self) -> url::Url {
+        url::Url::parse(&self.to_string()).expect("a URI displays as a valid URL")
+    }
+}
+
 impl Display for Uri {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(

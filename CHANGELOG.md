@@ -13,6 +13,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Crate-level documentation, runnable examples and an expanded README.
 - CI snapshot check (`cargo insta test --check`), an optional Claude Code PR review workflow and a `reviewer` subagent.
 - Offline demo recording (`make demo`) and snapshot tests for TUI components.
+- `iiif` types can be read back: `Percentage::value()` and `Degree::value()`; `ImageRequest::{uri, region, size, rotation, quality, format}()`; `InformationRequest::uri()`; and `Uri::{scheme, host, port, prefix, identifier}()` (prefix and identifier percent-decoded).
+- `iiif::Uri`, `ImageRequest` and `InformationRequest` have `to_url()`, returning a `url::Url` (see [ADR 0005](docs/decisions/0005-iiif-exposes-url.md)).
 
 ### Changed
 
@@ -22,6 +24,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `IiifError` has new variants for these cases: `InvalidUriWithUserInfo`, `InvalidUriChar`, `InvalidUriEscape`, `InvalidUriPrefix`, `InvalidIdentifier`, `InvalidPrefix`, `BadSlashes`, `HasQuery`, `HasFragment` and `TrailingSlash`. `MissingServer` now carries the offending URI.
 - `iiif` types serialize as their IIIF string form (e.g. `"https://example.org/images/12345"`) instead of their internal structure, and serde support is now behind the optional `serde` feature (see [ADR 0004](docs/decisions/0004-iiif-serde-as-strings.md)).
 - `IiifError` no longer implements `From<ParseFloatError>`; `InvalidPercentageString` is used only for percentages.
+
+### Removed
+
+- Removed `iiif::Percentage::new()` and `iiif::Degree::new()`, which took no value and returned 0. Use `Default` for 0, or `TryFrom<f32>`/`FromStr` for a value.
 
 ### Fixed
 
