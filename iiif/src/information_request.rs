@@ -45,7 +45,6 @@ use crate::{IiifError, uri::Uri};
 /// # }
 /// ```
 ///
-/// [`InformationRequest`]: struct.InformationRequest.html
 /// [information request]: https://iiif.io/api/image/2.0/#information-request
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InformationRequest {

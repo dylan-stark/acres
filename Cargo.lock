@@ -2719,15 +2719,12 @@ name = "iiif"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bytes",
  "percent-encoding",
  "proptest",
  "rstest",
  "serde",
  "serde_json",
- "strum 0.27.2",
  "thiserror 2.0.17",
- "tracing",
  "url",
 ]
 

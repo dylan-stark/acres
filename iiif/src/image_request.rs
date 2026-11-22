@@ -155,8 +155,6 @@ mod hundredths_tests {
 /// ```
 ///
 /// [floating point]: https://iiif.io/api/image/2.0/#image-request-parameters
-/// [`Size`]: enum.Size.html
-/// [`Region`]: enum.Region.html
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Percentage(Hundredths);
 
@@ -288,7 +286,6 @@ mod percentage_tests {
 /// ```
 ///
 /// [floating point]: https://iiif.io/api/image/2.0/#image-request-parameters
-/// [`Rotatin`]: enum.Rotatin.html
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Degree(Hundredths);
 
@@ -671,7 +668,7 @@ impl FromStr for Rotation {
 /// ```
 ///
 /// [quality]: https://iiif.io/api/image/2.0/#quality
-#[derive(Clone, Debug, PartialEq, Default, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Default, Eq, PartialOrd, Ord, Hash)]
 pub enum Quality {
     /// Full color.
     Color,
@@ -740,7 +737,7 @@ impl FromStr for Quality {
 /// ```
 ///
 /// [format]: https://iiif.io/api/image/2.0/#format
-#[derive(Clone, Debug, PartialEq, Default, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Default, Eq, PartialOrd, Ord, Hash)]
 pub enum Format {
     /// JPEG format.
     #[default]

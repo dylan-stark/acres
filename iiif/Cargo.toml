@@ -3,8 +3,8 @@ name = "iiif"
 version = "0.1.0"
 edition = "2024"
 description = "Simple, ergonomic access for working with IIIF API 2.0 services."
-keywords = [ "cli", "tui" ]
-categories = [ "command-line-utilities" ]
+keywords = [ "iiif", "image", "url" ]
+categories = [ "multimedia::images", "web-programming" ]
 repository = "https://github.com/dylan-stark/acres"
 authors = [ "Dylan Stark <dylan.stark@gmail.com>" ]
 license = "MIT OR Apache-2.0"
@@ -14,16 +14,13 @@ license = "MIT OR Apache-2.0"
 serde = ["dep:serde"]
 
 [dependencies]
-anyhow = "1.0.98"
-bytes = "1.10.1"
 percent-encoding = "2.3.2"
 serde = { version = "1.0.227", optional = true }
-strum = { version = "0.27.2", features = ["derive"] }
 thiserror = "2.0.16"
-tracing = "0.1.41"
 url = "2.5.7"
 
 [dev-dependencies]
+anyhow = "1.0.98"
 serde_json = "1.0.145"
 proptest = "1.12.0"
 rstest = "0.26.1"
