@@ -34,23 +34,17 @@ fn relative_references_are_rejected(#[case] s: &str) {
 #[rstest]
 #[case::no_path("https://example.org")]
 #[case::root_path("https://example.org/")]
-#[case::prefix_only_with_slash("https://example.org/image-service/")]
-#[ignore]
 fn missing_identifier_is_rejected(#[case] s: &str) {
-    assert_err!(
-        s,
-        IiifError::MissingIdentifier(_) | IiifError::InvalidIdentifier(_)
-    );
+    assert_err!(s, IiifError::MissingIdentifier(_));
 }
 
 /// IIIF §5 (3.0) / §5.1 (2.1): the base URI has no trailing slash; a trailing slash would mean an
 /// empty identifier.
-#[test]
-fn trailing_slash_is_rejected() {
-    assert_err!(
-        "https://example.org/image-service/abcd1234/",
-        IiifError::TrailingSlash(_)
-    );
+#[rstest]
+#[case::trailing_slash("https://example.org/image-service/abcd1234/")]
+#[case::prefix_only_with_slash("https://example.org/image-service/")]
+fn trailing_slash_is_rejected(#[case] s: &str) {
+    assert_err!(s, IiifError::TrailingSlash(_));
 }
 
 /// IIIF §2: parameters are path segments, never query parameters. IIIF §3: `?` in an
