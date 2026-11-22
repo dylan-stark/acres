@@ -31,6 +31,7 @@ macro_rules! assert_err {
     }};
 }
 
+mod accessors;
 mod equivalence;
 mod identifier;
 mod prefix;

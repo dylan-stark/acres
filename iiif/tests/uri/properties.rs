@@ -95,6 +95,27 @@ proptest! {
         prop_assert_eq!(last, encode(&id));
     }
 
+    /// Accessors return each component as it was before encoding.
+    #[test]
+    fn components_are_recovered(prefix in proptest::collection::vec(segment(), 0..3), id in segment()) {
+        let encoded: String = prefix.iter().map(|s| format!("/{}", encode(s))).collect();
+        let s = format!("https://example.org:5555{encoded}/{}", encode(&id));
+        let uri: Uri = s.parse().map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+        prop_assert_eq!(uri.scheme(), "https");
+        prop_assert_eq!(uri.host(), "example.org");
+        prop_assert_eq!(uri.port(), Some(5555));
+        prop_assert_eq!(uri.prefix(), prefix.as_slice());
+        prop_assert_eq!(uri.identifier(), id);
+    }
+
+    /// `to_url` agrees with `Display` for anything that parses.
+    #[test]
+    fn to_url_matches_display(s in prop_oneof![canonical_uri(), uri_like()]) {
+        if let Ok(uri) = s.parse::<Uri>() {
+            prop_assert_eq!(uri.to_url().to_string(), uri.to_string());
+        }
+    }
+
     /// RFC 3986 §6.2.2: percent-encoding every identifier byte, with uppercase or lowercase
     /// hex, gives an equal URI.
     #[test]
