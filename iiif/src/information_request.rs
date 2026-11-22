@@ -61,22 +61,6 @@ impl InformationRequest {
     pub fn uri(&self) -> &Uri {
         &self.uri
     }
-
-    /// Returns the request as a [`url::Url`].
-    ///
-    /// ```rust
-    /// # use anyhow::Result;
-    /// use iiif::InformationRequest;
-    ///
-    /// # fn main() -> Result<()> {
-    /// let request = InformationRequest::new("https://example.org/images/12345".parse()?);
-    /// assert_eq!(request.to_url().path(), "/images/12345/info.json");
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn to_url(&self) -> url::Url {
-        url::Url::parse(&self.to_string()).expect("an information request displays as a valid URL")
-    }
 }
 
 impl Display for InformationRequest {
@@ -113,9 +97,8 @@ mod tests {
     #[rstest]
     #[case("https://example.org/images/12345/info.json")]
     #[case("http://127.0.0.1:5555/some/path/a%2Fb/info.json")]
-    fn to_url_matches_display(#[case] url: &str) {
+    fn uri_is_the_base(#[case] url: &str) {
         let request = InformationRequest::from_str(url).unwrap();
-        assert_eq!(request.to_url().as_str(), request.to_string());
         assert_eq!(
             request.uri().to_string(),
             url.strip_suffix("/info.json").unwrap()

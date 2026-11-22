@@ -11,4 +11,4 @@ Short records of non-obvious decisions, so a later reader (human or agent) knows
 | [0002](0002-cli-json-to-stdout.md) | CLI writes JSON to stdout | Accepted |
 | [0003](0003-split-iiif-crate.md) | Split IIIF into its own crate | Accepted |
 | [0004](0004-iiif-serde-as-strings.md) | Serialize IIIF types as strings, behind a feature | Proposed |
-| [0005](0005-iiif-exposes-url.md) | Expose `url::Url` from the `iiif` public API | Proposed |
+| [0005](0005-iiif-no-public-url.md) | Keep `url` out of the `iiif` public API | Accepted |

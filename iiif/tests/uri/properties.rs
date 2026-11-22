@@ -108,14 +108,6 @@ proptest! {
         prop_assert_eq!(uri.identifier(), id);
     }
 
-    /// `to_url` agrees with `Display` for anything that parses.
-    #[test]
-    fn to_url_matches_display(s in prop_oneof![canonical_uri(), uri_like()]) {
-        if let Ok(uri) = s.parse::<Uri>() {
-            prop_assert_eq!(uri.to_url().to_string(), uri.to_string());
-        }
-    }
-
     /// RFC 3986 §6.2.2: percent-encoding every identifier byte, with uppercase or lowercase
     /// hex, gives an equal URI.
     #[test]

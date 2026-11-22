@@ -414,22 +414,6 @@ impl Uri {
     pub fn identifier(&self) -> &str {
         &self.identifier.0
     }
-
-    /// Returns the URI as a [`url::Url`].
-    ///
-    /// ```rust
-    /// # use anyhow::Result;
-    /// use iiif::Uri;
-    ///
-    /// # fn main() -> Result<()> {
-    /// let uri: Uri = "https://example.org/images/12345".parse()?;
-    /// assert_eq!(uri.to_url().path(), "/images/12345");
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn to_url(&self) -> url::Url {
-        url::Url::parse(&self.to_string()).expect("a URI displays as a valid URL")
-    }
 }
 
 impl Display for Uri {

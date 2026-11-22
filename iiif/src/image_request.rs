@@ -1010,24 +1010,6 @@ impl ImageRequest {
     pub fn format(&self) -> Format {
         self.format
     }
-
-    /// Returns the request as a [`url::Url`].
-    ///
-    /// ```rust
-    /// # use anyhow::Result;
-    /// use iiif::ImageRequest;
-    ///
-    /// # fn main() -> Result<()> {
-    /// let request: ImageRequest = "https://example.org/images/12345/full/1024,/0/default.png".parse()?;
-    /// let url = request.to_url();
-    /// assert_eq!(url.host_str(), Some("example.org"));
-    /// assert_eq!(url.path(), "/images/12345/full/1024,/0/default.png");
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn to_url(&self) -> url::Url {
-        url::Url::parse(&self.to_string()).expect("an image request displays as a valid URL")
-    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -1383,16 +1365,6 @@ mod tests {
         assert_eq!(request.rotation(), &Rotation::from_str("!90").unwrap());
         assert_eq!(request.quality(), Quality::Gray);
         assert_eq!(request.format(), Format::WebP);
-    }
-
-    #[rstest]
-    #[case("https://www.artic.edu/iiif/2/abc/full/843,/0/default.jpg")]
-    #[case("https://www.artic.edu:5555/iiif/2/abc/full/843,/0/default.jpg")]
-    #[case("https://www.artic.edu/iiif/2/abc/pct:10,10,50,50/!100,100/90/gray.webp")]
-    #[case("https://example.org/a%2Fb/c%3Fd%23e/full/full/0/default.jpg")]
-    fn to_url_matches_display(#[case] url: &str) {
-        let request = ImageRequest::from_str(url).unwrap();
-        assert_eq!(request.to_url().as_str(), request.to_string());
     }
 
     #[rstest]
