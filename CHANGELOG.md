@@ -18,11 +18,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 - Renamed the project from `aic-tui` to `acres`.
 - Add catch-all variant and made `IiifError` `#[non_exhaustive]`.
+- `iiif::Uri` parsing follows IIIF Image API §2/§3/§9 and RFC 3986 strictly. It now rejects user info, missing or extra slashes after the scheme, queries, fragments, trailing slashes, empty path segments, unencoded `@ [ ]`, raw non-ASCII or other characters outside RFC 3986, malformed `%` escapes, and `.`/`..` identifiers (encoded or not). Valid but non-canonical input is still accepted and displayed in canonical form.
+- `IiifError` has new variants for these cases: `InvalidUriWithUserInfo`, `InvalidUriChar`, `InvalidUriEscape`, `InvalidUriPrefix`, `InvalidIdentifier`, `InvalidPrefix`, `BadSlashes`, `HasQuery`, `HasFragment` and `TrailingSlash`. `MissingServer` now carries the offending URI.
 
 ### Fixed
 
 - Parsing an `iiif::ImageRequest` from a string no longer drops a non-default port from the base URI.
 - Malformed input no longer accepted during region/size/rotation parsing.
+- Displaying an `iiif::Uri` re-encodes characters such as space, `"` and `{` in the prefix and identifier instead of writing them raw.
+- An `iiif::Uri` identifier with a needlessly encoded `.` (e.g. `a%2Eb`) is now accepted rather than rejected.
 
 ## [0.2.0] - 2024-10-13
 
