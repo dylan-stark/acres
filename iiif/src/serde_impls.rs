@@ -1,7 +1,7 @@
 //! `Serialize`/`Deserialize` through each type's IIIF string form, so serialized values look like
 //! the URLs and parameters they represent, and deserializing validates exactly as `FromStr` does.
 
-use std::{fmt, marker::PhantomData, str::FromStr};
+use std::{error::Error, fmt, marker::PhantomData, str::FromStr};
 
 use serde::{Deserializer, Serializer, de};
 
@@ -15,7 +15,7 @@ struct FromStrVisitor<T>(PhantomData<T>);
 impl<T> de::Visitor<'_> for FromStrVisitor<T>
 where
     T: FromStr,
-    T::Err: fmt::Display,
+    T::Err: Error,
 {
     type Value = T;
 
@@ -24,8 +24,21 @@ where
     }
 
     fn visit_str<E: de::Error>(self, v: &str) -> Result<T, E> {
-        v.parse().map_err(E::custom)
+        v.parse().map_err(|e: T::Err| E::custom(chain(&e)))
     }
+}
+
+/// `e` and its sources joined with `: `. Serde keeps only an error's message, and our wrapping
+/// errors leave their source out of it, so without this a request's message would lose the cause.
+fn chain(e: &dyn Error) -> String {
+    let mut message = e.to_string();
+    let mut source = e.source();
+    while let Some(e) = source {
+        message.push_str(": ");
+        message.push_str(&e.to_string());
+        source = e.source();
+    }
+    message
 }
 
 macro_rules! serde_via_str {
@@ -116,11 +129,24 @@ mod tests {
     }
 
     #[rstest]
-    #[case::bad_percentage(r#""banana""#, "unable to parse percentage")]
-    #[case::out_of_range(r#""110""#, "invalid percentage: 110")]
+    #[case::bad_percentage(r#""banana""#, "invalid percentage: banana: invalid float literal")]
+    #[case::out_of_range(r#""110""#, "percentage out of range: 110")]
     fn percentage_deserialize_validates(#[case] json: &str, #[case] expected: &str) {
         let err = serde_json::from_str::<Percentage>(json).unwrap_err();
         assert!(err.to_string().contains(expected), "{err}");
+    }
+
+    #[test]
+    fn request_deserialize_error_includes_cause() {
+        let err = serde_json::from_str::<ImageRequest>(
+            r#""https://example.org/images/12345/full/max/0/sepia.jpg""#,
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("invalid parameter in image request: invalid quality: sepia"),
+            "{err}"
+        );
     }
 
     #[rstest]

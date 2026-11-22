@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use iiif::IiifError;
 use serde::{Deserialize, Serialize};
 
 use crate::{AcresError, artworks::Artworks};
@@ -77,13 +76,12 @@ impl TryFrom<ArtworkInfo> for iiif::Uri {
             url
         };
         tracing::debug!(url = ?url);
-        let url = url
-            .join(&artwork.data.image_id)
-            .map_err(IiifError::InvalidUri)
-            .map_err(AcresError::Iiif)?;
+        let url = url.join(&artwork.data.image_id)?;
         tracing::debug!(url = %url);
         tracing::trace!(url = ?url);
-        url.as_str().parse::<iiif::Uri>().map_err(AcresError::Iiif)
+        url.as_str()
+            .parse::<iiif::Uri>()
+            .map_err(|e| AcresError::Iiif(e.into()))
     }
 }
 

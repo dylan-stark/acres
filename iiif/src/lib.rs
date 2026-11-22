@@ -57,7 +57,7 @@ mod information_request;
 mod serde_impls;
 mod uri;
 
-pub use self::errors::IiifError;
+pub use self::errors::{Error, ParameterError, RequestError, UriError};
 pub use self::image_request::{
     Degree, Format, ImageRequest, Percentage, Quality, Region, Rotation, Size,
 };

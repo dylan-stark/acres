@@ -3,7 +3,7 @@ use std::str::FromStr;
 use std::{cmp::Ordering, fmt::Display};
 
 use crate::{
-    IiifError, Uri,
+    ParameterError, RequestError, Uri,
     builder::{Set, Unset},
 };
 
@@ -160,8 +160,8 @@ mod hundredths_tests {
 /// # use iiif::{Percentage};
 /// #
 /// # fn main() -> Result<()> {
-/// assert_eq!(Percentage::try_from(-10.0_f32).unwrap_err().to_string(), "invalid percentage: -10");
-/// assert_eq!(Percentage::try_from(110.0_f32).unwrap_err().to_string(), "invalid percentage: 110");
+/// assert_eq!(Percentage::try_from(-10.0_f32).unwrap_err().to_string(), "percentage out of range: -10");
+/// assert_eq!(Percentage::try_from(110.0_f32).unwrap_err().to_string(), "percentage out of range: 110");
 /// # Ok(())
 /// # }
 /// ```
@@ -171,24 +171,29 @@ mod hundredths_tests {
 pub struct Percentage(Hundredths);
 
 impl TryFrom<f32> for Percentage {
-    type Error = IiifError;
+    type Error = ParameterError;
 
     fn try_from(value: f32) -> Result<Self, Self::Error> {
         if !value.is_finite() || !value.is_sign_positive() {
-            return Err(IiifError::InvalidPercentage(value));
+            return Err(ParameterError::PercentageOutOfRange(value));
         }
         if let Some(Ordering::Greater) = value.partial_cmp(&100.0) {
-            return Err(IiifError::InvalidPercentage(value));
+            return Err(ParameterError::PercentageOutOfRange(value));
         };
         Ok(Percentage(Hundredths::from_f32(value)))
     }
 }
 
 impl FromStr for Percentage {
-    type Err = IiifError;
+    type Err = ParameterError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value: f32 = s.parse().map_err(IiifError::InvalidPercentageString)?;
+        let value: f32 = s
+            .parse()
+            .map_err(|source| ParameterError::InvalidPercentage {
+                input: s.into(),
+                source,
+            })?;
         Self::try_from(value)
     }
 }
@@ -236,12 +241,12 @@ mod percentage_tests {
     }
 
     #[rstest]
-    #[case(-4.2, "invalid percentage: -4.2")]
-    #[case(-0.0, "invalid percentage: -0")]
-    #[case(100.00001, "invalid percentage: 100.00001")]
-    #[case(f32::NAN, "invalid percentage: NaN")]
-    #[case(f32::INFINITY, "invalid percentage: inf")]
-    #[case(f32::NEG_INFINITY, "invalid percentage: -inf")]
+    #[case(-4.2, "percentage out of range: -4.2")]
+    #[case(-0.0, "percentage out of range: -0")]
+    #[case(100.00001, "percentage out of range: 100.00001")]
+    #[case(f32::NAN, "percentage out of range: NaN")]
+    #[case(f32::INFINITY, "percentage out of range: inf")]
+    #[case(f32::NEG_INFINITY, "percentage out of range: -inf")]
     fn try_from_f32_fails(#[case] value: f32, #[case] expected: &str) {
         assert_eq!(
             format!("{}", Percentage::try_from(value).unwrap_err()),
@@ -253,7 +258,7 @@ mod percentage_tests {
     fn from_str_fails_with_percentage_error() {
         assert_eq!(
             "abc".parse::<Percentage>().unwrap_err().to_string(),
-            "unable to parse percentage: invalid float literal"
+            "invalid percentage: abc"
         );
     }
 }
@@ -301,8 +306,8 @@ mod percentage_tests {
 /// # use iiif::{Degree};
 /// #
 /// # fn main() -> Result<()> {
-/// assert_eq!(Degree::try_from(-10.0_f32).unwrap_err().to_string(), "invalid degree: -10");
-/// assert_eq!(Degree::try_from(370.0_f32).unwrap_err().to_string(), "invalid degree: 370");
+/// assert_eq!(Degree::try_from(-10.0_f32).unwrap_err().to_string(), "degree out of range: -10");
+/// assert_eq!(Degree::try_from(370.0_f32).unwrap_err().to_string(), "degree out of range: 370");
 /// # Ok(())
 /// # }
 /// ```
@@ -312,24 +317,27 @@ mod percentage_tests {
 pub struct Degree(Hundredths);
 
 impl TryFrom<f32> for Degree {
-    type Error = IiifError;
+    type Error = ParameterError;
 
     fn try_from(value: f32) -> Result<Self, Self::Error> {
         if !value.is_finite() || !value.is_sign_positive() {
-            return Err(IiifError::InvalidDegree(value));
+            return Err(ParameterError::DegreeOutOfRange(value));
         }
         if let Some(Ordering::Greater) = value.partial_cmp(&360.0) {
-            return Err(IiifError::InvalidDegree(value));
+            return Err(ParameterError::DegreeOutOfRange(value));
         };
         Ok(Degree(Hundredths::from_f32(value)))
     }
 }
 
 impl FromStr for Degree {
-    type Err = IiifError;
+    type Err = ParameterError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value: f32 = s.parse().map_err(IiifError::InvalidDegreeString)?;
+        let value: f32 = s.parse().map_err(|source| ParameterError::InvalidDegree {
+            input: s.into(),
+            source,
+        })?;
         Self::try_from(value)
     }
 }
@@ -374,12 +382,12 @@ mod degree_tests {
     }
 
     #[rstest]
-    #[case(-4.2, "invalid degree: -4.2")]
-    #[case(-0.0, "invalid degree: -0")]
-    #[case(360.001, "invalid degree: 360.001")]
-    #[case(f32::NAN, "invalid degree: NaN")]
-    #[case(f32::INFINITY, "invalid degree: inf")]
-    #[case(f32::NEG_INFINITY, "invalid degree: -inf")]
+    #[case(-4.2, "degree out of range: -4.2")]
+    #[case(-0.0, "degree out of range: -0")]
+    #[case(360.001, "degree out of range: 360.001")]
+    #[case(f32::NAN, "degree out of range: NaN")]
+    #[case(f32::INFINITY, "degree out of range: inf")]
+    #[case(f32::NEG_INFINITY, "degree out of range: -inf")]
     fn try_from_f32_fails(#[case] value: f32, #[case] expected: &str) {
         assert_eq!(
             format!("{}", Degree::try_from(value).unwrap_err()),
@@ -391,7 +399,7 @@ mod degree_tests {
     fn from_str_fails_with_degree_error() {
         assert_eq!(
             "abc".parse::<Degree>().unwrap_err().to_string(),
-            "unable to parse degree: invalid float literal"
+            "invalid degree: abc"
         );
     }
 }
@@ -463,7 +471,7 @@ impl Display for Region {
 }
 
 impl FromStr for Region {
-    type Err = IiifError;
+    type Err = ParameterError;
 
     /// Creates a Region from a character string.
     ///
@@ -482,7 +490,7 @@ impl FromStr for Region {
             values.try_into().ok()
         }
 
-        let invalid = || IiifError::InvalidRegion(s.into());
+        let invalid = || ParameterError::InvalidRegion(s.into());
 
         match s {
             "full" => Ok(Region::Full),
@@ -560,7 +568,7 @@ impl Display for Size {
 }
 
 impl FromStr for Size {
-    type Err = IiifError;
+    type Err = ParameterError;
 
     /// Creates a Size from a string.
     ///
@@ -581,7 +589,7 @@ impl FromStr for Size {
             values.try_into().ok()
         }
 
-        let invalid = || IiifError::InvalidSize(s.into());
+        let invalid = || ParameterError::InvalidSize(s.into());
 
         match s {
             "full" => Ok(Size::Full),
@@ -590,13 +598,13 @@ impl FromStr for Size {
             }
             _ if let Some(wh) = s.strip_prefix("!") => match parse_wh(wh).ok_or_else(invalid)? {
                 [Some(w), Some(h)] => Ok(Size::BestFit(w, h)),
-                _ => Err(IiifError::InvalidSize(s.into())),
+                _ => Err(ParameterError::InvalidSize(s.into())),
             },
             _ => match parse_wh(s).ok_or_else(invalid)? {
                 [Some(w), None] => Ok(Size::Width(w)),
                 [None, Some(h)] => Ok(Size::Height(h)),
                 [Some(w), Some(h)] => Ok(Size::Exactly(w, h)),
-                [None, None] => Err(IiifError::InvalidSize(s.into())),
+                [None, None] => Err(ParameterError::InvalidSize(s.into())),
             },
         }
     }
@@ -656,10 +664,10 @@ impl Display for Rotation {
 }
 
 impl FromStr for Rotation {
-    type Err = IiifError;
+    type Err = ParameterError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let invalid = || IiifError::InvalidRotation(s.into());
+        let invalid = || ParameterError::InvalidRotation(s.into());
 
         if let Some(n) = s.strip_prefix('!') {
             Ok(Rotation::Mirrored(n.trim().parse().map_err(|_| invalid())?))
@@ -725,7 +733,7 @@ impl Display for Quality {
 }
 
 impl FromStr for Quality {
-    type Err = IiifError;
+    type Err = ParameterError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -733,7 +741,7 @@ impl FromStr for Quality {
             _ if s == "gray" => Ok(Quality::Gray),
             _ if s == "bitonal" => Ok(Quality::Bitonal),
             _ if s == "default" => Ok(Quality::Default),
-            _ => Err(IiifError::InvalidQuality(s.into())),
+            _ => Err(ParameterError::InvalidQuality(s.into())),
         }
     }
 }
@@ -803,7 +811,7 @@ impl Display for Format {
 }
 
 impl FromStr for Format {
-    type Err = IiifError;
+    type Err = ParameterError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -814,7 +822,7 @@ impl FromStr for Format {
             _ if s == "jp2" => Ok(Format::Jp2),
             _ if s == "pdf" => Ok(Format::Pdf),
             _ if s == "webp" => Ok(Format::WebP),
-            _ => Err(IiifError::InvalidFormat(s.into())),
+            _ => Err(ParameterError::InvalidFormat(s.into())),
         }
     }
 }
@@ -913,7 +921,7 @@ impl Display for ImageRequest {
 ///
 /// > {scheme}://{server}{/prefix}/{identifier}/{region}/{size}/{rotation}/{quality}.{format}
 impl FromStr for ImageRequest {
-    type Err = IiifError;
+    type Err = RequestError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut parts = s.rsplitn(5, '/');
@@ -921,28 +929,28 @@ impl FromStr for ImageRequest {
         let (quality, format) = parts
             .next()
             .and_then(|file| file.split_once('.'))
-            .ok_or_else(|| IiifError::MissingFormat(s.into()))?;
+            .ok_or_else(|| RequestError::MissingFormat(s.into()))?;
         let quality = quality.parse()?;
         let format: Format = format.parse()?;
 
         let rotation = parts
             .next()
-            .ok_or_else(|| IiifError::MissingRotation(s.into()))?
+            .ok_or_else(|| RequestError::MissingRotation(s.into()))?
             .parse()?;
 
         let size = parts
             .next()
-            .ok_or_else(|| IiifError::MissingSize(s.into()))?
+            .ok_or_else(|| RequestError::MissingSize(s.into()))?
             .parse()?;
 
         let region = parts
             .next()
-            .ok_or_else(|| IiifError::MissingRegion(s.into()))?
+            .ok_or_else(|| RequestError::MissingRegion(s.into()))?
             .parse()?;
 
         let uri = parts
             .next()
-            .ok_or_else(|| IiifError::MissingIdentifier(s.into()))?
+            .ok_or_else(|| RequestError::MissingUri(s.into()))?
             .parse()?;
 
         Ok(Self {

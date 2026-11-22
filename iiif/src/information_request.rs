@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use crate::{IiifError, uri::Uri};
+use crate::{RequestError, uri::Uri};
 
 /// Defines an [information request] for the IIIF Image API 2.0.
 ///
@@ -70,14 +70,14 @@ impl Display for InformationRequest {
 }
 
 impl FromStr for InformationRequest {
-    type Err = IiifError;
+    type Err = RequestError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(uri) = s.strip_suffix("/info.json") {
             let uri = Uri::from_str(uri)?;
             Ok(InformationRequest::from(uri))
         } else {
-            Err(IiifError::MissingInfoPart(s.to_string()))
+            Err(RequestError::MissingInfoJson(s.to_string()))
         }
     }
 }

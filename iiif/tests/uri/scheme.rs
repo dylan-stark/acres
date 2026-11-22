@@ -1,6 +1,6 @@
 //! IIIF §2: `scheme` is either `http` or `https`.
 
-use iiif::IiifError;
+use iiif::UriError;
 use rstest::rstest;
 
 use crate::{assert_displays_as, assert_round_trips};
@@ -33,7 +33,7 @@ fn scheme_is_lowercased(#[case] s: &str, #[case] expected: &str) {
 #[case::lookalike("httpx://example.org/abcd1234")]
 #[case::shttp("shttp://example.org/abcd1234")]
 fn other_schemes_are_rejected(#[case] s: &str) {
-    assert_err!(s, IiifError::InvalidScheme(_));
+    assert_err!(s, UriError::InvalidScheme(_));
 }
 
 /// IIIF §2: schemes without a hierarchical `//server` part are rejected.
@@ -44,7 +44,7 @@ fn other_schemes_are_rejected(#[case] s: &str) {
 fn non_hierarchical_schemes_are_rejected(#[case] s: &str) {
     assert_err!(
         s,
-        IiifError::InvalidScheme(_) | IiifError::InvalidUri(_) | IiifError::MissingServer(_)
+        UriError::InvalidScheme(_) | UriError::Malformed { .. } | UriError::MissingServer(_)
     );
 }
 
@@ -58,6 +58,6 @@ fn non_hierarchical_schemes_are_rejected(#[case] s: &str) {
 fn missing_authority_is_rejected(#[case] s: &str) {
     assert_err!(
         s,
-        IiifError::InvalidUri(_) | IiifError::BadSlashes(_) | IiifError::InvalidUriChar(_)
+        UriError::Malformed { .. } | UriError::BadSlashes(_) | UriError::InvalidChar(_)
     );
 }
