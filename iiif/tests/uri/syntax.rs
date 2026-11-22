@@ -46,11 +46,10 @@ fn missing_identifier_is_rejected(#[case] s: &str) {
 /// IIIF §5 (3.0) / §5.1 (2.1): the base URI has no trailing slash; a trailing slash would mean an
 /// empty identifier.
 #[test]
-#[ignore]
 fn trailing_slash_is_rejected() {
     assert_err!(
         "https://example.org/image-service/abcd1234/",
-        IiifError::MissingIdentifier(_) | IiifError::InvalidIdentifier(_)
+        IiifError::TrailingSlash(_)
     );
 }
 
