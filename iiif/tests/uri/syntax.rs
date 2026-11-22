@@ -43,8 +43,8 @@ fn missing_identifier_is_rejected(#[case] s: &str) {
     );
 }
 
-/// IIIF §5 (3.0) / §5.1 (2.1): the base URI has no trailing slash; a trailing slash would
-/// mean an empty identifier.
+/// IIIF §5 (3.0) / §5.1 (2.1): the base URI has no trailing slash; a trailing slash would mean an
+/// empty identifier.
 #[test]
 #[ignore]
 fn trailing_slash_is_rejected() {
@@ -54,19 +54,25 @@ fn trailing_slash_is_rejected() {
     );
 }
 
-/// IIIF §2: parameters are path segments, never query parameters. IIIF §3: `?` and `#` in an
-/// identifier must be encoded, so a raw `?` or `#` starts a query or fragment, neither of which
-/// belongs in a base URI.
+/// IIIF §2: parameters are path segments, never query parameters. IIIF §3: `?` in an
+/// identifier must be encoded, so a raw `?` starts a query, which
+/// is not allowed in a base URI.
 #[rstest]
 #[case::query("https://example.org/abcd1234?size=full")]
 #[case::empty_query("https://example.org/abcd1234?")]
+#[case::query_in_prefix("https://example.org/image-service?x=1/abcd1234")]
+fn query_is_rejected(#[case] s: &str) {
+    assert_err!(s, IiifError::HasQuery(_));
+}
+
+/// IIIF §3: `#` in an identifier must be encoded, so a raw `#` starts a fragment, which is
+/// not allowed in a base URI.
+#[rstest]
 #[case::fragment("https://example.org/abcd1234#frag")]
 #[case::empty_fragment("https://example.org/abcd1234#")]
-#[case::query_in_prefix("https://example.org/image-service?x=1/abcd1234")]
 #[case::fragment_in_prefix("https://example.org/image-service#x/abcd1234")]
-#[ignore]
-fn query_and_fragment_are_rejected(#[case] s: &str) {
-    assert_rejected(s);
+fn fragment_is_rejected(#[case] s: &str) {
+    assert_err!(s, IiifError::HasFragment(_));
 }
 
 /// RFC 3986 §2 and Appendix C: whitespace is not part of a URI. Rejected rather than trimmed.
