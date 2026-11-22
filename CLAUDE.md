@@ -25,7 +25,7 @@ Library crates never depend on their consumers: `iiif` and `image-to-ascii-build
 ## Conventions
 
 - Commit messages: one terse past-tense sentence ending in a period, e.g. `Fixes filenames.`
-- Workflow: never commit directly to `agent-harness` or `main`. Do each piece of work on its own branch off the integration branch (`agent-harness` for harness issues), push it, and open a PR against that branch with `gh pr create` (body says `Closes #N`). `make check` must pass first. Don't merge your own PR.
+- Workflow: never commit directly to `main`. Do each piece of work on its own branch off `main`, push it, and open a PR against `main` with `gh pr create` (body says `Closes #N`). `make check` must pass first. Don't merge your own PR.
 - Record non-obvious decisions as an ADR in `docs/decisions/` (copy `0000-template.md`, add it to the index in that folder's `README.md`).
 - Out-of-scope ideas found mid-task go in a GitHub issue labelled `follow-up` (link the PR or commit where they came up), not in the current branch.
 - Update `CHANGELOG.md` (under `[Unreleased]`, Keep a Changelog format) in the same commit as any user-visible change.
@@ -38,4 +38,4 @@ Library crates never depend on their consumers: `iiif` and `image-to-ascii-build
 
 - `.envrc` (direnv) sets `ACRES_TUI_CONFIG`, `ACRES_TUI_DATA` and `ACRES_TUI_LOGLEVEL`, the variables `acres-tui` reads.
 - `Dockerfile` provides the pinned toolchain plus `jq`, `vhs`, `ttyd` and `ffmpeg`: `make docker-check` builds it and runs `make check` inside, using `target-docker/` so it does not clash with host `target/`.
-- Parallel work: `git worktree add ../acres-<branch> -b <branch> agent-harness`. Each worktree gets its own `target/` (isolated, slower first build). To share build artifacts, set `CARGO_TARGET_DIR=~/.cache/acres-target`; cargo locks the directory, so concurrent builds serialize.
+- Parallel work: `git worktree add ../acres-<branch> -b <branch> main`. Each worktree gets its own `target/` (isolated, slower first build). To share build artifacts, set `CARGO_TARGET_DIR=~/.cache/acres-target`; cargo locks the directory, so concurrent builds serialize.

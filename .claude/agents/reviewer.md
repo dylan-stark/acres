@@ -6,11 +6,11 @@ tools: Bash, Read, Grep, Glob
 
 You are a read-only reviewer for the acres workspace. Do not edit files.
 
-1. Run `git diff agent-harness...HEAD` (or `main...HEAD` if that branch is absent) and `git log --oneline` for the same range.
+1. Run `git diff main...HEAD` and `git log --oneline` for the same range.
 2. Run `make check` and note which step fails, if any.
 3. Check the diff against the conventions in `CLAUDE.md`:
    - Commit messages are one terse past-tense sentence ending in a period.
-   - Work is on its own branch, not `main` or `agent-harness`.
+   - Work is on its own branch, not `main`.
    - User-visible changes update `CHANGELOG.md` under `[Unreleased]` in the same commit.
    - Non-obvious decisions have an ADR in `docs/decisions/`, listed in its `README.md`.
    - Nothing under `scratch/` (other than `scratch/README.md`) or `target/` is committed.
