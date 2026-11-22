@@ -6,17 +6,9 @@ use url::SyntaxViolation;
 
 use crate::{IiifError::InvalidIdentifier, errors::IiifError};
 
-const IDENTIFIER: &AsciiSet = &CONTROLS
-    .add(b'/')
-    .add(b'?')
-    .add(b'#')
-    .add(b'[')
-    .add(b']')
-    .add(b'@')
-    .add(b'%');
-
-/// IIIF §9 special characters, plus ASCII that RFC 3986 doesn't allow raw anywhere.
-const PREFIX: &AsciiSet = &CONTROLS
+/// What `Display` percent-encodes in the prefix and identifier: IIIF §9 special characters,
+/// plus ASCII that RFC 3986 doesn't allow raw anywhere. (Non-ASCII is always encoded.)
+const TO_ENCODE: &AsciiSet = &CONTROLS
     .add(b' ')
     .add(b'"')
     .add(b'<')
@@ -55,6 +47,23 @@ fn validate_rfc3986(s: &str) -> Result<(), IiifError> {
         }
     }
     Ok(())
+}
+
+/// Whether an encoded path segment is `.` or `..`, with any dots percent-encoded (RFC 3986
+/// §2.3, §6.2.2.3).
+fn is_dot_segment(segment: &str) -> bool {
+    matches!(
+        segment.to_ascii_lowercase().replace("%2e", ".").as_str(),
+        "." | ".."
+    )
+}
+
+/// The last segment of the raw (un-normalised) path in `s`, if `s` has a path.
+fn raw_last_path_segment(s: &str) -> Option<&str> {
+    let (_, after_scheme) = s.split_once("://")?;
+    let before_query = after_scheme.split(['?', '#']).next()?;
+    let (_, path) = before_query.split_once('/')?;
+    path.rsplit('/').next()
 }
 
 const fn is_unreserved(b: u8) -> bool {
@@ -182,7 +191,7 @@ impl Prefix {
         let prefix = self
             .0
             .iter()
-            .map(|part| utf8_percent_encode(part, PREFIX).to_string())
+            .map(|part| utf8_percent_encode(part, TO_ENCODE).to_string())
             .collect::<Vec<String>>()
             .join("/");
         if !prefix.is_empty() && !prefix.starts_with('/') {
@@ -213,21 +222,13 @@ impl FromStr for Identifier {
 impl Identifier {
     fn from_encoded(s: &str) -> Result<Self, IiifError> {
         validate_rfc3986(s)?;
-        let invalid_chars: Vec<char> = s
-            .chars()
-            .filter(|c| matches!(c, ' ' | '<' | '>' | '^' | '`' | '/' | '{' | '}' | '|'))
-            .collect();
-        if !invalid_chars.is_empty() {
-            return Err(InvalidIdentifier(format!(
-                "invalid characters ({:?}): {}",
-                invalid_chars, s
-            )));
+        // IIIF §3, §9: special characters must be encoded. `[ ] @` are RFC 3986 reserved, so
+        // `validate_rfc3986` lets them through.
+        if let Some(c) = s.chars().find(|c| matches!(c, '[' | ']' | '@')) {
+            return Err(InvalidIdentifier(format!("unencoded '{}': {}", c, s)));
         }
-        if s.contains("%2E") || s.contains("%2e") {
-            return Err(InvalidIdentifier(format!(
-                "encoded '.' (%2E) not allowed: {}",
-                s
-            )));
+        if is_dot_segment(s) {
+            return Err(InvalidIdentifier(format!("dot segment: {}", s)));
         }
 
         let raw = percent_decode_str(s)
@@ -238,7 +239,7 @@ impl Identifier {
     }
 
     fn encoded(&self) -> String {
-        utf8_percent_encode(&self.0, IDENTIFIER).to_string()
+        utf8_percent_encode(&self.0, TO_ENCODE).to_string()
     }
 }
 
@@ -318,6 +319,13 @@ impl FromStr for Uri {
             host: host.into(),
             port,
         };
+
+        // RFC 3986 §5.2.4: `Url::parse` removes a trailing `.` or `..` segment (encoded or not),
+        // so check the raw input before that hides it behind a trailing-slash or
+        // missing-identifier error.
+        if raw_last_path_segment(s).is_some_and(is_dot_segment) {
+            return Err(InvalidIdentifier(format!("dot segment: {}", s)));
+        }
 
         if url.path() == "/" {
             return Err(IiifError::MissingIdentifier(s.into()));
