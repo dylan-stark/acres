@@ -2,9 +2,11 @@
 //! server, prefix and identifier components of the information request must be identical to
 //! those for the image request."
 
-use std::str::FromStr;
+use std::{mem::discriminant, str::FromStr};
 
-use iiif::{Format, IiifError, ImageRequest, InformationRequest, Quality, Region, Rotation, Size};
+use iiif::{
+    Format, IiifError, ImageRequest, InformationRequest, Quality, Region, Rotation, Size, Uri,
+};
 use rstest::rstest;
 
 use crate::ok;
@@ -67,29 +69,30 @@ fn requests_normalize_the_base_uri() {
     );
 }
 
-/// Errors in the base URI come through request parsing unchanged.
+/// Errors in the base URI come through request parsing unchanged: the request fails with the
+/// same variant as parsing the base URI on its own (which `identifier.rs` pins down).
 #[rstest]
 #[case::raw_at("https://example.org/a@b")]
 #[case::raw_non_ascii("https://example.org/☃")]
 #[case::bad_escape("https://example.org/abc%zz")]
-#[ignore]
 fn requests_propagate_identifier_errors(#[case] uri: &str) {
+    let expected = uri.parse::<Uri>().expect_err("base URI should be invalid");
+
     let info = InformationRequest::from_str(&format!("{uri}/info.json"));
     assert!(
-        matches!(info, Err(IiifError::InvalidIdentifier(_))),
-        "{info:?}"
+        matches!(&info, Err(e) if discriminant(e) == discriminant(&expected)),
+        "expected {expected:?}, got {info:?}"
     );
 
     let image = ImageRequest::from_str(&format!("{uri}/full/full/0/default.jpg"));
     assert!(
-        matches!(image, Err(IiifError::InvalidIdentifier(_))),
-        "{image:?}"
+        matches!(&image, Err(e) if discriminant(e) == discriminant(&expected)),
+        "expected {expected:?}, got {image:?}"
     );
 }
 
 /// IIIF §2.2: an information request still needs an identifier before `info.json`.
 #[test]
-#[ignore]
 fn information_request_without_identifier_is_rejected() {
     let info = InformationRequest::from_str("https://example.org/info.json");
     assert!(
