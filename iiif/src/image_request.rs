@@ -7,6 +7,104 @@ use crate::{
     builder::{Set, Unset},
 };
 
+/// A non-negative value with two fractional digits, stored as a whole number of hundredths so that
+/// ordering, equality and hashing are numeric.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct Hundredths(u32);
+
+impl Hundredths {
+    /// Rounds a finite, non-negative `value` to two fractional digits. Rounding goes through
+    /// `{:.2}` so it matches what `Display` used to print exactly (round half to even on the
+    /// exact `f32` value).
+    fn from_f32(value: f32) -> Self {
+        let rounded = format!("{:.2}", value);
+        let (whole, frac) = rounded
+            .split_once('.')
+            .expect("`{:.2}` has a fractional part");
+        let whole: u32 = whole.parse().expect("`{:.2}` of a bounded value is digits");
+        let frac: u32 = frac.parse().expect("`{:.2}` of a bounded value is digits");
+        Self(whole * 100 + frac)
+    }
+}
+
+impl Display for Hundredths {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (whole, frac) = (self.0 / 100, self.0 % 100);
+        match frac {
+            0 => write!(f, "{}", whole),
+            _ if frac % 10 == 0 => write!(f, "{}.{}", whole, frac / 10),
+            _ => write!(f, "{}.{:02}", whole, frac),
+        }
+    }
+}
+
+#[cfg(test)]
+mod hundredths_tests {
+    use proptest::prelude::*;
+    use rstest::rstest;
+
+    use super::{Degree, Hundredths, Percentage};
+
+    /// How `Display` was computed when the value was stored as a string.
+    fn old_display(value: f32) -> String {
+        format!("{:.2}", value)
+            .trim_end_matches('0')
+            .trim_end_matches('.')
+            .to_string()
+    }
+
+    #[rstest]
+    #[case(0.0, 0, "0")]
+    #[case(0.001, 0, "0")]
+    #[case(0.125, 12, "0.12")]
+    #[case(4.2, 420, "4.2")]
+    #[case(4.05, 405, "4.05")]
+    #[case(99.999, 10000, "100")]
+    #[case(360.0, 36000, "360")]
+    fn from_f32(#[case] value: f32, #[case] hundredths: u32, #[case] displayed: &str) {
+        let h = Hundredths::from_f32(value);
+        assert_eq!(h, Hundredths(hundredths));
+        assert_eq!(h.to_string(), displayed);
+    }
+
+    #[test]
+    fn percentages_order_numerically() {
+        let nine: Percentage = "9".parse().unwrap();
+        let ten: Percentage = "10".parse().unwrap();
+        assert!(nine < ten);
+    }
+
+    #[test]
+    fn degrees_order_numerically() {
+        let nine: Degree = "9".parse().unwrap();
+        let ninety: Degree = "90".parse().unwrap();
+        let one_eighty: Degree = "180".parse().unwrap();
+        assert!(nine < ninety && ninety < one_eighty);
+    }
+
+    #[test]
+    fn equal_after_rounding() {
+        assert_eq!(
+            "4.2".parse::<Percentage>().unwrap(),
+            "4.200".parse().unwrap()
+        );
+    }
+
+    proptest! {
+        #[test]
+        fn display_matches_old_format(value in 0.0_f32..=360.0) {
+            prop_assert_eq!(Hundredths::from_f32(value).to_string(), old_display(value));
+        }
+
+        #[test]
+        fn order_matches_value(a in 0.0_f32..=100.0, b in 0.0_f32..=100.0) {
+            let (pa, pb) = (Percentage::try_from(a).unwrap(), Percentage::try_from(b).unwrap());
+            let (ra, rb): (f32, f32) = (pa.to_string().parse().unwrap(), pb.to_string().parse().unwrap());
+            prop_assert_eq!(pa.cmp(&pb), ra.total_cmp(&rb));
+        }
+    }
+}
+
 /// Defines a [floating point] percentage.
 ///
 /// These are used when setting [`Region`] or [`Size`] as a percentage of the underlying image content.
@@ -59,14 +157,8 @@ use crate::{
 /// [floating point]: https://iiif.io/api/image/2.0/#image-request-parameters
 /// [`Size`]: enum.Size.html
 /// [`Region`]: enum.Region.html
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Percentage(String);
-
-impl Default for Percentage {
-    fn default() -> Self {
-        Self(String::from("0"))
-    }
-}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Percentage(Hundredths);
 
 impl TryFrom<f32> for Percentage {
     type Error = IiifError;
@@ -78,12 +170,7 @@ impl TryFrom<f32> for Percentage {
         if let Some(Ordering::Greater) = value.partial_cmp(&100.0) {
             return Err(IiifError::InvalidPercentage(value));
         };
-        Ok(Percentage(
-            format!("{:.2}", value)
-                .trim_end_matches('0')
-                .trim_end_matches('.')
-                .to_string(),
-        ))
+        Ok(Percentage(Hundredths::from_f32(value)))
     }
 }
 
@@ -98,7 +185,7 @@ impl FromStr for Percentage {
 
 impl Display for Percentage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0.as_str())
+        self.0.fmt(f)
     }
 }
 
@@ -202,14 +289,8 @@ mod percentage_tests {
 ///
 /// [floating point]: https://iiif.io/api/image/2.0/#image-request-parameters
 /// [`Rotatin`]: enum.Rotatin.html
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Degree(String);
-
-impl Default for Degree {
-    fn default() -> Self {
-        Self(String::from("0"))
-    }
-}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Degree(Hundredths);
 
 impl TryFrom<f32> for Degree {
     type Error = IiifError;
@@ -221,12 +302,7 @@ impl TryFrom<f32> for Degree {
         if let Some(Ordering::Greater) = value.partial_cmp(&360.0) {
             return Err(IiifError::InvalidDegree(value));
         };
-        Ok(Degree(
-            format!("{:.2}", value)
-                .trim_end_matches('0')
-                .trim_end_matches('.')
-                .to_string(),
-        ))
+        Ok(Degree(Hundredths::from_f32(value)))
     }
 }
 
@@ -241,7 +317,7 @@ impl FromStr for Degree {
 
 impl Display for Degree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0.as_str())
+        self.0.fmt(f)
     }
 }
 
