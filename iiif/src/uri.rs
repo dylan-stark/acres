@@ -15,7 +15,18 @@ const IDENTIFIER: &AsciiSet = &CONTROLS
     .add(b'@')
     .add(b'%');
 
+/// IIIF §9 special characters, plus ASCII that RFC 3986 doesn't allow raw anywhere.
 const PREFIX: &AsciiSet = &CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'<')
+    .add(b'>')
+    .add(b'\\')
+    .add(b'^')
+    .add(b'`')
+    .add(b'{')
+    .add(b'|')
+    .add(b'}')
     .add(b'/')
     .add(b'?')
     .add(b'#')
@@ -129,16 +140,35 @@ impl FromStr for Prefix {
     type Err = IiifError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Prefix::from_encoded(s)
+        if s.is_empty() {
+            return Ok(Self(Vec::new()));
+        }
+        Prefix::from_segments(&s.split('/').collect::<Vec<_>>())
     }
 }
 
 impl Prefix {
-    fn from_encoded(s: &str) -> Result<Self, IiifError> {
-        let segments = s
-            .split('/')
-            .filter(|part| !part.is_empty())
+    /// Parses encoded prefix segments. Takes segments rather than a joined string so that a
+    /// lone empty segment (from `https://host//id`) isn't mistaken for no prefix.
+    fn from_segments(encoded: &[&str]) -> Result<Self, IiifError> {
+        let s = encoded.join("/");
+        let segments = encoded
+            .iter()
             .map(|part| {
+                // An empty segment comes from `//`. RFC 3986 treats `a//b` and `a/b` as different
+                // paths, so reject rather than silently collapse.
+                if part.is_empty() {
+                    return Err(IiifError::InvalidUriPrefix(format!("empty segment: {}", s)));
+                }
+                // IIIF §2, §9: special characters must be encoded. `Url::parse` has already split
+                // off `?` and `#`, and `/` delimits segments, but `[ ] @` are RFC 3986 reserved
+                // so they get through to here raw.
+                if let Some(c) = part.chars().find(|c| matches!(c, '[' | ']' | '@')) {
+                    return Err(IiifError::InvalidUriPrefix(format!(
+                        "unencoded '{}': {}",
+                        c, s
+                    )));
+                }
                 percent_decode_str(part)
                     .decode_utf8()
                     .map(|c| c.into_owned())
@@ -317,7 +347,7 @@ impl FromStr for Uri {
         let identifier: Identifier = Identifier::from_encoded(encoded_identifier)?;
 
         let encoded_prefix: Vec<&str> = segments.rev().collect();
-        let prefix = Prefix::from_encoded(encoded_prefix.join("/").as_str())?;
+        let prefix = Prefix::from_segments(&encoded_prefix)?;
 
         Ok(Self {
             scheme,
