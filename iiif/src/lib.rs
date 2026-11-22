@@ -43,10 +43,18 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! # Features
+//!
+//! - `serde`: implements `Serialize` and `Deserialize` for the public types using their IIIF
+//!   string form (e.g. a [`Uri`] serializes as `"https://example.org/images/12345"`).
+//!   Deserializing validates exactly as [`str::parse`] does.
 
 mod errors;
 mod image_request;
 mod information_request;
+#[cfg(feature = "serde")]
+mod serde_impls;
 mod uri;
 
 pub use self::errors::IiifError;
