@@ -82,7 +82,17 @@ Dependencies and docs:
   - New `charaoke/tui_proxy/drag_fit`: the drag again, through `Grid::fit_within` on a pane that changes both width and height. Its cost should match `drag`.
   - TUI snapshots: `renders_ascii_centered` is re-recorded from a fixture image, the alphabets browser becomes a ramps browser, the metrics browser is deleted, and a HUD snapshot uses fixed durations.
   - CLI tests run `ascii-art` on the fixture JPEG: `--color never` gives plain text of the expected size, `--color 256` writes `38;5;` escapes, `auto` is plain through a pipe, and `--timings` leaves stdout unchanged and writes every stage to stderr.
-- The TUI fits the art to the pane and re-renders on every resize, at about 1 ms per frame on the Air instead of a 34 ms rebuild on each option change. A new image costs about one decode on top of that.
+- The TUI fits the art to the pane and re-renders on every resize, at under 1 ms per frame on the Air instead of a 34 ms rebuild on each option change. A new image costs about one decode (1.3 ms) on top of that. These are from one `make bench` run on the M1 Air, on the synthetic 843x632 bench image (results on PR #71):
+
+  | | M1 Air (target) |
+  | --- | --- |
+  | `charaoke/tui_proxy/drag` (120-200 col drag, width only) | 0.94 ms |
+  | `charaoke/tui_proxy/drag_fit` (width and height, through `fit_within`) | 0.76 ms |
+  | `charaoke/tui_proxy/drag_ansi` (old `ansi-to-tui` path) | 1.65 ms |
+  | `charaoke/render` at 160 columns | 0.52 ms |
+  | `charaoke/decode` | 1.31 ms |
+
+  `drag_fit` is cheaper than `drag` because its 30 to 60 row panes limit most frames by height, so they have fewer cells. Per cell, the two cost the same.
 - Character choice is brightness-only until edge-aware characters return. Line art and text in artworks look softer than with the old edge-augmented mode. This is the biggest visible change.
 - Removing CLI flags breaks scripts that pass `--font`, `--metric` or `--conversion-algorithm`. The project is pre-1.0 and these flags only steered glyph matching, so we remove them instead of keeping no-op flags.
 - Both binaries drop `image` 0.24 and `image-to-ascii`'s font loading.
