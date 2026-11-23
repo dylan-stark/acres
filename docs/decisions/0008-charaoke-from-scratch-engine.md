@@ -24,15 +24,15 @@ Stage by stage, at 160 cols on the same image:
 | Parse BDF font | 1.23 ms | 0.87 ms |
 | Conversion, `edge-augmented` | 22.6 ms | 14.0 ms |
 | Conversion, `base` | 6.7 ms | 4.9 ms |
-| ANSI colouring | 6.8 ms | 3.9 ms |
+| ANSI coloring | 6.8 ms | 3.9 ms |
 
-Decode, luma and font are fixed costs paid again on every call, 6.1 ms on the M1 Air before any conversion. Conversion grows faster than the cell count, because `image-to-ascii` resizes to the full glyph resolution (one font-sized pixel block per cell) and scores every glyph in the alphabet against every cell. ANSI colouring alone nearly fills the budget on the M1 Air, so it is a stage to optimise, not an afterthought. The crate also pins `image` to 0.24, and its API leaves no room to reuse buffers or cache work between frames.
+Decode, luma and font are fixed costs paid again on every call, 6.1 ms on the M1 Air before any conversion. Conversion grows faster than the cell count, because `image-to-ascii` resizes to the full glyph resolution (one font-sized pixel block per cell) and scores every glyph in the alphabet against every cell. ANSI coloring alone nearly fills the budget on the M1 Air, so it is a stage to optimize, not an afterthought. The crate also pins `image` to 0.24, and its API leaves no room to reuse buffers or cache work between frames.
 
-`charaoke/benches/stages.rs` measures the stages `charaoke` will own using `image` 0.25. On the 843x632 image, decode takes 1.36 ms on the M1 Air and 0.79 ms on the Ryzen, and `to_luma8` takes 0.24 ms and 0.90 ms. Moving to `image` 0.25 alone cuts decode by 40-60%. The luma gap between machines (the M1 is 3.8x faster) suggests the x86 build is not vectorising that loop, which step 3's SIMD work should look at.
+`charaoke/benches/stages.rs` measures the stages `charaoke` will own using `image` 0.25. On the 843x632 image, decode takes 1.36 ms on the M1 Air and 0.79 ms on the Ryzen, and `to_luma8` takes 0.24 ms and 0.90 ms. Moving to `image` 0.25 alone cuts decode by 40-60%. The luma gap between machines (the M1 is 3.8x faster) suggests the x86 build is not vectorizing that loop, which step 3's SIMD work should look at.
 
 ## Decision
 
-Build a new workspace crate, `charaoke`, from scratch with no workspace dependencies. Its target is to convert a full TUI pane on resize in 8 ms or less on Dylan's M1 MacBook Air, half the 60 FPS frame, so drawing and app work fit in the rest. Benchmarks exist before any optimisation: `charaoke/benches/stages.rs` measures each stage on the same inputs and widths as the baseline, so the two reports line up.
+Build a new workspace crate, `charaoke`, from scratch with no workspace dependencies. Its target is to convert a full TUI pane on resize in 8 ms or less on Dylan's M1 MacBook Air, half the 60 FPS frame, so drawing and app work fit in the rest. Benchmarks exist before any optimization: `charaoke/benches/stages.rs` measures each stage on the same inputs and widths as the baseline, so the two reports line up.
 
 ## Consequences
 

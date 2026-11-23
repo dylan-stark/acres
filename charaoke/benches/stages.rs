@@ -8,7 +8,7 @@
 //! - `charaoke/load`: [`Converter::set_image`] from decoded RGB8, paid once per image.
 //! - `charaoke/render`: [`Converter::render`] at each width, paid on every resize.
 //! - `charaoke/end_to_end`: decode, load and render, comparable to `baseline/end_to_end` minus
-//!   ANSI colouring, which `charaoke` does not do yet.
+//!   ANSI coloring, which `charaoke` does not do yet.
 
 mod common;
 

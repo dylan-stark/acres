@@ -57,7 +57,7 @@ fn is_dot_segment(segment: &str) -> bool {
     )
 }
 
-/// The last segment of the raw (un-normalised) path in `s`, if `s` has a path.
+/// The last segment of the raw (un-normalized) path in `s`, if `s` has a path.
 fn raw_last_path_segment(s: &str) -> Option<&str> {
     let (_, after_scheme) = s.split_once("://")?;
     let before_query = after_scheme.split(['?', '#']).next()?;
