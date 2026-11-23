@@ -1,17 +1,21 @@
 //! A headless stand-in for the TUI's resize path.
 //!
-//! Each iteration does what `acres-tui` will do on a terminal resize: render the loaded image to
-//! fit the new pane, then draw it with Ratatui into an in-memory `TestBackend`. The pane width
-//! cycles through a drag from 120 to 200 columns, so every frame is a new size. This measures
-//! conversion plus Ratatui's layout and buffer work, though not the terminal's own output.
+//! Each iteration does what `acres-tui` does on a terminal resize: render the loaded image to fit
+//! the new pane, then draw it with Ratatui into an in-memory `TestBackend`. The pane width cycles
+//! through a drag from 120 to 200 columns, so every frame is a new size. This measures conversion
+//! plus Ratatui's layout and buffer work, though not the terminal's own output.
 //! Run with `cargo bench -p charaoke --bench tui_proxy`.
 //!
 //! - `charaoke/tui_proxy/drag`: render into [`Cells`], then write each cell's character and
-//!   truecolor straight into Ratatui's `Buffer` (the path ADR 0010 chooses).
+//!   truecolor straight into Ratatui's `Buffer` (the TUI's path since ADR 0011).
+//! - `charaoke/tui_proxy/drag_fit`: the same, but the drag changes both width and height and the
+//!   grid comes from `Grid::fit_within`, as the TUI fits art to its pane.
 //! - `charaoke/tui_proxy/drag_ansi`: render, write truecolor ANSI, parse it back with
-//!   `ansi-to-tui` and draw it as a `Paragraph` (today's TUI path), to show what the direct
-//!   write saves.
+//!   `ansi-to-tui` and draw it as a `Paragraph` (the TUI's path before ADR 0011), to show what
+//!   the direct write saves.
 
+#[path = "common/cells_widget.rs"]
+mod cells_widget;
 mod common;
 
 use std::hint::black_box;
@@ -19,15 +23,9 @@ use std::hint::black_box;
 use ansi_to_tui::IntoText;
 use charaoke::{Cells, ColorDepth, Converter, Grid, PixelFormat};
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use ratatui::{
-    Terminal,
-    backend::TestBackend,
-    buffer::Buffer,
-    layout::Rect,
-    style::Color,
-    widgets::{Paragraph, Widget},
-};
+use ratatui::{Terminal, backend::TestBackend, layout::Rect, widgets::Paragraph};
 
+use cells_widget::CellsWidget;
 use common::{cols, decode, dimensions, inputs};
 
 /// Pane widths visited by one simulated drag, in columns.
@@ -36,36 +34,13 @@ const DRAG: std::ops::RangeInclusive<u16> = 120..=200;
 /// Terminal height in rows, enough for the tallest pane in the drag.
 const TERMINAL_ROWS: u16 = 80;
 
-/// Draws [`Cells`] straight into a Ratatui buffer, one character and foreground color per cell.
-///
-/// A copy of the widget `acres-tui` gets in step 4, kept here until then so the bench measures the
-/// same work.
-struct CellsWidget<'a>(&'a Cells);
-
-impl Widget for CellsWidget<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let cols = self.0.cols();
-        if cols == 0 {
-            return;
-        }
-        let rows = self
-            .0
-            .chars()
-            .chunks(cols)
-            .zip(self.0.colors().chunks(cols));
-        for ((chars, colors), y) in rows.zip(area.top()..area.bottom()) {
-            for ((&ch, &[r, g, b]), x) in chars.iter().zip(colors).zip(area.left()..area.right()) {
-                if let Some(cell) = buf.cell_mut((x, y)) {
-                    cell.set_char(char::from(ch)).set_fg(Color::Rgb(r, g, b));
-                }
-            }
-        }
-    }
-}
+/// Pane heights visited by the `drag_fit` drag, in rows.
+const DRAG_ROWS: std::ops::RangeInclusive<u16> = 30..=60;
 
 fn resize_drag(c: &mut Criterion) {
     let mut group = c.benchmark_group("charaoke/tui_proxy");
     let widths: Vec<u16> = DRAG.collect();
+    let heights: Vec<u16> = DRAG_ROWS.collect();
     let mut terminal =
         Terminal::new(TestBackend::new(*DRAG.end(), TERMINAL_ROWS)).expect("test terminal");
     let mut converter = Converter::default();
@@ -91,6 +66,27 @@ fn resize_drag(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("drag", name), |b| {
             b.iter(|| {
                 let (grid, area) = pane(frame);
+                frame += 1;
+                converter.render(black_box(grid), &mut cells);
+                terminal
+                    .draw(|f| f.render_widget(CellsWidget(&cells), area))
+                    .expect("draws");
+            })
+        });
+
+        // Width and height step at different rates, so the drag is diagonal and varied.
+        let fit_pane = |frame: usize| {
+            let width = widths[frame % widths.len()];
+            let height = heights[frame * 7 % heights.len()];
+            let grid = Grid::fit_within(w, h, cols(u32::from(width)), cols(u32::from(height)));
+            let area = Rect::new(0, 0, grid.cols() as u16, grid.rows() as u16);
+            (grid, area)
+        };
+
+        let mut frame = 0;
+        group.bench_function(BenchmarkId::new("drag_fit", name), |b| {
+            b.iter(|| {
+                let (grid, area) = fit_pane(frame);
                 frame += 1;
                 converter.render(black_box(grid), &mut cells);
                 terminal

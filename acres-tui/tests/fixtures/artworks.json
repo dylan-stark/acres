@@ -15,27 +15,29 @@
     {
       "id": 28560,
       "title": "The Bedroom",
-      "image_id": "25c31d8d-21a4-9ea1-1d73-6a2eca4dda7e"
+      "image_id": "6644829f-f292-c5c4-a73c-0356a6fdbf0d"
     },
     {
-      "id": 129884,
-      "title": "Starry Night and the Astronauts",
-      "image_id": "e966799b-97ee-1cc6-bd2f-a94b4b8bb8f9"
+      "id": 16568,
+      "title": "Water Lilies",
+      "image_id": "3c27b499-af56-f0d5-93b5-a7f2f1ad5813"
     },
     {
-      "id": 111628,
-      "title": "Nighthawks",
-      "image_id": "831a5c5e-e1de-3a47-fdd9-c0ddc1bf15cd"
+      "id": 24645,
+      "title": "The Great Wave",
+      "image_id": "b3974542-b9b4-7568-fc4b-966738f61d78"
     },
     {
       "id": 20684,
-      "title": "Water Lilies",
-      "image_id": "3c27b499-af56-f0d5-93b5-a7f2f1ad5813"
+      "title": "Paris Street; Rainy Day",
+      "image_id": "f8fd76e9-c396-5678-36ed-6a348c904d27"
     }
   ],
   "info": {
-    "license_text": "Fixture data for offline tests.",
-    "license_links": [],
+    "license_text": "Fixture data for offline tests. Images are public-domain artworks from the Art Institute of Chicago (CC0).",
+    "license_links": [
+      "https://creativecommons.org/publicdomain/zero/1.0/"
+    ],
     "version": "fixture"
   },
   "config": {

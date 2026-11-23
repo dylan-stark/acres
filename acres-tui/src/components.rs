@@ -10,8 +10,9 @@ use crate::{action::Action, config::Config, tui::Event};
 
 pub mod acres;
 pub mod home;
+pub mod hud;
 pub mod iiif;
-pub mod image_to_ascii_builder;
+pub mod ramps;
 
 #[cfg(test)]
 pub(crate) mod test_support;

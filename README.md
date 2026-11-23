@@ -4,8 +4,8 @@ This is a collection of tools for working with [The Art Institute of Chicago API
 
 - [`acres`](./acres/): A library for easy, ergonomic programming against the Art Institute API
 - [`iiif`](./iiif/): A library for working with servers implementing supporting [International Image Interoperability API 2.0](https://iiif.io/api/image/2.0/).
-- [`image-to-ascii-builder`](./image-to-ascii-builder/): A library that implements the [builder pattern](https://rust-unofficial.github.io/patterns/patterns/creational/builder.html) for the awesome [`image-to-ascii`](https://github.com/kpberry/image-to-ascii) library.
-- [`charaoke`](./charaoke/): A from-scratch, performance-focused image-to-ASCII engine, in progress, that will replace `image-to-ascii` for live terminal rendering.
+- [`image-to-ascii-builder`](./image-to-ascii-builder/): A library that implements the [builder pattern](https://rust-unofficial.github.io/patterns/patterns/creational/builder.html) for the awesome [`image-to-ascii`](https://github.com/kpberry/image-to-ascii) library, now kept as the benchmark baseline for `charaoke`.
+- [`charaoke`](./charaoke/): A from-scratch, performance-focused image-to-ASCII engine for live terminal rendering, used by the CLI and TUI.
 - [`acres-cli`](./acres-cli): A command-line UI using the great [Clap](https://github.com/clap-rs/clap) tool.
 - [`acres-tui`](./acres-tui): A terminal UI using the fantastic [Ratatui](https://ratatui.rs/) framework
 
@@ -30,12 +30,13 @@ And hit `enter` or `x` to select the piece.
 Behind the scenes the image will be fetched from the Art Institute's collection, converted to ASCII, and displayed.
 From here you can select something else or hit `esc` again to close the pop-up.
 
-We currently support adjusting the font (`f`), alphabet (`a`), conversion algorithm (`c`), and metric (`m`).
-To change them, hit the corresponding key to bring up the pop-up and select a setting.
+The art fits the window and redraws in color whenever you resize it.
+Hit `a` to pick a different ramp, the characters the art is drawn with, from a pop-up.
+Hit `t` to slide out a HUD with how long each fetch, decode, render and frame took, and `t` again to close it.
 
 When you're done, you can hit `q`, `ctrl-d`, or `ctrl-c` to quit.
 
-<img src="https://vhs.charm.sh/vhs-6Ngcq2i1ITFXOYZflDiIRe.gif" alt="Made with VHS">
+<img src="https://vhs.charm.sh/vhs-2KTn0PpCykVj61k6Bkm8j.gif" alt="Made with VHS">
 <a href="https://vhs.charm.sh">
   <img src="https://stuff.charm.sh/vhs/badge.svg">
 </a>
@@ -207,13 +208,15 @@ Following on from the previous examples,
 
 ![Example showing artwork 77333 as ASCII art.](acres-cli-ascii-art-77333.jpg)
 
-Of course you can mix and match settings, like changing the image quality to bi-tonal and setting the alphabet to use for the ASCII art to fast (just `#`s):
+Of course you can mix and match settings, like changing the image quality to bi-tonal and setting the ramp to use for the ASCII art to fast (just `#`s):
 
 ```sh
-curl -s $(acres-cli iiif 77333.json --quality bitonal) | acres-cli ascii-art - --alphabet fast
+curl -s $(acres-cli iiif 77333.json --quality bitonal) | acres-cli ascii-art - --ramp fast
 ```
 
-![Example showing artwork 77333 as ASCII art with quality set to bitonal and alphabet set to fast.](acres-cli-ascii-art-77333-bitonal-fast.jpg)
+`--ramp` takes a preset (`alphabet`, the default, `fast`, `letters`, `lowercase`, `minimal`, `symbols` or `uppercase`) or your own characters from darkest to brightest, like `--ramp ' .:#'`.
+
+![Example showing artwork 77333 as ASCII art with quality set to bitonal and ramp set to fast.](acres-cli-ascii-art-77333-bitonal-fast.jpg)
 
 By default, this will match the width of your terminal.
 But you can control how wide it is by setting `--width` like so
@@ -223,6 +226,15 @@ But you can control how wide it is by setting `--width` like so
 ```
 
 <img src="acres-cli-ascii-art-77333-width-64.jpg" alt="Example showing artwork 77333 as ASCII art with width set to 64 characters." width="300px">
+
+Color follows your terminal: truecolor when `COLORTERM` says so, 256-color otherwise, and plain text when you redirect the output or set `NO_COLOR`.
+Pass `--color truecolor`, `--color 256` or `--color never` to choose yourself, for example to keep color in a file:
+
+```sh
+% acres-cli ascii-art 77333.jpg --color truecolor > 77333.ans
+```
+
+Add `--timings` to see how long each stage took. The timings go to stderr after the art, so they never break up the image.
 
 As before, you can pipe bytes into this:
 

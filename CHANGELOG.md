@@ -20,9 +20,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `charaoke` benches for loading, rendering and end-to-end conversion, plus a headless Ratatui resize bench (`charaoke/tui_proxy`).
 - `charaoke` renders in color: `Converter::render` fills `charaoke::Cells` with a character and a mean color per cell, and `Cells::write_ansi` writes truecolor or 256-color ANSI (`ColorDepth`, `charaoke::ansi256`), while `Cells::write_plain` writes plain text (see [ADR 0010](docs/decisions/0010-charaoke-color.md)).
 - Benches for `charaoke` ANSI output (`charaoke/ansi`), a direct-to-`Buffer` color resize and its `ansi-to-tui` alternative (`charaoke/tui_proxy/drag`, `drag_ansi`), and today's `ansi-to-tui` parse (`baseline/ansi_parse`). `charaoke/end_to_end` now includes ANSI output.
+- `acres-tui` fits the art to its pane and redraws it on every resize, in truecolor or 256-color depending on `COLORTERM` (see [ADR 0011](docs/decisions/0011-switch-to-charaoke.md)).
+- `acres-tui` has a timing HUD, toggled with `t`, that slides out over the art with fetch, decode, load, render, draw and frame times.
+- `acres-cli ascii-art` takes `--ramp` (a preset name or custom characters), `--color auto|truecolor|256|never` and `--timings`, which writes stage times to stderr after the art.
+- `charaoke::Ramp::PRESETS`, `Ramp::preset`, `Ramp::with_brightness_offset`, `Grid::fit_within` and `Converter::set_ramp`.
+- `charaoke/tui_proxy/drag_fit` bench, a resize drag that changes both width and height through `Grid::fit_within`.
 
 ### Changed
 
+- `acres-cli` and `acres-tui` convert images with `charaoke` instead of `image-to-ascii`. Characters are chosen by brightness, so line art looks softer than with the old edge-matching default (see [ADR 0011](docs/decisions/0011-switch-to-charaoke.md)).
+- `acres-cli ascii-art --width` defaults to the terminal width, or 80 when stdout isn't a terminal, instead of the image width. With `--color auto`, the default, output is plain text when stdout isn't a terminal or `NO_COLOR` is set.
+- The `acres-tui` alphabets list (`a`) is now a ramps list.
 - Renamed the project from `aic-tui` to `acres`.
 - Renamed `iiif::Uri` to `iiif::BaseUri`, the IIIF spec's term, since it only accepts IIIF base URIs and no longer clashes with `http::Uri`. The `uri()` methods on `ImageRequest`, `InformationRequest` and the image request builder are now `base_uri()`.
 - Renamed the matching errors: `UriError` is `BaseUriError`, `iiif::Error::InvalidUri` and `RequestError::InvalidUri` are `InvalidBaseUri`, and `RequestError::MissingUri` is `MissingBaseUri`.
@@ -43,6 +51,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Removed
 
+- `acres-cli ascii-art` no longer takes `--alphabet` (use `--ramp`), `--font`, `--metric` or `--conversion-algorithm`, which only applied to glyph matching.
+- `acres-tui` no longer has the font (`f`), metric (`m`) or conversion algorithm (`c`) lists.
 - Removed the hidden `iiif::builder::{Set, Unset}` typestate markers; `iiif::NoBaseUri` replaces them.
 - Removed `iiif::Percentage::new()` and `iiif::Degrees::new()`, which took no value and returned 0. Use `Default` for 0, or `TryFrom<f32>`/`FromStr` for a value.
 

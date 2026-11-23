@@ -7,10 +7,7 @@ use tracing::info;
 
 use crate::{
     action::Action,
-    components::{
-        Component, acres::Artworks, home::Home, iiif::Iiif,
-        image_to_ascii_builder::ImageToAsciiBuilder,
-    },
+    components::{Component, acres::Artworks, home::Home, hud::Hud, iiif::Iiif, ramps::Ramps},
     config::Config,
     tui::{Event, Tui},
 };
@@ -46,10 +43,12 @@ impl App {
             tick_rate,
             frame_rate,
             components: vec![
+                // Drawn in order: the HUD slides out over the art, and lists open over both.
                 Box::new(Home::new()),
+                Box::new(Hud::new()),
                 Box::new(Iiif::new(action_tx.clone())),
                 Box::new(Artworks::new(artworks)),
-                Box::new(ImageToAsciiBuilder::new(action_tx.clone())),
+                Box::new(Ramps::new()),
             ],
             should_quit: false,
             should_suspend: false,
@@ -150,11 +149,9 @@ impl App {
                     self.last_tick_key_events.drain(..);
                 }
                 Action::EnterViewMode => self.mode = Mode::View,
-                Action::EnterBrowseArtworksMode
-                | Action::EnterBrowseAlphabetsMode
-                | Action::EnterBrowseConversionAlgorithmsMode
-                | Action::EnterBrowseFontsMode
-                | Action::EnterBrowseMetricsMode => self.mode = Mode::Browse,
+                Action::EnterBrowseArtworksMode | Action::EnterBrowseRampsMode => {
+                    self.mode = Mode::Browse
+                }
                 Action::Quit => self.should_quit = true,
                 Action::Suspend => self.should_suspend = true,
                 Action::Resume => self.should_suspend = false,
@@ -179,6 +176,7 @@ impl App {
     }
 
     fn render(&mut self, tui: &mut Tui) -> Result<()> {
+        let start = std::time::Instant::now();
         tui.draw(|frame| {
             for component in self.components.iter_mut() {
                 if let Err(err) = component.draw(frame, frame.area()) {
@@ -188,6 +186,7 @@ impl App {
                 }
             }
         })?;
+        self.action_tx.send(Action::FrameTime(start.elapsed()))?;
         Ok(())
     }
 }

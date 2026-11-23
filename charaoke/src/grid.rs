@@ -32,6 +32,43 @@ impl Grid {
         }
     }
 
+    /// Fits an image of `width` by `height` pixels onto the largest grid that fits in `max_cols`
+    /// by `max_rows`, as for a terminal pane.
+    ///
+    /// The grid keeps the image's aspect ratio, corrected by [`CELL_ASPECT`], and never exceeds
+    /// either bound. A wide image fills the columns; a tall one fills the rows.
+    ///
+    /// ```rust
+    /// use std::num::NonZeroU32;
+    /// use charaoke::Grid;
+    ///
+    /// let nz = |n| NonZeroU32::new(n).unwrap();
+    /// // A square image in a wide pane is limited by the pane's height.
+    /// let grid = Grid::fit_within(nz(100), nz(100), nz(200), nz(40));
+    /// assert_eq!((grid.cols(), grid.rows()), (80, 40));
+    /// ```
+    pub fn fit_within(
+        width: NonZeroU32,
+        height: NonZeroU32,
+        max_cols: NonZeroU32,
+        max_rows: NonZeroU32,
+    ) -> Self {
+        let grid = Self::fit(width, height, max_cols);
+        if grid.rows <= max_rows {
+            return grid;
+        }
+        let cols = (f64::from(max_rows.get()) * f64::from(width.get()) * CELL_ASPECT
+            / f64::from(height.get()))
+        .floor()
+        .clamp(1.0, f64::from(max_cols.get())) as u32;
+        let cols = NonZeroU32::new(cols).unwrap_or(NonZeroU32::MIN);
+        let grid = Self::fit(width, height, cols);
+        Self {
+            cols,
+            rows: grid.rows.min(max_rows),
+        }
+    }
+
     /// Number of characters per row.
     pub fn cols(&self) -> u32 {
         self.cols.get()
@@ -78,6 +115,31 @@ mod tests {
     fn very_tall_image_does_not_overflow() {
         let grid = Grid::fit(nz(1), nz(u32::MAX), nz(u32::MAX));
         assert_eq!(grid.rows(), u32::MAX);
+    }
+
+    #[test]
+    fn fit_within_fills_the_limiting_side() {
+        // Wide image, tall pane: limited by columns.
+        let grid = Grid::fit_within(nz(200), nz(100), nz(80), nz(100));
+        assert_eq!((grid.cols(), grid.rows()), (80, 20));
+        // Tall image, wide pane: limited by rows.
+        let grid = Grid::fit_within(nz(100), nz(400), nz(200), nz(50));
+        assert_eq!((grid.cols(), grid.rows()), (25, 50));
+    }
+
+    #[test]
+    fn fit_within_never_exceeds_either_bound() {
+        for w in [1, 7, 100, 843, 5000] {
+            for h in [1, 3, 100, 632, 5000] {
+                for max_cols in [1, 13, 80, 200] {
+                    for max_rows in [1, 9, 48, 80] {
+                        let grid = Grid::fit_within(nz(w), nz(h), nz(max_cols), nz(max_rows));
+                        assert!(grid.cols() <= max_cols, "{w}x{h} in {max_cols}x{max_rows}");
+                        assert!(grid.rows() <= max_rows, "{w}x{h} in {max_cols}x{max_rows}");
+                    }
+                }
+            }
+        }
     }
 
     #[test]

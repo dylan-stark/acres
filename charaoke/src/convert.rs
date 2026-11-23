@@ -74,6 +74,11 @@ impl Converter {
         &self.ramp
     }
 
+    /// Switches to `ramp` for later renders, keeping the loaded image.
+    pub fn set_ramp(&mut self, ramp: Ramp) {
+        self.ramp = ramp;
+    }
+
     /// Loads an image of `width` by `height` pixels, stored row by row with no padding.
     ///
     /// The pixels are kept as RGB, so grayscale input takes three bytes per pixel once loaded.

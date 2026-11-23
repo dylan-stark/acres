@@ -31,13 +31,14 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "bytes",
+ "charaoke",
  "clap 4.5.49",
  "clap-stdin",
  "color-eyre",
  "crossterm 0.29.0",
  "eyre",
  "iiif",
- "image-to-ascii-builder",
+ "image 0.25.10",
  "predicates",
  "reqwest",
  "serde",
@@ -54,10 +55,10 @@ name = "acres-tui"
 version = "0.1.0"
 dependencies = [
  "acres",
- "ansi-to-tui",
  "anyhow",
  "better-panic",
  "bytes",
+ "charaoke",
  "clap 4.5.49",
  "clap-stdin",
  "color-eyre",
@@ -67,7 +68,7 @@ dependencies = [
  "directories",
  "futures",
  "iiif",
- "image-to-ascii-builder",
+ "image 0.25.10",
  "insta",
  "json5",
  "lazy_static",
@@ -2840,7 +2841,7 @@ dependencies = [
  "gif",
  "jpeg-decoder",
  "num-traits",
- "png",
+ "png 0.17.16",
  "qoi",
  "tiff",
 ]
@@ -2855,6 +2856,7 @@ dependencies = [
  "byteorder-lite",
  "moxcms",
  "num-traits",
+ "png 0.18.1",
  "zune-core",
  "zune-jpeg",
 ]
@@ -3596,6 +3598,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82151a2fc869e011c153adc57cf2789ccb8d9906ce52c0b39a6b5697749d7526"
 dependencies = [
  "bitflags 1.3.2",
+ "crc32fast",
+ "fdeflate",
+ "flate2",
+ "miniz_oxide",
+]
+
+[[package]]
+name = "png"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60769b8b31b2a9f263dae2776c37b1b28ae246943cf719eb6946a1db05128a61"
+dependencies = [
+ "bitflags 2.13.2",
  "crc32fast",
  "fdeflate",
  "flate2",
