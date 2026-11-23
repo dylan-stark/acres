@@ -3,7 +3,7 @@ use std::{cell::RefCell, fmt::Display, str::FromStr};
 use percent_encoding::{AsciiSet, CONTROLS, percent_decode_str, utf8_percent_encode};
 use url::SyntaxViolation;
 
-use crate::errors::UriError;
+use crate::errors::BaseUriError;
 
 /// What `Display` percent-encodes in the prefix and identifier: IIIF §9 special characters,
 /// plus ASCII that RFC 3986 doesn't allow raw anywhere. (Non-ASCII is always encoded.)
@@ -27,7 +27,7 @@ const TO_ENCODE: &AsciiSet = &CONTROLS
     .add(b'%');
 
 /// Rejects anything outside RFC 3986: unreserved, reserved, and `%XX` escapes.
-fn validate_rfc3986(s: &str) -> Result<(), UriError> {
+fn validate_rfc3986(s: &str) -> Result<(), BaseUriError> {
     let bytes = s.as_bytes();
     let mut i = 0;
     while i < bytes.len() {
@@ -37,12 +37,12 @@ fn validate_rfc3986(s: &str) -> Result<(), UriError> {
                     .get(i + 1..i + 3)
                     .is_some_and(|h| h.iter().all(u8::is_ascii_hexdigit));
                 if !ok {
-                    return Err(UriError::InvalidEscape(format!("at {}: {}", i, s)));
+                    return Err(BaseUriError::InvalidEscape(format!("at {}: {}", i, s)));
                 }
                 i += 3;
             }
             b if is_unreserved(b) || is_reserved(b) => i += 1,
-            _ => return Err(UriError::InvalidChar(format!("at {}: {}", i, s))),
+            _ => return Err(BaseUriError::InvalidChar(format!("at {}: {}", i, s))),
         }
     }
     Ok(())
@@ -108,13 +108,13 @@ impl Display for Scheme {
 }
 
 impl FromStr for Scheme {
-    type Err = UriError;
+    type Err = BaseUriError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "http" | "HTTP" => Ok(Scheme::Http),
             "https" | "HTTPS" => Ok(Scheme::Https),
-            _ => Err(UriError::InvalidScheme(s.into())),
+            _ => Err(BaseUriError::InvalidScheme(s.into())),
         }
     }
 }
@@ -145,7 +145,7 @@ impl Display for Prefix {
 }
 
 impl FromStr for Prefix {
-    type Err = UriError;
+    type Err = BaseUriError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.is_empty() {
@@ -158,7 +158,7 @@ impl FromStr for Prefix {
 impl Prefix {
     /// Parses encoded prefix segments. Takes segments rather than a joined string so that a
     /// lone empty segment (from `https://host//id`) isn't mistaken for no prefix.
-    fn from_segments(encoded: &[&str]) -> Result<Self, UriError> {
+    fn from_segments(encoded: &[&str]) -> Result<Self, BaseUriError> {
         let s = encoded.join("/");
         let segments = encoded
             .iter()
@@ -166,20 +166,25 @@ impl Prefix {
                 // An empty segment comes from `//`. RFC 3986 treats `a//b` and `a/b` as different
                 // paths, so reject rather than silently collapse.
                 if part.is_empty() {
-                    return Err(UriError::InvalidPrefix(format!("empty segment: {}", s)));
+                    return Err(BaseUriError::InvalidPrefix(format!("empty segment: {}", s)));
                 }
                 // IIIF §2, §9: special characters must be encoded. `Url::parse` has already split
                 // off `?` and `#`, and `/` delimits segments, but `[ ] @` are RFC 3986 reserved
                 // so they get through to here raw.
                 if let Some(c) = part.chars().find(|c| matches!(c, '[' | ']' | '@')) {
-                    return Err(UriError::InvalidPrefix(format!("unencoded '{}': {}", c, s)));
+                    return Err(BaseUriError::InvalidPrefix(format!(
+                        "unencoded '{}': {}",
+                        c, s
+                    )));
                 }
                 percent_decode_str(part)
                     .decode_utf8()
                     .map(|c| c.into_owned())
-                    .map_err(|_| UriError::InvalidPrefix(format!("not UTF-8 when decoded: {}", s)))
+                    .map_err(|_| {
+                        BaseUriError::InvalidPrefix(format!("not UTF-8 when decoded: {}", s))
+                    })
             })
-            .collect::<Result<Vec<String>, UriError>>()?;
+            .collect::<Result<Vec<String>, BaseUriError>>()?;
         Ok(Self(segments))
     }
 
@@ -208,7 +213,7 @@ impl Display for Identifier {
 }
 
 impl FromStr for Identifier {
-    type Err = UriError;
+    type Err = BaseUriError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Identifier::from_encoded(s)
@@ -216,23 +221,26 @@ impl FromStr for Identifier {
 }
 
 impl Identifier {
-    fn from_encoded(s: &str) -> Result<Self, UriError> {
+    fn from_encoded(s: &str) -> Result<Self, BaseUriError> {
         validate_rfc3986(s)?;
         // IIIF §3, §9: special characters must be encoded. `[ ] @` are RFC 3986 reserved, so
         // `validate_rfc3986` lets them through.
         if let Some(c) = s.chars().find(|c| matches!(c, '[' | ']' | '@')) {
-            return Err(UriError::InvalidIdentifier(format!(
+            return Err(BaseUriError::InvalidIdentifier(format!(
                 "unencoded '{}': {}",
                 c, s
             )));
         }
         if is_dot_segment(s) {
-            return Err(UriError::InvalidIdentifier(format!("dot segment: {}", s)));
+            return Err(BaseUriError::InvalidIdentifier(format!(
+                "dot segment: {}",
+                s
+            )));
         }
 
         let raw = percent_decode_str(s)
             .decode_utf8()
-            .map_err(|_| UriError::InvalidIdentifier(format!("not UTF-8 when decoded: {}", s)))?
+            .map_err(|_| BaseUriError::InvalidIdentifier(format!("not UTF-8 when decoded: {}", s)))?
             .into_owned();
         Ok(Self(raw))
     }
@@ -260,7 +268,7 @@ impl Identifier {
 /// # }
 /// ```
 ///
-/// If parsing fails, you'll get a [`UriError`] that should help narrow down where the issue is and
+/// If parsing fails, you'll get a [`BaseUriError`] that should help narrow down where the issue is and
 /// how to correct it.
 ///
 /// [base URI]: https://iiif.io/api/image/2.0/#uri-syntax
@@ -273,7 +281,7 @@ pub struct BaseUri {
 }
 
 impl FromStr for BaseUri {
-    type Err = UriError;
+    type Err = BaseUriError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         validate_rfc3986(s)?;
@@ -287,7 +295,7 @@ impl FromStr for BaseUri {
                 _ => (),
             }))
             .parse(s)
-            .map_err(|e| UriError::Malformed {
+            .map_err(|e| BaseUriError::Malformed {
                 input: s.into(),
                 source: Box::new(e),
             })?;
@@ -297,7 +305,7 @@ impl FromStr for BaseUri {
         {
             // Detect missing or additional slashes after scheme. An extra
             // slash like in `https:///foo` is silently dropped by `Url::parse()`.
-            return Err(UriError::BadSlashes(s.into()));
+            return Err(BaseUriError::BadSlashes(s.into()));
         }
         if saw_violations
             .borrow()
@@ -307,14 +315,14 @@ impl FromStr for BaseUri {
             // empty block like `https://@example.com` are all caught. The
             // latter is silently dropped by `Url::parse()` and can't be
             // caught with `username()` and `password()`.
-            return Err(UriError::UnexpectedUserInfo(s.into()));
+            return Err(BaseUriError::UnexpectedUserInfo(s.into()));
         }
 
         let scheme: Scheme = url.scheme().parse()?;
 
         let host = url
             .host_str()
-            .ok_or_else(|| UriError::MissingServer(s.into()))?;
+            .ok_or_else(|| BaseUriError::MissingServer(s.into()))?;
         let port = url.port();
         let server = Server {
             host: host.into(),
@@ -325,34 +333,40 @@ impl FromStr for BaseUri {
         // so check the raw input before that hides it behind a trailing-slash or
         // missing-identifier error.
         if raw_last_path_segment(s).is_some_and(is_dot_segment) {
-            return Err(UriError::InvalidIdentifier(format!("dot segment: {}", s)));
+            return Err(BaseUriError::InvalidIdentifier(format!(
+                "dot segment: {}",
+                s
+            )));
         }
 
         if url.path() == "/" {
-            return Err(UriError::MissingIdentifier(s.into()));
+            return Err(BaseUriError::MissingIdentifier(s.into()));
         }
 
         if url.path().ends_with('/') {
-            return Err(UriError::TrailingSlash(s.into()));
+            return Err(BaseUriError::TrailingSlash(s.into()));
         }
 
         if url.query().is_some() {
-            return Err(UriError::UnexpectedQuery(s.into()));
+            return Err(BaseUriError::UnexpectedQuery(s.into()));
         }
 
         if url.fragment().is_some() {
-            return Err(UriError::UnexpectedFragment(s.into()));
+            return Err(BaseUriError::UnexpectedFragment(s.into()));
         }
 
         let mut segments = if let Some(segments) = url.path_segments() {
             segments.rev()
         } else {
-            return Err(UriError::MissingIdentifier(format!("not in path: {}", s)));
+            return Err(BaseUriError::MissingIdentifier(format!(
+                "not in path: {}",
+                s
+            )));
         };
 
         let encoded_identifier = segments
             .next()
-            .ok_or_else(|| UriError::MissingIdentifier(format!("not in path: {}", s)))?;
+            .ok_or_else(|| BaseUriError::MissingIdentifier(format!("not in path: {}", s)))?;
         let identifier: Identifier = Identifier::from_encoded(encoded_identifier)?;
 
         let encoded_prefix: Vec<&str> = segments.rev().collect();

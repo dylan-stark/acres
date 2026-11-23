@@ -1,6 +1,6 @@
 //! IIIF §2: the base URI template `{scheme}://{server}{/prefix}/{identifier}`.
 
-use iiif::UriError;
+use iiif::BaseUriError;
 use rstest::rstest;
 
 use crate::{assert_rejected, assert_round_trips};
@@ -27,7 +27,7 @@ fn base_uri_round_trips(#[case] s: &str) {
 #[case::path_only("/image-service/abcd1234")]
 #[case::missing_colon("https//example.org/abcd1234")]
 fn relative_references_are_rejected(#[case] s: &str) {
-    assert_err!(s, UriError::Malformed { .. });
+    assert_err!(s, BaseUriError::Malformed { .. });
 }
 
 /// IIIF §2: the identifier is required.
@@ -35,7 +35,7 @@ fn relative_references_are_rejected(#[case] s: &str) {
 #[case::no_path("https://example.org")]
 #[case::root_path("https://example.org/")]
 fn missing_identifier_is_rejected(#[case] s: &str) {
-    assert_err!(s, UriError::MissingIdentifier(_));
+    assert_err!(s, BaseUriError::MissingIdentifier(_));
 }
 
 /// IIIF §5 (3.0) / §5.1 (2.1): the base URI has no trailing slash; a trailing slash would mean an
@@ -44,7 +44,7 @@ fn missing_identifier_is_rejected(#[case] s: &str) {
 #[case::trailing_slash("https://example.org/image-service/abcd1234/")]
 #[case::prefix_only_with_slash("https://example.org/image-service/")]
 fn trailing_slash_is_rejected(#[case] s: &str) {
-    assert_err!(s, UriError::TrailingSlash(_));
+    assert_err!(s, BaseUriError::TrailingSlash(_));
 }
 
 /// IIIF §2: parameters are path segments, never query parameters. IIIF §3: `?` in an
@@ -55,7 +55,7 @@ fn trailing_slash_is_rejected(#[case] s: &str) {
 #[case::empty_query("https://example.org/abcd1234?")]
 #[case::query_in_prefix("https://example.org/image-service?x=1/abcd1234")]
 fn query_is_rejected(#[case] s: &str) {
-    assert_err!(s, UriError::UnexpectedQuery(_));
+    assert_err!(s, BaseUriError::UnexpectedQuery(_));
 }
 
 /// IIIF §3: `#` in an identifier must be encoded, so a raw `#` starts a fragment, which is
@@ -65,7 +65,7 @@ fn query_is_rejected(#[case] s: &str) {
 #[case::empty_fragment("https://example.org/abcd1234#")]
 #[case::fragment_in_prefix("https://example.org/image-service#x/abcd1234")]
 fn fragment_is_rejected(#[case] s: &str) {
-    assert_err!(s, UriError::UnexpectedFragment(_));
+    assert_err!(s, BaseUriError::UnexpectedFragment(_));
 }
 
 /// RFC 3986 §2 and Appendix C: whitespace is not part of a URI. Rejected rather than trimmed.
