@@ -4,7 +4,7 @@
 //! IIIF §9 lists the special characters (the to-encode set) as `/ ? # [ ] @ %`, plus anything
 //! outside US-ASCII.
 
-use iiif::UriError;
+use iiif::BaseUriError;
 use rstest::rstest;
 
 use crate::{assert_displays_as, assert_round_trips};
@@ -57,7 +57,7 @@ fn dot_segments_are_removed(#[case] s: &str, #[case] expected: &str) {
 #[case::open_bracket("https://example.org/a[b/abcd1234")]
 #[case::close_bracket("https://example.org/a]b/abcd1234")]
 fn raw_special_characters_are_rejected(#[case] s: &str) {
-    assert_err!(s, UriError::InvalidPrefix(_));
+    assert_err!(s, BaseUriError::InvalidPrefix(_));
 }
 
 /// IIIF §9: characters outside US-ASCII must be percent-encoded.
@@ -66,7 +66,7 @@ fn raw_special_characters_are_rejected(#[case] s: &str) {
 #[case::cjk("https://example.org/画像/abcd1234")]
 #[case::emoji("https://example.org/🖼/abcd1234")]
 fn raw_non_ascii_is_rejected(#[case] s: &str) {
-    assert_err!(s, UriError::InvalidChar(_));
+    assert_err!(s, BaseUriError::InvalidChar(_));
 }
 
 /// RFC 3986 §2: characters outside the URI character set are not allowed at all.
@@ -83,7 +83,7 @@ fn raw_non_ascii_is_rejected(#[case] s: &str) {
 #[case::close_brace("https://example.org/a}b/abcd1234")]
 #[case::control("https://example.org/a\u{7f}b/abcd1234")]
 fn characters_outside_rfc3986_are_rejected(#[case] s: &str) {
-    assert_err!(s, UriError::InvalidChar(_));
+    assert_err!(s, BaseUriError::InvalidChar(_));
 }
 
 /// IIIF §9: `%` itself must be encoded, so every `%` has to start a valid `%XX` escape
@@ -95,7 +95,7 @@ fn characters_outside_rfc3986_are_rejected(#[case] s: &str) {
 #[case::half_hex("https://example.org/a%4g/abcd1234")]
 #[case::only_percent("https://example.org/%/abcd1234")]
 fn malformed_percent_encoding_is_rejected(#[case] s: &str) {
-    assert_err!(s, UriError::InvalidEscape(_));
+    assert_err!(s, BaseUriError::InvalidEscape(_));
 }
 
 /// IIIF §2: segments are "delimited by slashes". An empty segment is not a segment, and RFC
@@ -105,5 +105,5 @@ fn malformed_percent_encoding_is_rejected(#[case] s: &str) {
 #[case::inner("https://example.org/a//b/abcd1234")]
 #[case::trailing("https://example.org/a//abcd1234")]
 fn empty_segments_are_rejected(#[case] s: &str) {
-    assert_err!(s, UriError::InvalidPrefix(_));
+    assert_err!(s, BaseUriError::InvalidPrefix(_));
 }

@@ -1,6 +1,6 @@
 //! IIIF §2: `server` is "the host server on which the service resides", optionally with a port.
 
-use iiif::UriError;
+use iiif::BaseUriError;
 use rstest::rstest;
 
 use crate::{assert_displays_as, assert_round_trips};
@@ -65,10 +65,10 @@ fn ports_are_normalized(#[case] s: &str, #[case] expected: &str) {
 fn invalid_authority_is_rejected(#[case] s: &str) {
     assert_err!(
         s,
-        UriError::Malformed { .. }
-            | UriError::BadSlashes(_)
-            | UriError::MissingServer(_)
-            | UriError::InvalidChar(_)
+        BaseUriError::Malformed { .. }
+            | BaseUriError::BadSlashes(_)
+            | BaseUriError::MissingServer(_)
+            | BaseUriError::InvalidChar(_)
     );
 }
 
@@ -81,5 +81,5 @@ fn invalid_authority_is_rejected(#[case] s: &str) {
 #[case::empty_password("https://user:@example.org/abcd1234")]
 #[case::user_with_later_violation("https://user@example.org/abc[d]")]
 fn userinfo_is_rejected(#[case] s: &str) {
-    assert_err!(s, UriError::UnexpectedUserInfo(_));
+    assert_err!(s, BaseUriError::UnexpectedUserInfo(_));
 }

@@ -1,4 +1,4 @@
-//! Errors, split by layer: [`UriError`] for the base URI, [`ParameterError`] for image request
+//! Errors, split by layer: [`BaseUriError`] for the base URI, [`ParameterError`] for image request
 //! parameters, and [`RequestError`] for whole requests. [`Error`] wraps any of them.
 //!
 //! Variant names describe what is wrong with the input (see ADR 0006). A variant with a
@@ -17,7 +17,7 @@ use std::num::ParseFloatError;
 pub enum Error {
     /// The base URI is invalid.
     #[error(transparent)]
-    InvalidUri(#[from] UriError),
+    InvalidUri(#[from] BaseUriError),
     /// An image request parameter is invalid.
     #[error(transparent)]
     InvalidParameter(#[from] ParameterError),
@@ -29,7 +29,7 @@ pub enum Error {
 /// An invalid [base URI](crate::BaseUri). Each variant holds the offending input.
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
-pub enum UriError {
+pub enum BaseUriError {
     /// Not parseable as a URL at all.
     #[error("malformed URI: {input}")]
     Malformed {
@@ -135,7 +135,7 @@ pub enum ParameterError {
 pub enum RequestError {
     /// The base URI is invalid.
     #[error("invalid base URI in request")]
-    InvalidUri(#[from] UriError),
+    InvalidUri(#[from] BaseUriError),
     /// An image request parameter is invalid.
     #[error("invalid parameter in image request")]
     InvalidParameter(#[from] ParameterError),

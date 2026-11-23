@@ -5,8 +5,8 @@
 use std::{mem::discriminant, str::FromStr};
 
 use iiif::{
-    BaseUri, Format, ImageRequest, InformationRequest, Quality, Region, RequestError, Rotation,
-    Size, UriError,
+    BaseUri, BaseUriError, Format, ImageRequest, InformationRequest, Quality, Region, RequestError,
+    Rotation, Size,
 };
 use rstest::rstest;
 
@@ -102,7 +102,7 @@ fn information_request_without_identifier_is_rejected() {
         matches!(
             info,
             Err(RequestError::InvalidUri(
-                UriError::MissingIdentifier(_) | UriError::InvalidIdentifier(_)
+                BaseUriError::MissingIdentifier(_) | BaseUriError::InvalidIdentifier(_)
             ))
         ),
         "{info:?}"
