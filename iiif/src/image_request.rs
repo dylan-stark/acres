@@ -821,7 +821,7 @@ pub enum Format {
     /// PDF format.
     Pdf,
     /// WebP format.
-    WebP,
+    Webp,
 }
 
 impl Display for Format {
@@ -833,7 +833,7 @@ impl Display for Format {
             Format::Gif => write!(f, "gif"),
             Format::Jp2 => write!(f, "jp2"),
             Format::Pdf => write!(f, "pdf"),
-            Format::WebP => write!(f, "webp"),
+            Format::Webp => write!(f, "webp"),
         }
     }
 }
@@ -849,7 +849,7 @@ impl FromStr for Format {
             _ if s == "gif" => Ok(Format::Gif),
             _ if s == "jp2" => Ok(Format::Jp2),
             _ if s == "pdf" => Ok(Format::Pdf),
-            _ if s == "webp" => Ok(Format::WebP),
+            _ if s == "webp" => Ok(Format::Webp),
             _ => Err(ParameterError::InvalidFormat(s.into())),
         }
     }
@@ -1325,7 +1325,7 @@ mod tests {
     #[case("gif", Format::Gif)]
     #[case("jp2", Format::Jp2)]
     #[case("pdf", Format::Pdf)]
-    #[case("webp", Format::WebP)]
+    #[case("webp", Format::Webp)]
     fn parsing_format(#[case] value: &str, #[case] expected: Format) {
         assert_eq!(Format::from_str(value).unwrap(), expected);
     }
@@ -1405,7 +1405,7 @@ mod tests {
         assert_eq!(request.size(), &Size::BestFit { w: 100, h: 100 });
         assert_eq!(request.rotation(), &Rotation::from_str("!90").unwrap());
         assert_eq!(request.quality(), Quality::Gray);
-        assert_eq!(request.format(), Format::WebP);
+        assert_eq!(request.format(), Format::Webp);
     }
 
     #[rstest]
