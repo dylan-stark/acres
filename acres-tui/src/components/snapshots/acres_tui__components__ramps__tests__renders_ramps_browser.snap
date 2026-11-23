@@ -1,6 +1,6 @@
 ---
-source: acres-tui/src/components/image_to_ascii_builder.rs
-expression: "render(&mut builder, 40, 14)"
+source: acres-tui/src/components/ramps.rs
+expression: "render(&mut ramps, 40, 14)"
 ---
 
 

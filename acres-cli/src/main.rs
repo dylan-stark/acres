@@ -4,7 +4,7 @@
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 
 use acres::{
     AcresError, Api, Cached,
@@ -16,10 +16,8 @@ use color_eyre::{
     Result,
     eyre::{Report, WrapErr},
 };
-use image_to_ascii_builder::{
-    Alphabet, Ascii, BrightnessOffset, CharWidth, ConversionAlgorithm, Font, Metric,
-};
-
+#[doc(hidden)]
+mod ascii_art;
 #[doc(hidden)]
 mod logging;
 
@@ -147,46 +145,44 @@ async fn main() -> Result<(), Report> {
                         .value_parser(value_parser!(FileOrStdin)),
                 )
                 .arg(
-                    Arg::new("alphabet")
-                        .long("alphabet")
-                        .help("alphabet to use")
-                        .default_value(Alphabet::default().to_string())
-                        .value_parser(value_parser!(Alphabet)),
+                    Arg::new("ramp")
+                        .long("ramp")
+                        .help(format!(
+                            "preset ({}) or characters from darkest to brightest",
+                            charaoke::Ramp::PRESETS
+                                .iter()
+                                .map(|(name, _)| *name)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ))
+                        .default_value("alphabet")
+                        .value_parser(ascii_art::parse_ramp),
                 )
                 .arg(
                     Arg::new("brightness-offset")
                         .long("brightness-offset")
-                        .help("brightness offset")
-                        .default_value(BrightnessOffset::default().to_string())
-                        .value_parser(value_parser!(BrightnessOffset)),
-                )
-                .arg(
-                    Arg::new("conversion-algorithm")
-                        .long("conversion-algorithm")
-                        .help("alphabet to use")
-                        .default_value(ConversionAlgorithm::default().to_string())
-                        .value_parser(value_parser!(ConversionAlgorithm)),
-                )
-                .arg(
-                    Arg::new("font")
-                        .long("font")
-                        .help("font to use")
-                        .default_value(Font::default().to_string())
-                        .value_parser(value_parser!(Font)),
-                )
-                .arg(
-                    Arg::new("metric")
-                        .long("metric")
-                        .help("the metric to use")
-                        .default_value(Metric::default().to_string())
-                        .value_parser(value_parser!(Metric)),
+                        .help("darkens the art by subtracting this from each cell's brightness")
+                        .default_value("0")
+                        .value_parser(value_parser!(u8)),
                 )
                 .arg(
                     Arg::new("width")
                         .long("width")
-                        .help("how many characters wide")
-                        .default_value(CharWidth::default().to_string())
-                        .value_parser(value_parser!(CharWidth)),
+                        .help("how many characters wide [default: terminal width, or 80]")
+                        .value_parser(value_parser!(u32).range(1..)),
+                )
+                .arg(
+                    Arg::new("color")
+                        .long("color")
+                        .help("color output")
+                        .default_value("auto")
+                        .value_parser(value_parser!(ascii_art::ColorChoice)),
+                )
+                .arg(
+                    Arg::new("timings")
+                        .long("timings")
+                        .help("print how long each stage took to stderr")
+                        .action(clap::ArgAction::SetTrue),
                 ),
         )
         .subcommand(
@@ -330,48 +326,30 @@ async fn main() -> Result<(), Report> {
                 .clone()
                 .into_reader()
                 .context("failed to clone file-or-stdin")?;
-            let art = Ascii::builder()
-                .input_reader(image_reader)
-                .context("failed to read input image")?
-                .alphabet(
-                    matches
-                        .get_one::<Alphabet>("alphabet")
-                        .cloned()
+            let ramp = matches
+                .get_one::<charaoke::Ramp>("ramp")
+                .cloned()
+                .expect("at least default set")
+                .with_brightness_offset(
+                    *matches
+                        .get_one::<u8>("brightness-offset")
                         .expect("at least default set"),
-                )
-                .brightness_offset(
-                    matches
-                        .get_one::<BrightnessOffset>("brightness-offset")
-                        .cloned()
-                        .expect("at least default set"),
-                )
-                .conversion_algorithm(
-                    matches
-                        .get_one::<ConversionAlgorithm>("conversion-algorithm")
-                        .cloned()
-                        .expect("at least default set"),
-                )
-                .chars_wide(
-                    matches
-                        .get_one::<CharWidth>("width")
-                        .cloned()
-                        .expect("at least default set"),
-                )
-                .font(
-                    matches
-                        .get_one::<Font>("font")
-                        .cloned()
-                        .expect("at least default set"),
-                )
-                .metric(
-                    matches
-                        .get_one::<Metric>("metric")
-                        .cloned()
-                        .expect("at least default set"),
-                )
-                .build()
-                .context("failed to build art")?;
-            println!("{}\n", art);
+                );
+            let width = matches
+                .get_one::<u32>("width")
+                .copied()
+                .unwrap_or_else(ascii_art::default_width);
+            let depth = matches
+                .get_one::<ascii_art::ColorChoice>("color")
+                .expect("at least default set")
+                .depth(io::stdout().is_terminal(), |key| std::env::var(key).ok());
+            let options = ascii_art::Options {
+                ramp,
+                width: std::num::NonZeroU32::new(width).expect("clap ensures at least 1"),
+                depth,
+                timings: matches.get_flag("timings"),
+            };
+            ascii_art::run(image_reader, &mut io::stdout().lock(), options)?;
         }
         Some(("iiif", matches)) => {
             let artwork = artworks::ArtworkInfo::load(

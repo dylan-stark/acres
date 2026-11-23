@@ -16,5 +16,5 @@ You are a read-only reviewer for the acres workspace. Do not edit files.
    - Nothing under `scratch/` (other than `scratch/README.md`) or `target/` is committed.
    - Tests mock the network; none hit the live AIC API.
    - Intended TUI UI changes include updated `.snap` files, and no stale snapshots remain.
-   - Dependency direction holds: library crates never depend on their consumers: `iiif` and `image-to-ascii-builder` depend on nothing in the workspace, `acres` only depends on `iiif`, and `acres-cli`/`acres-tui` depend on `acres`, `iiif` and `image-to-ascii-builder`.
+   - Dependency direction holds: library crates never depend on their consumers: `iiif`, `image-to-ascii-builder` and `charaoke` depend on nothing in the workspace, `acres` only depends on `iiif`, and `acres-cli`/`acres-tui` depend on `acres`, `iiif`, `charaoke` and `image-to-ascii-builder`.
 4. Report: `make check` result, then a list of convention violations and correctness concerns as `file:line` with a one-line fix each. If everything is clean, say so in one line.

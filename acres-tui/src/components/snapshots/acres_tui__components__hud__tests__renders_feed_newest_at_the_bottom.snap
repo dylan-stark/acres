@@ -1,0 +1,20 @@
+---
+source: acres-tui/src/components/hud.rs
+expression: "render(&mut hud, 50, 16)"
+---
+                ┌ timings ───────────────────────┐
+                │image 77333                     │
+                │  fetch      212.00 ms          │
+                │  decode       1.31 ms          │
+                │  load         0.04 ms          │
+                │frame                           │
+                │  total        0.20 ms          │
+                │resize 160x48                   │
+                │  render       0.52 ms          │
+                │  draw         0.41 ms          │
+                │frame                           │
+                │  total        0.98 ms          │
+                │                                │
+                │                                │
+                │                                │
+                └────────────────────────────────┘

@@ -8,6 +8,7 @@ use crate::{action::Action, components::Component};
 
 pub struct Iiif {
     base_uri: Option<BaseUri>,
+    artwork_id: u32,
     region: Region,
     size: Size,
     rotation: Rotation,
@@ -20,6 +21,7 @@ impl Iiif {
     pub fn new(action_tx: UnboundedSender<Action>) -> Self {
         Self {
             base_uri: None,
+            artwork_id: 0,
             region: Region::Full,
             size: Size::Width(843),
             rotation: Rotation::Degrees(0.0.try_into().expect("0 degrees is a valid setting")),
@@ -39,6 +41,7 @@ impl Component for Iiif {
             Action::IiifUpdateBaseUri(artwork) => {
                 tracing::info!("updating base uri");
                 tracing::debug!(artwork = ?artwork);
+                self.artwork_id = artwork.data.id;
                 self.base_uri = Some(artwork.try_into()?);
                 tracing::debug!(base_uri = ?self.base_uri);
                 Ok(Some(Action::IiifRequestImage))
@@ -57,15 +60,20 @@ impl Component for Iiif {
                     tracing::debug!(image_request = %image_request, raw_image_request = ?image_request);
 
                     let action_tx = self.action_tx.clone();
+                    let id = self.artwork_id;
                     tokio::spawn(async move {
+                        let start = std::time::Instant::now();
                         let response: Option<bytes::Bytes> = Api::new()
                             .fetch(image_request.to_string())
                             .await
                             .inspect_err(|e| tracing::error!("failed to get image: {e}"))
                             .ok();
-                        if let Some(response) = response {
-                            let _ =
-                                action_tx.send(Action::ImageToAsciiBuilderUpdateImage(response));
+                        if let Some(image) = response {
+                            let _ = action_tx.send(Action::UpdateImage {
+                                id,
+                                image,
+                                fetch: start.elapsed(),
+                            });
                         }
                     });
                 }

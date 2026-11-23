@@ -15,11 +15,9 @@
     },
     "View": {
       "esc": "EnterBrowseArtworksMode", // Browse artworks list
-      "<a>": "EnterBrowseAlphabetsMode", // Browse alphabets list
-      "<c>": "EnterBrowseConversionAlgorithmsMode", // Browse conversion algorithms list
-      "<f>": "EnterBrowseFontsMode", // Browse fonts list
+      "<a>": "EnterBrowseRampsMode", // Browse ramps list
       "<l>": "ToggleLogs", // Toggle showing logs
-      "<m>": "EnterBrowseMetricsMode", // Browse metrics list
+      "<t>": "ToggleHud", // Toggle the timing HUD
       "<q>": "Quit", // Quit the application
       "<Ctrl-d>": "Quit", // Another way to quit
       "<Ctrl-c>": "Quit", // Yet another way to quit

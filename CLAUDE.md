@@ -16,13 +16,13 @@ Rust workspace of tools for the [Art Institute of Chicago API](https://api.artic
 ## Crates and dependency direction
 
 - `iiif` — IIIF image URL construction (no workspace deps)
-- `image-to-ascii-builder` — builder wrapper around `image-to-ascii` (no workspace deps)
-- `charaoke` — from-scratch, performance-focused image-to-ASCII engine replacing `image-to-ascii` (no workspace deps; see ADR 0008)
+- `image-to-ascii-builder` — builder wrapper around `image-to-ascii`, kept only for the baseline benches (no workspace deps; see ADR 0011)
+- `charaoke` — from-scratch, performance-focused image-to-ASCII engine used by the CLI and TUI (no workspace deps; see ADRs 0008 and 0011)
 - `acres` — AIC API library; depends on `iiif`
-- `acres-cli` — Clap CLI; depends on `acres`, `iiif`, `image-to-ascii-builder`
-- `acres-tui` — Ratatui TUI; depends on `acres`, `iiif`, `image-to-ascii-builder`
+- `acres-cli` — Clap CLI; depends on `acres`, `iiif`, `charaoke`
+- `acres-tui` — Ratatui TUI; depends on `acres`, `iiif`, `charaoke`
 
-Library crates never depend on their consumers: `iiif`, `image-to-ascii-builder` and `charaoke` depend on nothing in the workspace, `acres` may depend only on `iiif`, and `acres-cli`/`acres-tui` may depend on `acres`, `iiif` and `image-to-ascii-builder`. Never add a dependency in the other direction.
+Library crates never depend on their consumers: `iiif`, `image-to-ascii-builder` and `charaoke` depend on nothing in the workspace, `acres` may depend only on `iiif`, and `acres-cli`/`acres-tui` may depend on `acres`, `iiif`, `charaoke` and `image-to-ascii-builder`. Never add a dependency in the other direction.
 
 ## Conventions
 
