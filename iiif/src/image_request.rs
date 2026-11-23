@@ -455,7 +455,7 @@ pub enum Region {
     #[default]
     Full,
     /// Region expressed in absolute pixel values.
-    Absolute(u32, u32, u32, u32),
+    Pixels(u32, u32, u32, u32),
     /// Region expressed in percent of image's dimensions.
     Percentage(Percentage, Percentage, Percentage, Percentage),
 }
@@ -464,7 +464,7 @@ impl Display for Region {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Region::Full => write!(f, "full"),
-            Region::Absolute(x, y, w, h) => write!(f, "{},{},{},{}", x, y, w, h),
+            Region::Pixels(x, y, w, h) => write!(f, "{},{},{},{}", x, y, w, h),
             Region::Percentage(x, y, w, h) => write!(f, "pct:{},{},{},{}", x, y, w, h),
         }
     }
@@ -500,7 +500,7 @@ impl FromStr for Region {
             }
             _ => {
                 let [x, y, w, h] = parse_xywh(s).ok_or_else(invalid)?;
-                Ok(Region::Absolute(x, y, w, h))
+                Ok(Region::Pixels(x, y, w, h))
             }
         }
     }
@@ -548,8 +548,8 @@ pub enum Size {
     Height(u32),
     /// Scale height and width by this percent.
     Percentage(Percentage),
-    /// Scale width and height to exactly this.
-    Exactly(u32, u32),
+    /// Scale width and height to exactly this, ignoring aspect ratio.
+    Exact(u32, u32),
     /// Scale width and height to best fit.
     BestFit(u32, u32),
 }
@@ -561,7 +561,7 @@ impl Display for Size {
             Size::Width(width) => write!(f, "{},", width),
             Size::Height(height) => write!(f, ",{}", height),
             Size::Percentage(percentage) => write!(f, "pct:{}", percentage),
-            Size::Exactly(width, height) => write!(f, "{},{}", width, height),
+            Size::Exact(width, height) => write!(f, "{},{}", width, height),
             Size::BestFit(width, height) => write!(f, "!{},{}", width, height),
         }
     }
@@ -603,7 +603,7 @@ impl FromStr for Size {
             _ => match parse_wh(s).ok_or_else(invalid)? {
                 [Some(w), None] => Ok(Size::Width(w)),
                 [None, Some(h)] => Ok(Size::Height(h)),
-                [Some(w), Some(h)] => Ok(Size::Exactly(w, h)),
+                [Some(w), Some(h)] => Ok(Size::Exact(w, h)),
                 [None, None] => Err(ParameterError::InvalidSize(s.into())),
             },
         }
@@ -1189,7 +1189,7 @@ mod tests {
 
     #[rstest]
     #[case("full", Region::Full)]
-    #[case("1,2,3,4", Region::Absolute(1, 2, 3, 4))]
+    #[case("1,2,3,4", Region::Pixels(1, 2, 3, 4))]
     #[case("pct:1,2,3,4", Region::Percentage( 1.0.try_into().unwrap(), 2.0.try_into().unwrap(), 3.0.try_into().unwrap(), 4.0.try_into().unwrap()))]
     #[case("pct:1.2,2.37,3.4,4.513", Region::Percentage( 1.2.try_into().unwrap(), 2.37.try_into().unwrap(), 3.4.try_into().unwrap(), 4.513.try_into().unwrap()))]
     fn parsing_region(#[case] value: &str, #[case] expected: Region) {
@@ -1221,7 +1221,7 @@ mod tests {
     #[case(",42", Size::Height(42))]
     #[case("pct:42", Size::Percentage(Percentage::from_str("42").unwrap()))]
     #[case("pct:42.3", Size::Percentage(Percentage::from_str("42.3").unwrap()))]
-    #[case("640,480", Size::Exactly(640, 480))]
+    #[case("640,480", Size::Exact(640, 480))]
     #[case("!640,480", Size::BestFit(640, 480))]
     fn parsing(#[case] value: &str, #[case] expected: Size) {
         assert_eq!(Size::from_str(value).unwrap(), expected);
@@ -1333,7 +1333,7 @@ mod tests {
 
     #[test]
     fn builder_and_new_build_the_same_url() {
-        let region = Region::Absolute(10, 20, 300, 400);
+        let region = Region::Pixels(10, 20, 300, 400);
         let size = Size::from_str("843,").unwrap();
         let built = ImageRequest::builder()
             .base_uri(uri())
