@@ -4,33 +4,21 @@
 //! `image-to-ascii` baseline in `image-to-ascii-builder/benches/baseline.rs`, so the two reports
 //! line up. Run with `cargo bench -p charaoke`.
 //!
-//! Only decoding and luminance exist so far; conversion stages join as they are written.
+//! - `charaoke/decode` and `charaoke/luma`: JPEG decode and `to_luma8` in `image` 0.25, for reference.
+//! - `charaoke/load`: [`Converter::set_image`] from decoded RGB8, paid once per image.
+//! - `charaoke/render`: [`Converter::render`] at each width, paid on every resize.
+//! - `charaoke/end_to_end`: decode, load and render, comparable to `baseline/end_to_end` minus
+//!   ANSI colouring, which `charaoke` does not do yet.
 
-use std::{hint::black_box, io::Cursor, path::PathBuf};
+mod common;
 
+use std::hint::black_box;
+
+use charaoke::{Converter, Grid, PixelFormat};
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use image::{DynamicImage, ImageFormat, codecs::jpeg::JpegEncoder, imageops::FilterType};
+use image::{DynamicImage, ImageFormat};
 
-/// A 320x240 artwork image from the TUI test fixtures.
-const FIXTURE: &str =
-    "../acres-tui/tests/fixtures/iiif/e966799b-97ee-1cc6-bd2f-a94b4b8bb8f9/full/843,/0/default.jpg";
-
-/// Width the TUI requests from the AIC IIIF server (`full/843,/0/default.jpg`).
-const AIC_WIDTH: u32 = 843;
-
-/// Named JPEG inputs: the fixture as-is, and upscaled to the width the TUI fetches.
-fn inputs() -> Vec<(&'static str, Vec<u8>)> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(FIXTURE);
-    let small = std::fs::read(&path).expect("fixture image is readable");
-    let image = image::load_from_memory_with_format(&small, ImageFormat::Jpeg).expect("decodes");
-    let height = image.height() * AIC_WIDTH / image.width();
-    let large = image.resize_exact(AIC_WIDTH, height, FilterType::Lanczos3);
-    let mut encoded = Cursor::new(Vec::new());
-    large
-        .write_with_encoder(JpegEncoder::new_with_quality(&mut encoded, 90))
-        .expect("encodes");
-    vec![("320x240", small), ("843x632", encoded.into_inner())]
-}
+use common::{COLS, cols, decode as decode_rgb, dimensions, inputs};
 
 fn decode(c: &mut Criterion) {
     let mut group = c.benchmark_group("charaoke/decode");
@@ -58,5 +46,61 @@ fn luma(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, decode, luma);
+fn load(c: &mut Criterion) {
+    let mut group = c.benchmark_group("charaoke/load");
+    let mut converter = Converter::default();
+    for (name, bytes) in inputs() {
+        let image = decode_rgb(&bytes);
+        let (w, h) = dimensions(&image);
+        group.throughput(Throughput::Elements(u64::from(w.get() * h.get())));
+        group.bench_with_input(BenchmarkId::from_parameter(name), &image, |b, image| {
+            b.iter(|| converter.set_image(black_box(image), w, h, PixelFormat::Rgb8))
+        });
+    }
+    group.finish();
+}
+
+fn render(c: &mut Criterion) {
+    let mut group = c.benchmark_group("charaoke/render");
+    let mut converter = Converter::default();
+    let mut out = String::new();
+    for (name, bytes) in inputs() {
+        let image = decode_rgb(&bytes);
+        let (w, h) = dimensions(&image);
+        converter
+            .set_image(&image, w, h, PixelFormat::Rgb8)
+            .expect("loads");
+        for &n in COLS {
+            let grid = Grid::fit(w, h, cols(n));
+            group.throughput(Throughput::Elements(grid.cells()));
+            group.bench_with_input(BenchmarkId::new(name, n), &grid, |b, &grid| {
+                b.iter(|| converter.render(black_box(grid), &mut out))
+            });
+        }
+    }
+    group.finish();
+}
+
+fn end_to_end(c: &mut Criterion) {
+    let mut group = c.benchmark_group("charaoke/end_to_end");
+    let mut converter = Converter::default();
+    let mut out = String::new();
+    for (name, bytes) in inputs() {
+        for &n in COLS {
+            group.bench_with_input(BenchmarkId::new(name, n), &bytes, |b, bytes| {
+                b.iter(|| {
+                    let image = decode_rgb(black_box(bytes));
+                    let (w, h) = dimensions(&image);
+                    converter
+                        .set_image(&image, w, h, PixelFormat::Rgb8)
+                        .expect("loads");
+                    converter.render(Grid::fit(w, h, cols(n)), &mut out);
+                })
+            });
+        }
+    }
+    group.finish();
+}
+
+criterion_group!(benches, decode, luma, load, render, end_to_end);
 criterion_main!(benches);
