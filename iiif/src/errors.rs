@@ -80,7 +80,7 @@ pub enum BaseUriError {
 
 /// An invalid image request parameter: [`Region`](crate::Region), [`Size`](crate::Size),
 /// [`Rotation`](crate::Rotation), [`Quality`](crate::Quality), [`Format`](crate::Format),
-/// [`Percentage`](crate::Percentage) or [`Degree`](crate::Degree).
+/// [`Percentage`](crate::Percentage) or [`Degrees`](crate::Degrees).
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
 pub enum ParameterError {
@@ -112,8 +112,8 @@ pub enum ParameterError {
     #[error("percentage out of range: {0}")]
     PercentageOutOfRange(f32),
     /// Not a number.
-    #[error("invalid degree: {input}")]
-    InvalidDegree {
+    #[error("invalid degrees: {input}")]
+    InvalidDegrees {
         /// The offending input.
         input: String,
         /// Why it isn't a number.
@@ -121,8 +121,8 @@ pub enum ParameterError {
         source: ParseFloatError,
     },
     /// A number outside `0..=360`.
-    #[error("degree out of range: {0}")]
-    DegreeOutOfRange(f32),
+    #[error("degrees out of range: {0}")]
+    DegreesOutOfRange(f32),
 }
 
 /// An invalid [`ImageRequest`](crate::ImageRequest) or
