@@ -61,7 +61,7 @@ impl From<Artworks> for Vec<ArtworkInfo> {
     }
 }
 
-impl TryFrom<ArtworkInfo> for iiif::Uri {
+impl TryFrom<ArtworkInfo> for iiif::BaseUri {
     type Error = AcresError;
 
     fn try_from(artwork: ArtworkInfo) -> std::result::Result<Self, Self::Error> {
@@ -80,7 +80,7 @@ impl TryFrom<ArtworkInfo> for iiif::Uri {
         tracing::debug!(url = %url);
         tracing::trace!(url = ?url);
         url.as_str()
-            .parse::<iiif::Uri>()
+            .parse::<iiif::BaseUri>()
             .map_err(|e| AcresError::Iiif(e.into()))
     }
 }

@@ -5,7 +5,7 @@
 //! non-ASCII byte, with uppercase hex (RFC 3986 §2.1). Only ALPHA, DIGIT, unreserved
 //! `-._~`, sub-delims `!$&'()*+,;=` and `:` stay raw.
 
-use iiif::Uri;
+use iiif::BaseUri;
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use proptest::prelude::*;
 
@@ -79,7 +79,7 @@ proptest! {
     /// IIIF §9: a correctly encoded base URI parses and displays unchanged.
     #[test]
     fn canonical_uris_round_trip(s in canonical_uri()) {
-        let uri: Uri = s.parse().map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+        let uri: BaseUri = s.parse().map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
         prop_assert_eq!(uri.to_string(), s);
     }
 
@@ -89,7 +89,7 @@ proptest! {
     fn identifier_is_recovered_exactly(prefix in proptest::collection::vec(segment(), 0..3), id in segment()) {
         let prefix: String = prefix.iter().map(|s| format!("/{}", encode(s))).collect();
         let s = format!("https://example.org{prefix}/{}", encode(&id));
-        let uri: Uri = s.parse().map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+        let uri: BaseUri = s.parse().map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
         let displayed = uri.to_string();
         let (_, last) = displayed.rsplit_once('/').expect("displayed URI has a path");
         prop_assert_eq!(last, encode(&id));
@@ -100,7 +100,7 @@ proptest! {
     fn components_are_recovered(prefix in proptest::collection::vec(segment(), 0..3), id in segment()) {
         let encoded: String = prefix.iter().map(|s| format!("/{}", encode(s))).collect();
         let s = format!("https://example.org:5555{encoded}/{}", encode(&id));
-        let uri: Uri = s.parse().map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+        let uri: BaseUri = s.parse().map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
         prop_assert_eq!(uri.scheme(), "https");
         prop_assert_eq!(uri.host(), "example.org");
         prop_assert_eq!(uri.port(), Some(5555));
@@ -112,14 +112,14 @@ proptest! {
     /// hex, gives an equal URI.
     #[test]
     fn identifier_spellings_are_equivalent(id in segment()) {
-        let canonical: Uri = format!("https://example.org/{}", encode(&id))
+        let canonical: BaseUri = format!("https://example.org/{}", encode(&id))
             .parse()
             .map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
 
         let upper: String = id.bytes().map(|b| format!("%{b:02X}")).collect();
         let lower: String = id.bytes().map(|b| format!("%{b:02x}")).collect();
         for spelling in [upper, lower] {
-            let variant: Uri = format!("https://example.org/{spelling}")
+            let variant: BaseUri = format!("https://example.org/{spelling}")
                 .parse()
                 .map_err(|e| TestCaseError::fail(format!("{spelling}: {e:?}")))?;
             prop_assert_eq!(&variant, &canonical);
@@ -129,21 +129,21 @@ proptest! {
     /// Parsing never panics, whatever the input.
     #[test]
     fn parsing_arbitrary_strings_never_panics(s in any::<String>()) {
-        let _ = s.parse::<Uri>();
+        let _ = s.parse::<BaseUri>();
     }
 
     /// Parsing never panics on input shaped like a URI.
     #[test]
     fn parsing_uri_like_strings_never_panics(s in uri_like()) {
-        let _ = s.parse::<Uri>();
+        let _ = s.parse::<BaseUri>();
     }
 
     /// Display is a fixed point: once parsed, displaying and re-parsing changes nothing.
     #[test]
     fn display_is_idempotent(s in prop_oneof![canonical_uri(), uri_like()]) {
-        if let Ok(uri) = s.parse::<Uri>() {
+        if let Ok(uri) = s.parse::<BaseUri>() {
             let displayed = uri.to_string();
-            let reparsed: Uri = displayed
+            let reparsed: BaseUri = displayed
                 .parse()
                 .map_err(|e| TestCaseError::fail(format!("{displayed}: {e:?}")))?;
             prop_assert_eq!(&reparsed, &uri);
@@ -155,7 +155,7 @@ proptest! {
     /// permitted characters appear raw, and every escape is `%` plus two uppercase hex digits.
     #[test]
     fn display_is_canonical(s in prop_oneof![canonical_uri(), uri_like()]) {
-        if let Ok(uri) = s.parse::<Uri>() {
+        if let Ok(uri) = s.parse::<BaseUri>() {
             let displayed = uri.to_string();
             let path = path_of(&displayed).as_bytes();
             prop_assert!(
@@ -176,10 +176,10 @@ proptest! {
     #[cfg(feature = "serde")]
     #[test]
     fn serde_round_trips(s in canonical_uri()) {
-        let uri: Uri = s.parse().map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
+        let uri: BaseUri = s.parse().map_err(|e| TestCaseError::fail(format!("{e:?}")))?;
         let json = serde_json::to_string(&uri).expect("serializes");
         prop_assert_eq!(&json, &serde_json::to_string(&uri.to_string()).expect("serializes"));
-        let back: Uri = serde_json::from_str(&json).expect("deserializes");
+        let back: BaseUri = serde_json::from_str(&json).expect("deserializes");
         prop_assert_eq!(back, uri);
     }
 }

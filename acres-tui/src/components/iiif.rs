@@ -1,13 +1,13 @@
 use acres::Api;
 use color_eyre::eyre::{self};
-use iiif::{Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
+use iiif::{BaseUri, Format, ImageRequest, Quality, Region, Rotation, Size};
 use ratatui::{Frame, prelude::Rect};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{action::Action, components::Component};
 
 pub struct Iiif {
-    base_uri: Option<Uri>,
+    base_uri: Option<BaseUri>,
     region: Region,
     size: Size,
     rotation: Rotation,

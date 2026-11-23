@@ -6,8 +6,8 @@ use std::{error::Error, fmt, marker::PhantomData, str::FromStr};
 use serde::{Deserializer, Serializer, de};
 
 use crate::{
-    Degree, Format, ImageRequest, InformationRequest, Percentage, Quality, Region, Rotation, Size,
-    Uri,
+    BaseUri, Degree, Format, ImageRequest, InformationRequest, Percentage, Quality, Region,
+    Rotation, Size,
 };
 
 struct FromStrVisitor<T>(PhantomData<T>);
@@ -67,7 +67,7 @@ serde_via_str!(
     Region,
     Rotation,
     Size,
-    Uri,
+    BaseUri,
 );
 
 #[cfg(test)]
@@ -78,8 +78,8 @@ mod tests {
     use serde::{Serialize, de::DeserializeOwned};
 
     use crate::{
-        Degree, Format, ImageRequest, InformationRequest, Percentage, Quality, Region, Rotation,
-        Size, Uri,
+        BaseUri, Degree, Format, ImageRequest, InformationRequest, Percentage, Quality, Region,
+        Rotation, Size,
     };
 
     fn round_trips<T>(s: &str)
@@ -97,7 +97,7 @@ mod tests {
     #[case("https://example.org/images/12345")]
     #[case("http://127.0.0.1:5555/some/path/to/a%20b")]
     fn uri_round_trips(#[case] s: &str) {
-        round_trips::<Uri>(s);
+        round_trips::<BaseUri>(s);
     }
 
     #[test]
@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn uri_serializes_as_string() {
-        let uri: Uri = "https://example.org/images/12345".parse().unwrap();
+        let uri: BaseUri = "https://example.org/images/12345".parse().unwrap();
         assert_eq!(
             serde_json::to_string(&uri).unwrap(),
             r#""https://example.org/images/12345""#
@@ -154,6 +154,6 @@ mod tests {
     #[case::query(r#""https://example.org/images/12345?x=1""#)]
     #[case::not_a_string(r#"{"scheme":"Https"}"#)]
     fn uri_deserialize_validates(#[case] json: &str) {
-        assert!(serde_json::from_str::<Uri>(json).is_err());
+        assert!(serde_json::from_str::<BaseUri>(json).is_err());
     }
 }

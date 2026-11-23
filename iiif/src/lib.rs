@@ -8,10 +8,10 @@
 //! ```rust
 //! # use anyhow::Result;
 //! # use std::str::FromStr;
-//! use iiif::{Degree, Format, ImageRequest, InformationRequest, Quality, Region, Rotation, Size, Uri};
+//! use iiif::{Degree, Format, ImageRequest, InformationRequest, Quality, Region, Rotation, Size, BaseUri};
 //!
 //! # fn main() -> Result<()> {
-//! let uri: Uri = "https://example.org/image-service/abcd1234/1E34750D-38DB-4825-A38A-B60A345E591C".parse()?;
+//! let uri: BaseUri = "https://example.org/image-service/abcd1234/1E34750D-38DB-4825-A38A-B60A345E591C".parse()?;
 //!
 //! let info_request = InformationRequest::new(uri.clone());
 //! println!("Check out {info_request} for information about the image.");
@@ -47,7 +47,7 @@
 //! # Features
 //!
 //! - `serde`: implements `Serialize` and `Deserialize` for the public types using their IIIF
-//!   string form (e.g. a [`Uri`] serializes as `"https://example.org/images/12345"`).
+//!   string form (e.g. a [`BaseUri`] serializes as `"https://example.org/images/12345"`).
 //!   Deserializing validates exactly as [`str::parse`] does.
 
 mod errors;
@@ -62,7 +62,7 @@ pub use self::image_request::{
     Degree, Format, ImageRequest, Percentage, Quality, Region, Rotation, Size,
 };
 pub use self::information_request::InformationRequest;
-pub use self::uri::Uri;
+pub use self::uri::BaseUri;
 
 #[doc(hidden)]
 pub mod builder {

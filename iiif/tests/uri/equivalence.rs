@@ -4,12 +4,12 @@
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use iiif::Uri;
+use iiif::BaseUri;
 use rstest::rstest;
 
 use crate::ok;
 
-fn hash(uri: &Uri) -> u64 {
+fn hash(uri: &BaseUri) -> u64 {
     let mut hasher = DefaultHasher::new();
     uri.hash(&mut hasher);
     hasher.finish()
