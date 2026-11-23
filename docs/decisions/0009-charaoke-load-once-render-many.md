@@ -18,7 +18,20 @@ Decoding stays with the caller, so `charaoke` keeps no runtime dependencies. The
 
 ## Consequences
 
-- A resize costs one `render`. On the cloud VM that is 0.52 ms for an 843x632 image at 160 columns, against 13 ms for the cheapest `image-to-ascii` conversion. A headless Ratatui resize (`charaoke/tui_proxy`) takes 1.5 ms. M1 Air and Ryzen numbers still to come.
-- Decode now dominates the end-to-end cost (about 2.2 of 3.3 ms on the VM). It's paid once per image, not per frame.
-- Colour must come back before the TUI switches over (step 4). It will be measured as its own stage, since ANSI colouring cost 6.8 ms on the M1 Air in the baseline.
+- A resize costs one `render`. Measured on an 843x632 image at 160 columns, one `make bench` run per machine (results on PR #68):
+
+  | | M1 Air (target) | Ryzen 9700X (dev) |
+  | --- | --- | --- |
+  | `charaoke/render` (per resize) | 0.35 ms | 0.21 ms |
+  | `charaoke/tui_proxy` (render + Ratatui draw, 120-200 col drag) | 0.98 ms | 0.56 ms |
+  | `charaoke/end_to_end` (decode + load + render) | 1.72 ms | 1.18 ms |
+  | `charaoke/load` (brightness plane, once per image) | 0.03 ms | 0.16 ms |
+  | `baseline/convert/base` | 6.2 ms | 4.9 ms |
+  | `baseline/convert/edge-augmented` | 21.7 ms | 13.8 ms |
+  | `baseline/end_to_end` (includes colour) | 34.1 ms | 21.7 ms |
+
+  A resize on the M1 Air uses about 1 ms of the 8 ms budget, so the target is met for grayscale, with about 7 ms left over.
+- Decode now dominates the end-to-end cost (1.31 of 1.72 ms on the M1 Air). It's paid once per image, not per frame.
+- `load` runs about 5x faster on the M1 Air than on the Ryzen, the same gap as `image`'s `to_luma8` in ADR 0008. The brightness loop is likely vectorised on aarch64 but not on default x86-64. That's for step 3's SIMD work.
+- Colour must come back before the TUI switches over (step 4). It will be measured as its own stage, since ANSI colouring takes 6.4 ms on the M1 Air in the baseline, nearly all of the remaining budget.
 - Area averaging ignores glyph shape. Edge-aware algorithms come back only as measured, optional stages.
