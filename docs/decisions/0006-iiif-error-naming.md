@@ -21,7 +21,7 @@ chain, so messages that also interpolated their source printed it twice.
   where one exists (`TrailingSlash`, `BadSlashes`). Names don't repeat what the type already says
   (`UriError::InvalidChar`, not `InvalidUriChar`), and the umbrella type is `iiif::Error`.
 - **One error type per layer:** `UriError` (base URI), `ParameterError` (region, size, rotation,
-  quality, format, percentage, degree), `RequestError` (image and information requests, wrapping
+  quality, format, percentage, degrees), `RequestError` (image and information requests, wrapping
   the lower errors with `#[from]`). `iiif::Error` wraps all three transparently.
 - **Messages:** lowercase, no trailing punctuation. Each leaf error holds the offending input.
   An error with a `source()` leaves it out of its own message.
