@@ -70,7 +70,7 @@ fn requests_normalize_the_base_uri() {
     );
 }
 
-/// Errors in the base URI come through request parsing wrapped in `InvalidUri`, holding the
+/// Errors in the base URI come through request parsing wrapped in `InvalidBaseUri`, holding the
 /// same variant as parsing the base URI on its own (which `identifier.rs` pins down).
 #[rstest]
 #[case::raw_at("https://example.org/a@b")]
@@ -83,13 +83,13 @@ fn requests_propagate_base_uri_errors(#[case] uri: &str) {
 
     let info = InformationRequest::from_str(&format!("{uri}/info.json"));
     assert!(
-        matches!(&info, Err(RequestError::InvalidUri(e)) if discriminant(e) == discriminant(&expected)),
+        matches!(&info, Err(RequestError::InvalidBaseUri(e)) if discriminant(e) == discriminant(&expected)),
         "expected {expected:?}, got {info:?}"
     );
 
     let image = ImageRequest::from_str(&format!("{uri}/full/full/0/default.jpg"));
     assert!(
-        matches!(&image, Err(RequestError::InvalidUri(e)) if discriminant(e) == discriminant(&expected)),
+        matches!(&image, Err(RequestError::InvalidBaseUri(e)) if discriminant(e) == discriminant(&expected)),
         "expected {expected:?}, got {image:?}"
     );
 }
@@ -101,7 +101,7 @@ fn information_request_without_identifier_is_rejected() {
     assert!(
         matches!(
             info,
-            Err(RequestError::InvalidUri(
+            Err(RequestError::InvalidBaseUri(
                 BaseUriError::MissingIdentifier(_) | BaseUriError::InvalidIdentifier(_)
             ))
         ),
@@ -114,7 +114,7 @@ fn information_request_without_identifier_is_rejected() {
 fn image_request_without_base_uri_is_rejected() {
     let image = ImageRequest::from_str("full/843,/0/default.jpg");
     assert!(
-        matches!(image, Err(RequestError::MissingUri(_))),
+        matches!(image, Err(RequestError::MissingBaseUri(_))),
         "{image:?}"
     );
 }

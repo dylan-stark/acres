@@ -17,7 +17,7 @@ use std::num::ParseFloatError;
 pub enum Error {
     /// The base URI is invalid.
     #[error(transparent)]
-    InvalidUri(#[from] BaseUriError),
+    InvalidBaseUri(#[from] BaseUriError),
     /// An image request parameter is invalid.
     #[error(transparent)]
     InvalidParameter(#[from] ParameterError),
@@ -135,13 +135,13 @@ pub enum ParameterError {
 pub enum RequestError {
     /// The base URI is invalid.
     #[error("invalid base URI in request")]
-    InvalidUri(#[from] BaseUriError),
+    InvalidBaseUri(#[from] BaseUriError),
     /// An image request parameter is invalid.
     #[error("invalid parameter in image request")]
     InvalidParameter(#[from] ParameterError),
     /// No base URI before the parameters.
     #[error("missing base URI in request: {0}")]
-    MissingUri(String),
+    MissingBaseUri(String),
     /// No region.
     #[error("missing region in image request: {0}")]
     MissingRegion(String),
