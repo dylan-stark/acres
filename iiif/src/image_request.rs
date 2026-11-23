@@ -396,7 +396,7 @@ mod degrees_tests {
     }
 
     #[test]
-    fn from_str_fails_with_degree_error() {
+    fn from_str_fails_with_degrees_error() {
         assert_eq!(
             "abc".parse::<Degrees>().unwrap_err().to_string(),
             "invalid degrees: abc"
