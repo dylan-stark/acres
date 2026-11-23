@@ -1,11 +1,7 @@
-use std::marker::PhantomData;
 use std::str::FromStr;
 use std::{cmp::Ordering, fmt::Display};
 
-use crate::{
-    BaseUri, ParameterError, RequestError,
-    builder::{Set, Unset},
-};
+use crate::{BaseUri, ParameterError, RequestError};
 
 /// A non-negative value with two fractional digits, stored as a whole number of hundredths so that
 /// ordering, equality and hashing are numeric.
@@ -881,31 +877,24 @@ impl FromStr for Format {
 /// # }
 /// ```
 ///
-/// Or you can construct one piece-wise with a builder. This gives you the flexibility to set
-/// parameters when and in what order works best for you. And the [typestate pattern] ensures you
-/// can't `.build()` until all parameters are set.
+/// Or you can construct one piece-wise with an [`ImageRequestBuilder`]. Only the base URI is
+/// required; every other parameter has a default, giving `full/full/0/default.jpg`.
 ///
 /// ```rust
 /// # use anyhow::Result;
 /// # use std::str::FromStr;
-/// # use iiif::{Degrees, Format, ImageRequest, Quality, Region, Rotation, Size, BaseUri};
+/// # use iiif::{Format, ImageRequest, Size, BaseUri};
 /// #
 /// # fn main() -> Result<()> {
-/// let mut image_request = ImageRequest::builder();
-/// let mut image_request = image_request
-///     .region(Region::Full)
-///     .size(Size::Width(1024))
-///     .rotation(Rotation::Degrees(Degrees::default()))
-///     .quality(Quality::Default)
-///     .format(Format::Png);
-/// // The following won't compile because the URI isn't set:
-/// // let _ = image_request.build();
-///     
 /// let uri = BaseUri::from_str("https://example.org/images/12345")?;
-/// let mut image_request = image_request.base_uri(uri);
-/// // Now we can build it!
+/// let image_request = ImageRequest::builder().base_uri(uri.clone()).build();
+/// assert_eq!(image_request.to_string(), "https://example.org/images/12345/full/full/0/default.jpg");
 ///
-/// let image_request = image_request.build();
+/// let image_request = ImageRequest::builder()
+///     .size(Size::Width(1024))
+///     .format(Format::Png)
+///     .base_uri(uri)
+///     .build();
 /// assert_eq!(image_request.to_string(), "https://example.org/images/12345/full/1024,/0/default.png");
 /// # Ok(())
 /// # }
@@ -927,7 +916,6 @@ impl FromStr for Format {
 /// ```
 ///
 /// [image request]: https://iiif.io/api/image/2.0/#4-image-requests
-/// [typestate pattern]: https://stanford-cs242.github.io/f19/lectures/08-2-typestate.html
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ImageRequest {
     uri: BaseUri,
@@ -1015,9 +1003,9 @@ impl ImageRequest {
         }
     }
 
-    /// Returns a new builder.
-    pub fn builder() -> Builder<Unset, Unset, Unset, Unset, Unset, Unset> {
-        Builder::default()
+    /// Returns a new builder with no base URI and every other parameter at its default.
+    pub fn builder() -> ImageRequestBuilder {
+        ImageRequestBuilder::default()
     }
 
     /// The base URI of the image service.
@@ -1051,9 +1039,48 @@ impl ImageRequest {
     }
 }
 
-#[derive(Clone, Debug, Default)]
-struct Partial {
-    uri: Option<BaseUri>,
+/// Marks an [`ImageRequestBuilder`] whose base URI hasn't been set yet.
+///
+/// Once [`ImageRequestBuilder::base_uri`] is called, the builder's type parameter becomes
+/// [`BaseUri`] and [`ImageRequestBuilder::build`] becomes available.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NoBaseUri;
+
+/// Builds an [`ImageRequest`] piece-wise. Create one with [`ImageRequest::builder`].
+///
+/// The type parameter `U` is the base URI: [`NoBaseUri`] until [`base_uri`](Self::base_uri) is
+/// called, then [`BaseUri`]. The [typestate pattern] means [`build`](Self::build) only exists once
+/// the base URI is set, so a request can't be built without one.
+///
+/// ```rust,compile_fail
+/// let _ = iiif::ImageRequest::builder().build(); // no base URI
+/// ```
+///
+/// Every other parameter starts at its default (`full`, `full`, `0`, `default`, `jpg`), and the
+/// setters can be called in any order. You can name the builder's type, for example to share
+/// common settings:
+///
+/// ```rust
+/// # use anyhow::Result;
+/// # use std::str::FromStr;
+/// use iiif::{BaseUri, Format, ImageRequest, ImageRequestBuilder, NoBaseUri, Quality};
+///
+/// fn thumbnail() -> ImageRequestBuilder<NoBaseUri> {
+///     ImageRequest::builder().size("!200,200".parse().unwrap()).quality(Quality::Gray)
+/// }
+///
+/// # fn main() -> Result<()> {
+/// let uri = BaseUri::from_str("https://example.org/images/12345")?;
+/// let request = thumbnail().format(Format::Png).base_uri(uri).build();
+/// assert_eq!(request.to_string(), "https://example.org/images/12345/full/!200,200/0/gray.png");
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [typestate pattern]: https://stanford-cs242.github.io/f19/lectures/08-2-typestate.html
+#[derive(Clone, Debug)]
+pub struct ImageRequestBuilder<U = NoBaseUri> {
+    uri: U,
     region: Region,
     size: Size,
     rotation: Rotation,
@@ -1061,144 +1088,73 @@ struct Partial {
     format: Format,
 }
 
-impl From<Partial> for ImageRequest {
-    fn from(value: Partial) -> Self {
-        ImageRequest {
-            uri: value.uri.expect("set"),
-            region: value.region,
-            size: value.size,
-            rotation: value.rotation,
-            quality: value.quality,
-            format: value.format,
-        }
-    }
-}
-
-type SetType<A, B, C, D, E, F> = (
-    PhantomData<A>,
-    PhantomData<B>,
-    PhantomData<C>,
-    PhantomData<D>,
-    PhantomData<E>,
-    PhantomData<F>,
-);
-
-#[derive(Debug)]
-pub struct Builder<A, B, C, D, E, F> {
-    under_construction: Partial,
-    set: SetType<A, B, C, D, E, F>,
-}
-
-impl Default for Builder<Unset, Unset, Unset, Unset, Unset, Unset> {
+impl Default for ImageRequestBuilder<NoBaseUri> {
     fn default() -> Self {
         Self {
-            under_construction: Partial::default(),
-            set: (
-                PhantomData,
-                PhantomData,
-                PhantomData,
-                PhantomData,
-                PhantomData,
-                PhantomData,
-            ),
+            uri: NoBaseUri,
+            region: Region::default(),
+            size: Size::default(),
+            rotation: Rotation::default(),
+            quality: Quality::default(),
+            format: Format::default(),
         }
     }
 }
 
-impl Builder<Set, Set, Set, Set, Set, Set> {
-    pub fn build(&self) -> ImageRequest {
-        self.under_construction.clone().into()
+impl<U> ImageRequestBuilder<U> {
+    /// Sets the base URI of the image service, replacing any previous one.
+    pub fn base_uri(self, uri: BaseUri) -> ImageRequestBuilder<BaseUri> {
+        ImageRequestBuilder {
+            uri,
+            region: self.region,
+            size: self.size,
+            rotation: self.rotation,
+            quality: self.quality,
+            format: self.format,
+        }
+    }
+
+    /// Sets the region of the image to retrieve. Defaults to [`Region::Full`].
+    pub fn region(mut self, region: Region) -> Self {
+        self.region = region;
+        self
+    }
+
+    /// Sets how to scale the region. Defaults to [`Size::Full`].
+    pub fn size(mut self, size: Size) -> Self {
+        self.size = size;
+        self
+    }
+
+    /// Sets how to rotate and mirror the scaled region. Defaults to no rotation.
+    pub fn rotation(mut self, rotation: Rotation) -> Self {
+        self.rotation = rotation;
+        self
+    }
+
+    /// Sets the quality of the image. Defaults to [`Quality::Default`].
+    pub fn quality(mut self, quality: Quality) -> Self {
+        self.quality = quality;
+        self
+    }
+
+    /// Sets the format of the image. Defaults to [`Format::Jpg`].
+    pub fn format(mut self, format: Format) -> Self {
+        self.format = format;
+        self
     }
 }
 
-impl<A, B, C, D, E, F> Builder<A, B, C, D, E, F> {
-    pub fn base_uri(mut self, uri: BaseUri) -> Builder<Set, B, C, D, E, F> {
-        self.under_construction.uri = Some(uri);
-        Builder {
-            under_construction: self.under_construction,
-            set: (
-                PhantomData::<Set>,
-                self.set.1,
-                self.set.2,
-                self.set.3,
-                self.set.4,
-                self.set.5,
-            ),
-        }
-    }
-
-    pub fn region(mut self, region: Region) -> Builder<A, Set, C, D, E, F> {
-        self.under_construction.region = region;
-        Builder {
-            under_construction: self.under_construction,
-            set: (
-                self.set.0,
-                PhantomData::<Set>,
-                self.set.2,
-                self.set.3,
-                self.set.4,
-                self.set.5,
-            ),
-        }
-    }
-
-    pub fn size(mut self, size: Size) -> Builder<A, B, Set, D, E, F> {
-        self.under_construction.size = size;
-        Builder {
-            under_construction: self.under_construction,
-            set: (
-                self.set.0,
-                self.set.1,
-                PhantomData::<Set>,
-                self.set.3,
-                self.set.4,
-                self.set.5,
-            ),
-        }
-    }
-
-    pub fn rotation(mut self, rotation: Rotation) -> Builder<A, B, C, Set, E, F> {
-        self.under_construction.rotation = rotation;
-        Builder {
-            under_construction: self.under_construction,
-            set: (
-                self.set.0,
-                self.set.1,
-                self.set.2,
-                PhantomData::<Set>,
-                self.set.4,
-                self.set.5,
-            ),
-        }
-    }
-
-    pub fn quality(mut self, quality: Quality) -> Builder<A, B, C, D, Set, F> {
-        self.under_construction.quality = quality;
-        Builder {
-            under_construction: self.under_construction,
-            set: (
-                self.set.0,
-                self.set.1,
-                self.set.2,
-                self.set.3,
-                PhantomData::<Set>,
-                self.set.5,
-            ),
-        }
-    }
-
-    pub fn format(mut self, format: Format) -> Builder<A, B, C, D, E, Set> {
-        self.under_construction.format = format;
-        Builder {
-            under_construction: self.under_construction,
-            set: (
-                self.set.0,
-                self.set.1,
-                self.set.2,
-                self.set.3,
-                self.set.4,
-                PhantomData::<Set>,
-            ),
+impl ImageRequestBuilder<BaseUri> {
+    /// Builds the request.
+    pub fn build(self) -> ImageRequest {
+        ImageRequest {
+            uri: self.uri,
+            region: self.region,
+            size: self.size,
+            rotation: self.rotation,
+            quality: self.quality,
+            format: self.format,
         }
     }
 }
@@ -1348,14 +1304,7 @@ mod tests {
 
     #[test]
     fn builder_defaults_to_full_default_jpg() {
-        let request = ImageRequest::builder()
-            .base_uri(uri())
-            .region(Region::default())
-            .size(Size::default())
-            .rotation(Rotation::default())
-            .quality(Quality::default())
-            .format(Format::default())
-            .build();
+        let request = ImageRequest::builder().base_uri(uri()).build();
         assert_eq!(
             request.to_string(),
             "https://www.artic.edu/iiif/2/abc/full/full/0/default.jpg"

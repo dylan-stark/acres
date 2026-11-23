@@ -32,10 +32,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `iiif::BaseUri` parsing follows IIIF Image API §2/§3/§9 and RFC 3986 strictly. It now rejects user info, missing or extra slashes after the scheme, queries, fragments, trailing slashes, empty path segments, unencoded `@ [ ]`, raw non-ASCII or other characters outside RFC 3986, malformed `%` escapes, and `.`/`..` identifiers (encoded or not). Valid but non-canonical input is still accepted and displayed in canonical form.
 - `BaseUriError` has variants for these cases: `UnexpectedUserInfo`, `InvalidChar`, `InvalidEscape`, `InvalidPrefix`, `InvalidIdentifier`, `BadSlashes`, `UnexpectedQuery`, `UnexpectedFragment` and `TrailingSlash`. `MissingServer` now carries the offending URI.
 - `iiif` types serialize as their IIIF string form (e.g. `"https://example.org/images/12345"`) instead of their internal structure, and serde support is now behind the optional `serde` feature (see [ADR 0004](docs/decisions/0004-iiif-serde-as-strings.md)).
+- The `iiif` image request builder is now the public, documented `iiif::ImageRequestBuilder`, so it can be named (e.g. `ImageRequestBuilder<NoBaseUri>`). Only the base URI must be set before `build()`; the other parts default to `full/full/0/default.jpg`. `build()` takes `self` instead of `&self` (see [ADR 0007](docs/decisions/0007-iiif-builder-typestate-only-uri.md)).
 - `iiif` errors no longer implement `From<ParseFloatError>`; `ParameterError::InvalidPercentage` is used only for percentages.
 
 ### Removed
 
+- Removed the hidden `iiif::builder::{Set, Unset}` typestate markers; `iiif::NoBaseUri` replaces them.
 - Removed `iiif::Percentage::new()` and `iiif::Degrees::new()`, which took no value and returned 0. Use `Default` for 0, or `TryFrom<f32>`/`FromStr` for a value.
 
 ### Fixed

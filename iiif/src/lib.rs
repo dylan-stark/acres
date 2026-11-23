@@ -59,19 +59,8 @@ mod uri;
 
 pub use self::errors::{BaseUriError, Error, ParameterError, RequestError};
 pub use self::image_request::{
-    Degrees, Format, ImageRequest, Percentage, Quality, Region, Rotation, Size,
+    Degrees, Format, ImageRequest, ImageRequestBuilder, NoBaseUri, Percentage, Quality, Region,
+    Rotation, Size,
 };
 pub use self::information_request::InformationRequest;
 pub use self::uri::BaseUri;
-
-#[doc(hidden)]
-pub mod builder {
-
-    /// Used to indicate that a component not set for a partially-constructed value
-    #[derive(Debug, Clone, Copy)]
-    pub struct Unset;
-
-    /// Used to indicate that a component is set for a partially-constructed value
-    #[derive(Debug, Clone, Copy)]
-    pub struct Set;
-}
