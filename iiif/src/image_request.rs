@@ -871,7 +871,7 @@ impl FromStr for Format {
 /// // let _ = image_request.build();
 ///     
 /// let uri = BaseUri::from_str("https://example.org/images/12345")?;
-/// let mut image_request = image_request.uri(uri);
+/// let mut image_request = image_request.base_uri(uri);
 /// // Now we can build it!
 ///
 /// let image_request = image_request.build();
@@ -990,7 +990,7 @@ impl ImageRequest {
     }
 
     /// The base URI of the image service.
-    pub fn uri(&self) -> &BaseUri {
+    pub fn base_uri(&self) -> &BaseUri {
         &self.uri
     }
 
@@ -1081,7 +1081,7 @@ impl Builder<Set, Set, Set, Set, Set, Set> {
 }
 
 impl<A, B, C, D, E, F> Builder<A, B, C, D, E, F> {
-    pub fn uri(mut self, uri: BaseUri) -> Builder<Set, B, C, D, E, F> {
+    pub fn base_uri(mut self, uri: BaseUri) -> Builder<Set, B, C, D, E, F> {
         self.under_construction.uri = Some(uri);
         Builder {
             under_construction: self.under_construction,
@@ -1318,7 +1318,7 @@ mod tests {
     #[test]
     fn builder_defaults_to_full_default_jpg() {
         let request = ImageRequest::builder()
-            .uri(uri())
+            .base_uri(uri())
             .region(Region::default())
             .size(Size::default())
             .rotation(Rotation::default())
@@ -1336,7 +1336,7 @@ mod tests {
         let region = Region::Absolute(10, 20, 300, 400);
         let size = Size::from_str("843,").unwrap();
         let built = ImageRequest::builder()
-            .uri(uri())
+            .base_uri(uri())
             .region(region.clone())
             .size(size.clone())
             .rotation(Rotation::default())
@@ -1364,7 +1364,7 @@ mod tests {
             "https://www.artic.edu/iiif/2/abc/pct:10,10,50,50/!100,100/!90/gray.webp",
         )
         .unwrap();
-        assert_eq!(request.uri(), &uri());
+        assert_eq!(request.base_uri(), &uri());
         assert_eq!(
             request.region(),
             &Region::from_str("pct:10,10,50,50").unwrap()
