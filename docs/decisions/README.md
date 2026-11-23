@@ -13,3 +13,4 @@ Short records of non-obvious decisions, so a later reader (human or agent) knows
 | [0004](0004-iiif-serde-as-strings.md) | Serialize IIIF types as strings, behind a feature | Proposed |
 | [0005](0005-iiif-no-public-url.md) | Keep `url` out of the `iiif` public API | Accepted |
 | [0006](0006-iiif-error-naming.md) | Name and layer `iiif` errors by what is wrong with the input | Accepted |
+| [0007](0007-iiif-builder-typestate-only-uri.md) | Typestate only the required part of the `iiif` image request builder | Accepted |
