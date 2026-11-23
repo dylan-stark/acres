@@ -950,7 +950,7 @@ impl FromStr for ImageRequest {
 
         let uri = parts
             .next()
-            .ok_or_else(|| RequestError::MissingUri(s.into()))?
+            .ok_or_else(|| RequestError::MissingBaseUri(s.into()))?
             .parse()?;
 
         Ok(Self {
