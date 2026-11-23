@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use crate::{Error, Grid, Ramp};
+use crate::{Cells, Error, Grid, Ramp};
 
 /// Widest image a converter accepts: a row segment's sum must fit in a `u32`.
 const MAX_WIDTH: u32 = u32::MAX / 255;
@@ -27,16 +27,16 @@ impl PixelFormat {
     }
 }
 
-/// Converts an image to ASCII, reusing its buffers from one render to the next.
+/// Converts an image to colored ASCII, reusing its buffers from one render to the next.
 ///
-/// Loading an image ([`set_image`](Self::set_image)) computes its brightness once. Each
-/// [`render`](Self::render) then only downsamples that brightness onto a [`Grid`] and looks up
-/// characters, so a terminal resize costs one render and no allocation once the buffers have
-/// grown to fit.
+/// Loading an image ([`set_image`](Self::set_image)) keeps its RGB pixels. Each
+/// [`render`](Self::render) then averages those pixels onto a [`Grid`], giving every cell a mean
+/// color and a character picked by that color's brightness. A terminal resize costs one render and
+/// no allocation once the buffers have grown to fit.
 ///
 /// ```rust
 /// use std::num::NonZeroU32;
-/// use charaoke::{Converter, Grid, PixelFormat};
+/// use charaoke::{Cells, Converter, Grid, PixelFormat};
 ///
 /// let nz = |n| NonZeroU32::new(n).unwrap();
 /// // A 4x2 image: black on the left half, white on the right.
@@ -45,17 +45,18 @@ impl PixelFormat {
 /// let mut converter = Converter::default();
 /// converter.set_image(&pixels, nz(4), nz(2), PixelFormat::Luma8).unwrap();
 ///
-/// let mut out = String::new();
-/// converter.render(Grid::fit(nz(4), nz(2), nz(4)), &mut out);
-/// assert_eq!(out, "  @@");
+/// let mut cells = Cells::default();
+/// converter.render(Grid::fit(nz(4), nz(2), nz(4)), &mut cells);
+/// assert_eq!(cells.chars(), b"  @@");
+/// assert_eq!(cells.colors()[3], [255, 255, 255]);
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct Converter {
     ramp: Ramp,
-    luma: Vec<u8>,
+    rgb: Vec<u8>,
     width: usize,
     height: usize,
-    sums: Vec<u64>,
+    sums: Vec<[u64; 3]>,
     col_bounds: Vec<usize>,
 }
 
@@ -75,8 +76,7 @@ impl Converter {
 
     /// Loads an image of `width` by `height` pixels, stored row by row with no padding.
     ///
-    /// Color pixels are reduced to brightness with integer BT.601 weights
-    /// (`(77 R + 150 G + 29 B) / 256`).
+    /// The pixels are kept as RGB, so grayscale input takes three bytes per pixel once loaded.
     pub fn set_image(
         &mut self,
         pixels: &[u8],
@@ -99,29 +99,32 @@ impl Converter {
             });
         }
 
-        self.luma.clear();
+        self.rgb.clear();
         match format {
-            PixelFormat::Luma8 => self.luma.extend_from_slice(pixels),
-            PixelFormat::Rgb8 => self
-                .luma
-                .extend(pixels.as_chunks::<3>().0.iter().map(bt601)),
-            PixelFormat::Rgba8 => self
-                .luma
-                .extend(pixels.as_chunks::<4>().0.iter().map(bt601)),
+            PixelFormat::Luma8 => self.rgb.extend(pixels.iter().flat_map(|&v| [v, v, v])),
+            PixelFormat::Rgb8 => self.rgb.extend_from_slice(pixels),
+            PixelFormat::Rgba8 => self.rgb.extend(
+                pixels
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .flat_map(|&[r, g, b, _]| [r, g, b]),
+            ),
         }
         self.width = w;
         self.height = h;
         Ok(())
     }
 
-    /// Renders the loaded image onto `grid`, replacing the contents of `out`.
+    /// Renders the loaded image onto `grid`, replacing the contents of `cells`.
     ///
-    /// Each cell takes the average brightness of the pixels it covers, and rows are separated by
-    /// `\n` with none after the last. When the grid is finer than the image, neighboring cells
-    /// share pixels. With no image loaded, `out` is left empty.
-    pub fn render(&mut self, grid: Grid, out: &mut String) {
-        out.clear();
-        if self.luma.is_empty() {
+    /// Each cell takes the mean color of the pixels it covers, and its character comes from that
+    /// color's brightness, with integer BT.601 weights (`(77 R + 150 G + 29 B) / 256`). When the
+    /// grid is finer than the image, neighboring cells share pixels. With no image loaded, `cells`
+    /// is left empty.
+    pub fn render(&mut self, grid: Grid, cells: &mut Cells) {
+        cells.clear();
+        if self.rgb.is_empty() {
             return;
         }
         let (cols, rows) = (grid.cols() as usize, grid.rows() as usize);
@@ -131,31 +134,37 @@ impl Converter {
         self.col_bounds.clear();
         self.col_bounds.extend((0..=cols).map(|c| c * w / cols));
         self.sums.clear();
-        self.sums.resize(cols, 0);
-        out.reserve(rows * (cols + 1));
+        self.sums.resize(cols, [0; 3]);
+        cells.reserve(cols, rows);
 
         for r in 0..rows {
             let y0 = r * h / rows;
             let y1 = ((r + 1) * h / rows).max(y0 + 1).min(h);
             let y0 = y0.min(y1 - 1);
 
-            self.sums.fill(0);
-            for row in self.luma[y0 * w..y1 * w].chunks_exact(w) {
+            self.sums.fill([0; 3]);
+            for row in self.rgb[y0 * w * 3..y1 * w * 3].chunks_exact(w * 3) {
+                let row = row.as_chunks::<3>().0;
                 for (c, sum) in self.sums.iter_mut().enumerate() {
                     let (x0, x1) = cell_span(&self.col_bounds, c, w);
-                    *sum += u64::from(row[x0..x1].iter().map(|&v| u32::from(v)).sum::<u32>());
+                    let [mut r, mut g, mut b] = [0u32; 3];
+                    for px in &row[x0..x1] {
+                        r += u32::from(px[0]);
+                        g += u32::from(px[1]);
+                        b += u32::from(px[2]);
+                    }
+                    sum[0] += u64::from(r);
+                    sum[1] += u64::from(g);
+                    sum[2] += u64::from(b);
                 }
             }
 
             let band = (y1 - y0) as u64;
-            for (c, &sum) in self.sums.iter().enumerate() {
+            for (c, sum) in self.sums.iter().enumerate() {
                 let (x0, x1) = cell_span(&self.col_bounds, c, w);
                 let count = band * (x1 - x0) as u64;
-                let luma = ((sum + count / 2) / count) as u8;
-                out.push(char::from(self.ramp.lookup(luma)));
-            }
-            if r + 1 < rows {
-                out.push('\n');
+                let mean = sum.map(|s| ((s + count / 2) / count) as u8);
+                cells.push(self.ramp.lookup(bt601(&mean)), mean);
             }
         }
     }
@@ -169,7 +178,7 @@ fn cell_span(bounds: &[usize], c: usize, width: usize) -> (usize, usize) {
 }
 
 #[inline]
-fn bt601<const N: usize>(px: &[u8; N]) -> u8 {
+fn bt601(px: &[u8; 3]) -> u8 {
     ((77 * u32::from(px[0]) + 150 * u32::from(px[1]) + 29 * u32::from(px[2])) >> 8) as u8
 }
 
@@ -181,11 +190,17 @@ mod tests {
         NonZeroU32::new(n).unwrap()
     }
 
-    fn render(pixels: &[u8], w: u32, h: u32, format: PixelFormat, grid: Grid) -> String {
+    fn render(pixels: &[u8], w: u32, h: u32, format: PixelFormat, grid: Grid) -> Cells {
         let mut converter = Converter::default();
         converter.set_image(pixels, nz(w), nz(h), format).unwrap();
+        let mut cells = Cells::default();
+        converter.render(grid, &mut cells);
+        cells
+    }
+
+    fn plain(cells: &Cells) -> String {
         let mut out = String::new();
-        converter.render(grid, &mut out);
+        cells.write_plain(&mut out);
         out
     }
 
@@ -199,15 +214,52 @@ mod tests {
         // 4x2 image, two cells of 2x2: the left averages 0 and 255 (128), the right is 255.
         let pixels = [0, 255, 255, 255, 255, 0, 255, 255];
         let ramp = Ramp::default();
-        let out = render(&pixels, 4, 2, PixelFormat::Luma8, grid(2, 1));
-        assert_eq!(out.as_bytes(), [ramp.lookup(128), b'@']);
+        let cells = render(&pixels, 4, 2, PixelFormat::Luma8, grid(2, 1));
+        assert_eq!(cells.chars(), [ramp.lookup(128), b'@']);
+        assert_eq!(cells.colors(), [[128; 3], [255; 3]]);
+    }
+
+    #[test]
+    fn averages_each_channel_separately() {
+        // One cell over a red and a blue pixel.
+        let pixels = [255, 0, 0, 0, 0, 255];
+        let cells = render(&pixels, 2, 1, PixelFormat::Rgb8, grid(1, 1));
+        assert_eq!(cells.colors(), [[128, 0, 128]]);
+        assert_eq!(
+            cells.chars(),
+            [Ramp::default().lookup(bt601(&[128, 0, 128]))]
+        );
+    }
+
+    #[test]
+    fn mean_color_brightness_is_within_one_of_per_pixel_brightness() {
+        // Pseudo-random 16x16 RGB, rendered onto 4x2 cells of 4x8 pixels each.
+        let mut state = 0x2545_f491_u32;
+        let pixels: Vec<u8> = (0..16 * 16 * 3)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                state as u8
+            })
+            .collect();
+        let cells = render(&pixels, 16, 16, PixelFormat::Rgb8, grid(4, 2));
+        for (i, color) in cells.colors().iter().enumerate() {
+            let (cx, cy) = (i % 4 * 4, i / 4 * 8);
+            let per_pixel: u32 = (cy..cy + 8)
+                .flat_map(|y| (cx..cx + 4).map(move |x| (y * 16 + x) * 3))
+                .map(|p| u32::from(bt601(&[pixels[p], pixels[p + 1], pixels[p + 2]])))
+                .sum();
+            let per_pixel = (per_pixel + 16) / 32;
+            assert!(per_pixel.abs_diff(u32::from(bt601(color))) <= 1, "cell {i}");
+        }
     }
 
     #[test]
     fn separates_rows_with_newlines() {
         let pixels = [0, 0, 255, 255];
-        let out = render(&pixels, 2, 2, PixelFormat::Luma8, grid(2, 2));
-        assert_eq!(out, "  \n@@");
+        let cells = render(&pixels, 2, 2, PixelFormat::Luma8, grid(2, 2));
+        assert_eq!(plain(&cells), "  \n@@");
     }
 
     #[test]
@@ -215,15 +267,15 @@ mod tests {
         // Ten flat bands, 0 to 255 in even steps, each six pixels wide.
         let w = 60;
         let pixels: Vec<u8> = (0..w * 8).map(|i| ((i % w) / 6 * 255 / 9) as u8).collect();
-        let out = render(&pixels, w, 8, PixelFormat::Luma8, grid(10, 1));
-        assert_eq!(out, Ramp::DEFAULT);
+        let cells = render(&pixels, w, 8, PixelFormat::Luma8, grid(10, 1));
+        assert_eq!(plain(&cells), Ramp::DEFAULT);
     }
 
     #[test]
     fn upsamples_when_grid_is_finer_than_image() {
         let pixels = [0, 255];
-        let out = render(&pixels, 2, 1, PixelFormat::Luma8, grid(4, 2));
-        assert_eq!(out, "  @@\n  @@");
+        let cells = render(&pixels, 2, 1, PixelFormat::Luma8, grid(4, 2));
+        assert_eq!(plain(&cells), "  @@\n  @@");
     }
 
     #[test]
@@ -232,14 +284,12 @@ mod tests {
         let rgb = [255, 0, 0, 0, 255, 0, 0, 0, 255];
         let rgba = [255, 0, 0, 9, 0, 255, 0, 9, 0, 0, 255, 9];
         let expected: Vec<u8> = [76, 149, 28].into_iter().map(|l| ramp.lookup(l)).collect();
-        assert_eq!(
-            render(&rgb, 3, 1, PixelFormat::Rgb8, grid(3, 1)).as_bytes(),
-            expected
-        );
-        assert_eq!(
-            render(&rgba, 3, 1, PixelFormat::Rgba8, grid(3, 1)).as_bytes(),
-            expected
-        );
+        let colors = [[255, 0, 0], [0, 255, 0], [0, 0, 255]];
+        for (pixels, format) in [(&rgb[..], PixelFormat::Rgb8), (&rgba, PixelFormat::Rgba8)] {
+            let cells = render(pixels, 3, 1, format, grid(3, 1));
+            assert_eq!(cells.chars(), expected);
+            assert_eq!(cells.colors(), colors);
+        }
     }
 
     #[test]
@@ -249,20 +299,23 @@ mod tests {
         converter
             .set_image(&pixels, nz(16), nz(16), PixelFormat::Luma8)
             .unwrap();
-        let mut out = String::from("stale");
-        converter.render(grid(8, 4), &mut out);
-        let first = out.clone();
-        converter.render(grid(8, 4), &mut out);
-        assert_eq!(out, first);
-        assert_eq!(out.lines().count(), 4);
-        assert!(out.lines().all(|line| line.len() == 8));
+        let mut cells = Cells::default();
+        converter.render(grid(4, 2), &mut cells);
+        converter.render(grid(8, 4), &mut cells);
+        let first = cells.clone();
+        converter.render(grid(8, 4), &mut cells);
+        assert_eq!(cells, first);
+        assert_eq!((cells.cols(), cells.rows()), (8, 4));
+        assert_eq!(cells.chars().len(), 32);
+        assert_eq!(cells.colors().len(), 32);
     }
 
     #[test]
     fn renders_nothing_without_an_image() {
-        let mut out = String::from("stale");
-        Converter::default().render(grid(4, 2), &mut out);
-        assert!(out.is_empty());
+        let mut cells = render(&[0], 1, 1, PixelFormat::Luma8, grid(1, 1));
+        Converter::default().render(grid(4, 2), &mut cells);
+        assert!(cells.is_empty());
+        assert_eq!((cells.cols(), cells.rows()), (0, 0));
     }
 
     #[test]

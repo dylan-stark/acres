@@ -563,6 +563,7 @@ dependencies = [
 name = "charaoke"
 version = "0.1.0"
 dependencies = [
+ "ansi-to-tui",
  "criterion",
  "image 0.25.10",
  "ratatui",
@@ -2878,6 +2879,7 @@ dependencies = [
 name = "image-to-ascii-builder"
 version = "0.1.0"
 dependencies = [
+ "ansi-to-tui",
  "anyhow",
  "bytes",
  "criterion",
