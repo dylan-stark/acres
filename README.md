@@ -36,7 +36,7 @@ Hit `t` to slide out a HUD with how long each fetch, decode, render and frame to
 
 When you're done, you can hit `q`, `ctrl-d`, or `ctrl-c` to quit.
 
-<img src="https://vhs.charm.sh/vhs-6Ngcq2i1ITFXOYZflDiIRe.gif" alt="Made with VHS">
+<img src="https://vhs.charm.sh/vhs-2KTn0PpCykVj61k6Bkm8j.gif" alt="Made with VHS">
 <a href="https://vhs.charm.sh">
   <img src="https://stuff.charm.sh/vhs/badge.svg">
 </a>
