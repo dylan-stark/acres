@@ -75,7 +75,7 @@ impl Converter {
 
     /// Loads an image of `width` by `height` pixels, stored row by row with no padding.
     ///
-    /// Colour pixels are reduced to brightness with integer BT.601 weights
+    /// Color pixels are reduced to brightness with integer BT.601 weights
     /// (`(77 R + 150 G + 29 B) / 256`).
     pub fn set_image(
         &mut self,
@@ -117,7 +117,7 @@ impl Converter {
     /// Renders the loaded image onto `grid`, replacing the contents of `out`.
     ///
     /// Each cell takes the average brightness of the pixels it covers, and rows are separated by
-    /// `\n` with none after the last. When the grid is finer than the image, neighbouring cells
+    /// `\n` with none after the last. When the grid is finer than the image, neighboring cells
     /// share pixels. With no image loaded, `out` is left empty.
     pub fn render(&mut self, grid: Grid, out: &mut String) {
         out.clear();
@@ -227,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn colour_formats_use_bt601_weights() {
+    fn color_formats_use_bt601_weights() {
         let ramp = Ramp::default();
         let rgb = [255, 0, 0, 0, 255, 0, 0, 0, 255];
         let rgba = [255, 0, 0, 9, 0, 255, 0, 9, 0, 0, 255, 9];

@@ -1,6 +1,6 @@
 //! Baseline benchmarks for the `image-to-ascii` path that `charaoke` replaces.
 //!
-//! Stages are measured separately (decode, luminance, font loading, conversion, colouring) and
+//! Stages are measured separately (decode, luminance, font loading, conversion, coloring) and
 //! end to end, over the same inputs and output widths as `charaoke/benches/stages.rs`. Run with
 //! `cargo bench -p image-to-ascii-builder`.
 
@@ -120,11 +120,11 @@ fn convert(c: &mut Criterion) {
     }
 }
 
-fn colour(c: &mut Criterion) {
+fn color(c: &mut Criterion) {
     let font = load_font();
     let metric = Metric::default().to_string();
     let algo = get_conversion_algorithm(&ConversionAlgorithm::Base.to_string());
-    let mut group = c.benchmark_group("baseline/colour");
+    let mut group = c.benchmark_group("baseline/color");
     for (name, bytes) in inputs() {
         let image = decoded(&bytes);
         let luma = LumaImage::<f32>::from(&image);
@@ -160,6 +160,6 @@ fn end_to_end(c: &mut Criterion) {
 criterion_group! {
     name = benches;
     config = Criterion::default().sample_size(20);
-    targets = decode, luma, font_load, convert, colour, end_to_end
+    targets = decode, luma, font_load, convert, color, end_to_end
 }
 criterion_main!(benches);
