@@ -49,7 +49,7 @@ mod hundredths_tests {
     use proptest::prelude::*;
     use rstest::rstest;
 
-    use super::{Degree, Hundredths, Percentage};
+    use super::{Degrees, Hundredths, Percentage};
 
     /// How `Display` was computed when the value was stored as a string.
     fn old_display(value: f32) -> String {
@@ -82,9 +82,9 @@ mod hundredths_tests {
 
     #[test]
     fn degrees_order_numerically() {
-        let nine: Degree = "9".parse().unwrap();
-        let ninety: Degree = "90".parse().unwrap();
-        let one_eighty: Degree = "180".parse().unwrap();
+        let nine: Degrees = "9".parse().unwrap();
+        let ninety: Degrees = "90".parse().unwrap();
+        let one_eighty: Degrees = "180".parse().unwrap();
         assert!(nine < ninety && ninety < one_eighty);
     }
 
@@ -263,7 +263,7 @@ mod percentage_tests {
     }
 }
 
-/// Defines a [floating point] degrees.
+/// Defines an angle in [floating point] degrees.
 ///
 /// These are used when setting [`Rotation`] as degrees to rotate the underlying image content.
 ///
@@ -272,11 +272,11 @@ mod percentage_tests {
 /// ```rust
 /// # use anyhow::Result;
 /// # use std::str::FromStr;
-/// use iiif::Degree;
+/// use iiif::Degrees;
 ///
 /// # fn main() -> Result<()> {
-/// let from_f32: Degree = 4.2.try_into()?;
-/// let from_str: Degree = "4.2".parse()?;
+/// let from_f32: Degrees = 4.2.try_into()?;
+/// let from_str: Degrees = "4.2".parse()?;
 /// assert_eq!(from_f32, from_str);
 /// # Ok(())
 /// # }
@@ -287,12 +287,12 @@ mod percentage_tests {
 /// ```rust
 /// # use anyhow::Result;
 /// # use std::str::FromStr;
-/// # use iiif::{Degree};
+/// # use iiif::{Degrees};
 /// #
 /// # fn main() -> Result<()> {
-/// assert_eq!(Degree::try_from(10.0_f32)?.to_string(), "10");
-/// assert_eq!(Degree::try_from(10.3_f32)?.to_string(), "10.3");
-/// assert_eq!(Degree::try_from(10.3333333_f32)?.to_string(), "10.33");
+/// assert_eq!(Degrees::try_from(10.0_f32)?.to_string(), "10");
+/// assert_eq!(Degrees::try_from(10.3_f32)?.to_string(), "10.3");
+/// assert_eq!(Degrees::try_from(10.3333333_f32)?.to_string(), "10.33");
 /// # Ok(())
 /// # }
 /// ```
@@ -303,38 +303,38 @@ mod percentage_tests {
 /// ```rust
 /// # use anyhow::Result;
 /// # use std::str::FromStr;
-/// # use iiif::{Degree};
+/// # use iiif::{Degrees};
 /// #
 /// # fn main() -> Result<()> {
-/// assert_eq!(Degree::try_from(-10.0_f32).unwrap_err().to_string(), "degree out of range: -10");
-/// assert_eq!(Degree::try_from(370.0_f32).unwrap_err().to_string(), "degree out of range: 370");
+/// assert_eq!(Degrees::try_from(-10.0_f32).unwrap_err().to_string(), "degrees out of range: -10");
+/// assert_eq!(Degrees::try_from(370.0_f32).unwrap_err().to_string(), "degrees out of range: 370");
 /// # Ok(())
 /// # }
 /// ```
 ///
 /// [floating point]: https://iiif.io/api/image/2.0/#image-request-parameters
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Degree(Hundredths);
+pub struct Degrees(Hundredths);
 
-impl TryFrom<f32> for Degree {
+impl TryFrom<f32> for Degrees {
     type Error = ParameterError;
 
     fn try_from(value: f32) -> Result<Self, Self::Error> {
         if !value.is_finite() || !value.is_sign_positive() {
-            return Err(ParameterError::DegreeOutOfRange(value));
+            return Err(ParameterError::DegreesOutOfRange(value));
         }
         if let Some(Ordering::Greater) = value.partial_cmp(&360.0) {
-            return Err(ParameterError::DegreeOutOfRange(value));
+            return Err(ParameterError::DegreesOutOfRange(value));
         };
-        Ok(Degree(Hundredths::from_f32(value)))
+        Ok(Degrees(Hundredths::from_f32(value)))
     }
 }
 
-impl FromStr for Degree {
+impl FromStr for Degrees {
     type Err = ParameterError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value: f32 = s.parse().map_err(|source| ParameterError::InvalidDegree {
+        let value: f32 = s.parse().map_err(|source| ParameterError::InvalidDegrees {
             input: s.into(),
             source,
         })?;
@@ -342,21 +342,21 @@ impl FromStr for Degree {
     }
 }
 
-impl Display for Degree {
+impl Display for Degrees {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
     }
 }
 
-impl Degree {
+impl Degrees {
     /// Returns the value as an `f32`, rounded to two fractional digits.
     ///
     /// ```rust
     /// # use anyhow::Result;
-    /// use iiif::Degree;
+    /// use iiif::Degrees;
     ///
     /// # fn main() -> Result<()> {
-    /// assert_eq!(Degree::try_from(10.3333333_f32)?.value(), 10.33);
+    /// assert_eq!(Degrees::try_from(10.3333333_f32)?.value(), 10.33);
     /// # Ok(())
     /// # }
     /// ```
@@ -366,11 +366,11 @@ impl Degree {
 }
 
 #[cfg(test)]
-mod degree_tests {
+mod degrees_tests {
 
     use rstest::rstest;
 
-    use crate::image_request::Degree;
+    use crate::image_request::Degrees;
 
     #[rstest]
     #[case(0.0, "0")]
@@ -378,19 +378,19 @@ mod degree_tests {
     #[case(33.0 + 1_f32/3_f32, "33.33")]
     #[case(360.0, "360")]
     fn try_from_f33(#[case] value: f32, #[case] expected: &str) {
-        assert_eq!(format!("{}", Degree::try_from(value).unwrap()), expected);
+        assert_eq!(format!("{}", Degrees::try_from(value).unwrap()), expected);
     }
 
     #[rstest]
-    #[case(-4.2, "degree out of range: -4.2")]
-    #[case(-0.0, "degree out of range: -0")]
-    #[case(360.001, "degree out of range: 360.001")]
-    #[case(f32::NAN, "degree out of range: NaN")]
-    #[case(f32::INFINITY, "degree out of range: inf")]
-    #[case(f32::NEG_INFINITY, "degree out of range: -inf")]
+    #[case(-4.2, "degrees out of range: -4.2")]
+    #[case(-0.0, "degrees out of range: -0")]
+    #[case(360.001, "degrees out of range: 360.001")]
+    #[case(f32::NAN, "degrees out of range: NaN")]
+    #[case(f32::INFINITY, "degrees out of range: inf")]
+    #[case(f32::NEG_INFINITY, "degrees out of range: -inf")]
     fn try_from_f32_fails(#[case] value: f32, #[case] expected: &str) {
         assert_eq!(
-            format!("{}", Degree::try_from(value).unwrap_err()),
+            format!("{}", Degrees::try_from(value).unwrap_err()),
             expected
         )
     }
@@ -398,8 +398,8 @@ mod degree_tests {
     #[test]
     fn from_str_fails_with_degree_error() {
         assert_eq!(
-            "abc".parse::<Degree>().unwrap_err().to_string(),
-            "invalid degree: abc"
+            "abc".parse::<Degrees>().unwrap_err().to_string(),
+            "invalid degrees: abc"
         );
     }
 }
@@ -643,14 +643,14 @@ impl FromStr for Size {
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Rotation {
     /// Clockwise rotation in degrees.
-    Degrees(Degree),
+    Degrees(Degrees),
     /// Mirrored rotation in degrees.
-    Mirrored(Degree),
+    Mirrored(Degrees),
 }
 
 impl Default for Rotation {
     fn default() -> Self {
-        Rotation::Degrees(Degree::default())
+        Rotation::Degrees(Degrees::default())
     }
 }
 
@@ -834,14 +834,14 @@ impl FromStr for Format {
 /// ```rust
 /// # use anyhow::Result;
 /// use std::str::FromStr;
-/// use iiif::{Degree, Format, ImageRequest, Quality, Region, Rotation, Size, BaseUri};
+/// use iiif::{Degrees, Format, ImageRequest, Quality, Region, Rotation, Size, BaseUri};
 ///
 /// # fn main() -> Result<()> {
 /// let image_request = ImageRequest::new(
 ///     BaseUri::from_str("https://example.org/images/12345")?,
 ///     Region::Full,
 ///     Size::Width(1024),
-///     Rotation::Degrees(Degree::default()),
+///     Rotation::Degrees(Degrees::default()),
 ///     Quality::Default,
 ///     Format::Png,
 /// );
@@ -857,14 +857,14 @@ impl FromStr for Format {
 /// ```rust
 /// # use anyhow::Result;
 /// # use std::str::FromStr;
-/// # use iiif::{Degree, Format, ImageRequest, Quality, Region, Rotation, Size, BaseUri};
+/// # use iiif::{Degrees, Format, ImageRequest, Quality, Region, Rotation, Size, BaseUri};
 /// #
 /// # fn main() -> Result<()> {
 /// let mut image_request = ImageRequest::builder();
 /// let mut image_request = image_request
 ///     .region(Region::Full)
 ///     .size(Size::Width(1024))
-///     .rotation(Rotation::Degrees(Degree::default()))
+///     .rotation(Rotation::Degrees(Degrees::default()))
 ///     .quality(Quality::Default)
 ///     .format(Format::Png);
 /// // The following won't compile because the URI isn't set:

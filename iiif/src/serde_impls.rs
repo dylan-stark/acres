@@ -6,7 +6,7 @@ use std::{error::Error, fmt, marker::PhantomData, str::FromStr};
 use serde::{Deserializer, Serializer, de};
 
 use crate::{
-    BaseUri, Degree, Format, ImageRequest, InformationRequest, Percentage, Quality, Region,
+    BaseUri, Degrees, Format, ImageRequest, InformationRequest, Percentage, Quality, Region,
     Rotation, Size,
 };
 
@@ -58,7 +58,7 @@ macro_rules! serde_via_str {
 }
 
 serde_via_str!(
-    Degree,
+    Degrees,
     Format,
     ImageRequest,
     InformationRequest,
@@ -78,7 +78,7 @@ mod tests {
     use serde::{Serialize, de::DeserializeOwned};
 
     use crate::{
-        BaseUri, Degree, Format, ImageRequest, InformationRequest, Percentage, Quality, Region,
+        BaseUri, Degrees, Format, ImageRequest, InformationRequest, Percentage, Quality, Region,
         Rotation, Size,
     };
 
@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn parameters_round_trip() {
         round_trips::<Percentage>("4.2");
-        round_trips::<Degree>("33.33");
+        round_trips::<Degrees>("33.33");
         round_trips::<Region>("0,0,10,10");
         round_trips::<Size>("pct:50");
         round_trips::<Rotation>("!180");

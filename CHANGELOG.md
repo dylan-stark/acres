@@ -13,14 +13,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Crate-level documentation, runnable examples and an expanded README.
 - CI snapshot check (`cargo insta test --check`), an optional Claude Code PR review workflow and a `reviewer` subagent.
 - Offline demo recording (`make demo`) and snapshot tests for TUI components.
-- `iiif` types can be read back: `Percentage::value()` and `Degree::value()`; `ImageRequest::{base_uri, region, size, rotation, quality, format}()`; `InformationRequest::base_uri()`; and `BaseUri::{scheme, host, port, prefix, identifier}()` (prefix and identifier percent-decoded).
+- `iiif` types can be read back: `Percentage::value()` and `Degrees::value()`; `ImageRequest::{base_uri, region, size, rotation, quality, format}()`; `InformationRequest::base_uri()`; and `BaseUri::{scheme, host, port, prefix, identifier}()` (prefix and identifier percent-decoded).
 
 ### Changed
 
 - Renamed the project from `aic-tui` to `acres`.
 - Renamed `iiif::Uri` to `iiif::BaseUri`, the IIIF spec's term, since it only accepts IIIF base URIs and no longer clashes with `http::Uri`. The `uri()` methods on `ImageRequest`, `InformationRequest` and the image request builder are now `base_uri()`.
 - Renamed the matching errors: `UriError` is `BaseUriError`, `iiif::Error::InvalidUri` and `RequestError::InvalidUri` are `InvalidBaseUri`, and `RequestError::MissingUri` is `MissingBaseUri`.
-- `iiif` errors are split by layer (see [ADR 0006](docs/decisions/0006-iiif-error-naming.md)): parsing a `BaseUri` returns `BaseUriError`, parsing a `Region`, `Size`, `Rotation`, `Quality`, `Format`, `Percentage` or `Degree` returns `ParameterError`, and parsing an `ImageRequest` or `InformationRequest` returns `RequestError`, which wraps the failing part's error as its `source()`. `IiifError` is replaced by `iiif::Error`, which wraps any of the three. All are `#[non_exhaustive]`, so matching on them needs a wildcard arm.
+- Renamed `iiif::Degree` to `Degrees`, since it is a quantity (`Rotation::Degrees(Degrees)`). Its errors follow: `ParameterError::InvalidDegree` and `DegreeOutOfRange` are `InvalidDegrees` and `DegreesOutOfRange`, with messages "invalid degrees" and "degrees out of range".
+- `iiif` errors are split by layer (see [ADR 0006](docs/decisions/0006-iiif-error-naming.md)): parsing a `BaseUri` returns `BaseUriError`, parsing a `Region`, `Size`, `Rotation`, `Quality`, `Format`, `Percentage` or `Degrees` returns `ParameterError`, and parsing an `ImageRequest` or `InformationRequest` returns `RequestError`, which wraps the failing part's error as its `source()`. `IiifError` is replaced by `iiif::Error`, which wraps any of the three. All are `#[non_exhaustive]`, so matching on them needs a wildcard arm.
 - `iiif` error variants are renamed to describe what is wrong with the input: `HasQuery`/`HasFragment`/`InvalidUriWithUserInfo` are `UnexpectedQuery`/`UnexpectedFragment`/`UnexpectedUserInfo`; `InvalidUriChar`/`InvalidUriEscape` are `InvalidChar`/`InvalidEscape`; `InvalidUriPrefix` is merged into `InvalidPrefix`; out-of-range `InvalidPercentage`/`InvalidDegree` are `PercentageOutOfRange`/`DegreeOutOfRange`, and the non-numeric `InvalidPercentageString`/`InvalidDegreeString` take over the `InvalidPercentage`/`InvalidDegree` names; `MissingInfoPart` is `MissingInfoJson`; and an `ImageRequest` with too few segments reports `RequestError::MissingBaseUri` instead of `MissingIdentifier`. `InvalidPrefix` and `InvalidIdentifier` now live on `BaseUriError`. The unused `MissingParams` is removed.
 - `BaseUriError::Malformed` (formerly `InvalidUri`) no longer exposes `url::ParseError`, so `url` stays out of the `iiif` public API (see [ADR 0005](docs/decisions/0005-iiif-no-public-url.md)).
 - `iiif` and `acres` error messages no longer repeat their source error, so `eyre`/`anyhow` reports print each cause once. Deserializing an `iiif` type still includes the whole cause chain in its message. Several `iiif` messages are reworded to match the variant names (e.g. "unexpected query in URI", "malformed URI", "missing region in image request").
@@ -32,15 +33,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Removed
 
-- Removed `iiif::Percentage::new()` and `iiif::Degree::new()`, which took no value and returned 0. Use `Default` for 0, or `TryFrom<f32>`/`FromStr` for a value.
+- Removed `iiif::Percentage::new()` and `iiif::Degrees::new()`, which took no value and returned 0. Use `Default` for 0, or `TryFrom<f32>`/`FromStr` for a value.
 
 ### Fixed
 
 - `iiif::Quality` and `iiif::Format` are now `Copy`.
 - `iiif` no longer depends on `anyhow`, `bytes`, `strum` or `tracing`, and its crates.io keywords and categories describe the library instead of the CLI/TUI. Broken links in its docs are fixed.
-- `iiif::Percentage` and `iiif::Degree` compare numerically (so `9 < 10`) instead of as text, which also fixes the ordering of `Region`, `Size`, `Rotation` and `ImageRequest`. They are now `Copy`.
+- `iiif::Percentage` and `iiif::Degrees` compare numerically (so `9 < 10`) instead of as text, which also fixes the ordering of `Region`, `Size`, `Rotation` and `ImageRequest`. They are now `Copy`.
 - Deserializing `iiif` types now validates input the same way parsing does, so invalid values (e.g. a `Percentage` of `"banana"`) are rejected.
-- Parsing an `iiif::Degree` from a non-numeric string reports `ParameterError::InvalidDegree` ("invalid degree") instead of a percentage error.
+- Parsing an `iiif::Degrees` from a non-numeric string reports `ParameterError::InvalidDegrees` ("invalid degrees") instead of a percentage error.
 - Parsing an `iiif::ImageRequest` from a string no longer drops a non-default port from the base URI.
 - Malformed input no longer accepted during region/size/rotation parsing.
 - Displaying an `iiif::BaseUri` re-encodes characters such as space, `"` and `{` in the prefix and identifier instead of writing them raw.

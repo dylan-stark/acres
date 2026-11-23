@@ -8,7 +8,7 @@
 //! ```rust
 //! # use anyhow::Result;
 //! # use std::str::FromStr;
-//! use iiif::{Degree, Format, ImageRequest, InformationRequest, Quality, Region, Rotation, Size, BaseUri};
+//! use iiif::{Degrees, Format, ImageRequest, InformationRequest, Quality, Region, Rotation, Size, BaseUri};
 //!
 //! # fn main() -> Result<()> {
 //! let uri: BaseUri = "https://example.org/image-service/abcd1234/1E34750D-38DB-4825-A38A-B60A345E591C".parse()?;
@@ -20,7 +20,7 @@
 //!     .base_uri(uri)
 //!     .region(Region::Full)
 //!     .size(Size::Width(843))
-//!     .rotation(Rotation::Degrees(Degree::default()))
+//!     .rotation(Rotation::Degrees(Degrees::default()))
 //!     .quality(Quality::Default)
 //!     .format(Format::Jpg)
 //!     .build();
@@ -59,7 +59,7 @@ mod uri;
 
 pub use self::errors::{BaseUriError, Error, ParameterError, RequestError};
 pub use self::image_request::{
-    Degree, Format, ImageRequest, Percentage, Quality, Region, Rotation, Size,
+    Degrees, Format, ImageRequest, Percentage, Quality, Region, Rotation, Size,
 };
 pub use self::information_request::InformationRequest;
 pub use self::uri::BaseUri;
