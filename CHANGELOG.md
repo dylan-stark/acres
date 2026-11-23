@@ -15,7 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Offline demo recording (`make demo`) and snapshot tests for TUI components.
 - `iiif` types can be read back: `Percentage::value()` and `Degrees::value()`; `ImageRequest::{base_uri, region, size, rotation, quality, format}()`; `InformationRequest::base_uri()`; and `BaseUri::{scheme, host, port, prefix, identifier}()` (prefix and identifier percent-decoded).
 - `charaoke` crate, the start of a from-scratch image-to-ASCII engine aimed at live TUI resizing (see [ADR 0008](docs/decisions/0008-charaoke-from-scratch-engine.md)). For now it only sizes the character grid (`Grid::fit`).
-- `make bench` runs criterion benchmarks for `charaoke` and for the existing `image-to-ascii` path as a baseline.
+- `make bench` runs criterion benchmarks for `charaoke` and for the existing `image-to-ascii` path as a baseline. `make bench-save` and `make bench-compare` save a named baseline and report regressions against it.
 
 ### Changed
 
