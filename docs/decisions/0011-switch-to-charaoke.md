@@ -92,7 +92,7 @@ Dependencies and docs:
   | `charaoke/render` at 160 columns | 0.52 ms |
   | `charaoke/decode` | 1.31 ms |
 
-  `drag_fit` is cheaper than `drag` because its 30 to 60 row panes limit most frames by height, so they have fewer cells. Per cell, the two cost the same.
+  `drag_fit` is cheaper than `drag` because its 30 to 60 row panes limit most frames by height, so they average about half the cells. The gap is smaller than that because Ratatui's fixed cost for drawing the whole terminal is the same in both.
 - Character choice is brightness-only until edge-aware characters return. Line art and text in artworks look softer than with the old edge-augmented mode. This is the biggest visible change.
 - Removing CLI flags breaks scripts that pass `--font`, `--metric` or `--conversion-algorithm`. The project is pre-1.0 and these flags only steered glyph matching, so we remove them instead of keeping no-op flags.
 - Both binaries drop `image` 0.24 and `image-to-ascii`'s font loading.
