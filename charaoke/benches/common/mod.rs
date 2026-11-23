@@ -5,9 +5,9 @@ use std::{io::Cursor, num::NonZeroU32, path::PathBuf};
 
 use image::{ImageFormat, RgbImage, codecs::jpeg::JpegEncoder, imageops::FilterType};
 
-/// A 320x240 artwork image from the TUI test fixtures.
-const FIXTURE: &str =
-    "../acres-tui/tests/fixtures/iiif/e966799b-97ee-1cc6-bd2f-a94b4b8bb8f9/full/843,/0/default.jpg";
+/// A 320x240 synthetic test image (color bars). The benches keep it so results stay comparable
+/// across changes, while the TUI's fixtures now hold real artworks.
+const FIXTURE: &str = "benches/fixtures/bars-320x240.jpg";
 
 /// Width the TUI requests from the AIC IIIF server (`full/843,/0/default.jpg`).
 const AIC_WIDTH: u32 = 843;

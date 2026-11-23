@@ -247,9 +247,9 @@ mod tests {
     use super::*;
     use crate::components::test_support::render;
 
-    /// A 320x240 JPEG from the demo fixtures.
+    /// A Sunday on La Grande Jatte (843x565), from the demo fixtures.
     const IMAGE: &[u8] = include_bytes!(
-        "../../tests/fixtures/iiif/e966799b-97ee-1cc6-bd2f-a94b4b8bb8f9/full/843,/0/default.jpg"
+        "../../tests/fixtures/iiif/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg"
     );
 
     fn with_image() -> Home {
@@ -279,10 +279,10 @@ mod tests {
     fn fits_art_to_the_pane() {
         let mut home = with_image();
         render(&mut home, 200, 20);
-        // A 4:3 image in 20 rows of 2:1 cells is 53 columns wide.
-        assert_eq!((home.cells.cols(), home.cells.rows()), (53, 20));
+        // An 843x565 image in 20 rows of 2:1 cells is 59 columns wide.
+        assert_eq!((home.cells.cols(), home.cells.rows()), (59, 20));
         render(&mut home, 40, 50);
-        assert_eq!((home.cells.cols(), home.cells.rows()), (40, 15));
+        assert_eq!((home.cells.cols(), home.cells.rows()), (40, 13));
     }
 
     #[test]

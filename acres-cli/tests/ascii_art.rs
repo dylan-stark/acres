@@ -2,9 +2,9 @@ use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::process::Command;
 
-/// A 320x240 JPEG shared with the TUI's fixtures.
+/// A Sunday on La Grande Jatte (843x565), shared with the TUI's fixtures.
 const IMAGE: &str =
-    "../acres-tui/tests/fixtures/iiif/e966799b-97ee-1cc6-bd2f-a94b4b8bb8f9/full/843,/0/default.jpg";
+    "../acres-tui/tests/fixtures/iiif/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg";
 
 fn ascii_art() -> Result<Command, Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("acres-cli")?;
@@ -20,7 +20,11 @@ fn color_never_writes_plain_text() -> Result<(), Box<dyn std::error::Error>> {
     assert!(output.status.success());
     let text = String::from_utf8(output.stdout)?;
     let lines: Vec<&str> = text.lines().collect();
-    assert_eq!(lines.len(), 15, "40 columns of a 4:3 image at 2:1 cells");
+    assert_eq!(
+        lines.len(),
+        13,
+        "40 columns of an 843x565 image at 2:1 cells"
+    );
     assert!(lines.iter().all(|line| line.len() == 40));
     assert!(!text.contains('\x1b'));
     Ok(())

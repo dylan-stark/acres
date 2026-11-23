@@ -12,54 +12,58 @@ Sleep 500ms
 Enter
 Sleep 500ms
 
-# Select fourth image and adjust alphabet
-Enter
+# Open the artworks list and show the first artwork.
 Escape
 Sleep 1s
-Down
+Enter
+Sleep 1s
+Escape
+Sleep 3s
+
+# Try a few ramps: letters, then minimal, then back to alphabet.
+Type "a"
 Sleep 1s
 Down
-Sleep 1s
+Sleep 500ms
 Down
-Sleep 1s
+Sleep 500ms
+Enter
+Sleep 2s
+Down
+Sleep 500ms
+Down
+Sleep 500ms
+Enter
+Sleep 2s
+Up
+Sleep 500ms
+Up
+Sleep 500ms
+Up
+Sleep 500ms
+Up
+Sleep 500ms
 Enter
 Sleep 1s
 Escape
 Sleep 2s
-Type "a"
-Sleep 1s
-Down
-Sleep 1s
-Enter
-Sleep 1s
-Escape
-Sleep 1s
-Type "a"
-Sleep 1s
-Enter
-Sleep 1s
-Down
-Sleep 1s
-Enter
-Sleep 1s
-Down
-Sleep 1s
-Enter
-Sleep 1s
-Escape
 
+# Switch to The Great Wave.
+Escape
+Sleep 1s
+Down
+Sleep 500ms
+Down
+Sleep 500ms
+Down
+Sleep 500ms
+Enter
+Sleep 1s
+Escape
 Sleep 3s
 
-Type "m"
-Sleep 1s
-Up
-Sleep 1s
-Up
-Sleep 1s
-Enter
-Sleep 1s
-Escape
-
-Sleep 3s
-
-
+# Slide out the timing HUD, then close it.
+Type "t"
+Sleep 4s
+Type "t"
+Sleep 2s
