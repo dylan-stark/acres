@@ -38,6 +38,11 @@ coverage:
 	cargo llvm-cov --locked --all-features --workspace --summary-only
 .PHONY: coverage
 
+# Runs the criterion benches: the charaoke stages and the image-to-ascii baseline (see ADR 0008).
+bench:
+	cargo bench --locked -p charaoke -p image-to-ascii-builder
+.PHONY: bench
+
 docs:
 	cargo doc --workspace --no-deps
 

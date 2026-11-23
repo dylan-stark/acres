@@ -20,3 +20,10 @@ image-to-ascii = "0.7.0"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "2.0.17"
 tracing = "0.1.41"
+
+[dev-dependencies]
+criterion = "0.8.2"
+
+[[bench]]
+name = "baseline"
+harness = false

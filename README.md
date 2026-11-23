@@ -5,6 +5,7 @@ This is a collection of tools for working with [The Art Institute of Chicago API
 - [`acres`](./acres/): A library for easy, ergonomic programming against the Art Institute API
 - [`iiif`](./iiif/): A library for working with servers implementing supporting [International Image Interoperability API 2.0](https://iiif.io/api/image/2.0/).
 - [`image-to-ascii-builder`](./image-to-ascii-builder/): A library that implements the [builder pattern](https://rust-unofficial.github.io/patterns/patterns/creational/builder.html) for the awesome [`image-to-ascii`](https://github.com/kpberry/image-to-ascii) library.
+- [`charaoke`](./charaoke/): A from-scratch, performance-focused image-to-ASCII engine, in progress, that will replace `image-to-ascii` for live terminal rendering.
 - [`acres-cli`](./acres-cli): A command-line UI using the great [Clap](https://github.com/clap-rs/clap) tool.
 - [`acres-tui`](./acres-tui): A terminal UI using the fantastic [Ratatui](https://ratatui.rs/) framework
 
