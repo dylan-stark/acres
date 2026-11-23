@@ -58,7 +58,7 @@ impl InformationRequest {
     }
 
     /// The base URI of the image service.
-    pub fn uri(&self) -> &BaseUri {
+    pub fn base_uri(&self) -> &BaseUri {
         &self.uri
     }
 }
@@ -100,7 +100,7 @@ mod tests {
     fn uri_is_the_base(#[case] url: &str) {
         let request = InformationRequest::from_str(url).unwrap();
         assert_eq!(
-            request.uri().to_string(),
+            request.base_uri().to_string(),
             url.strip_suffix("/info.json").unwrap()
         );
     }

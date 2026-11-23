@@ -17,7 +17,7 @@
 //! println!("Check out {info_request} for information about the image.");
 //!
 //! let image_request = ImageRequest::builder()
-//!     .uri(uri)
+//!     .base_uri(uri)
 //!     .region(Region::Full)
 //!     .size(Size::Width(843))
 //!     .rotation(Rotation::Degrees(Degree::default()))

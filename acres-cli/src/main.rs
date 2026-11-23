@@ -384,7 +384,7 @@ async fn main() -> Result<(), Report> {
             .ok_or(AcresError::LoadArtworkInfo)?;
             let base_uri: iiif::BaseUri = artwork.try_into()?;
             let image_request = iiif::ImageRequest::builder()
-                .uri(base_uri)
+                .base_uri(base_uri)
                 .region(
                     matches
                         .get_one::<iiif::Region>("region")
