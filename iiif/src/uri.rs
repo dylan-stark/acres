@@ -250,12 +250,12 @@ impl Identifier {
 /// ```rust
 /// # use anyhow::Result;
 /// use std::str::FromStr;
-/// use iiif::Uri;
+/// use iiif::BaseUri;
 ///
 /// # fn main() -> Result<()> {
-/// let uri = Uri::from_str("https://example.org/images/12345")?;
-/// let uri = Uri::from_str("https://example.org/12345")?;
-/// let uri = "http://127.0.0.1:5555/some/path/to/12345".parse::<Uri>()?;
+/// let uri = BaseUri::from_str("https://example.org/images/12345")?;
+/// let uri = BaseUri::from_str("https://example.org/12345")?;
+/// let uri = "http://127.0.0.1:5555/some/path/to/12345".parse::<BaseUri>()?;
 /// # Ok(())
 /// # }
 /// ```
@@ -265,14 +265,14 @@ impl Identifier {
 ///
 /// [base URI]: https://iiif.io/api/image/2.0/#uri-syntax
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Uri {
+pub struct BaseUri {
     scheme: Scheme,
     server: Server,
     prefix: Prefix,
     identifier: Identifier,
 }
 
-impl FromStr for Uri {
+impl FromStr for BaseUri {
     type Err = UriError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -367,7 +367,7 @@ impl FromStr for Uri {
     }
 }
 
-impl Uri {
+impl BaseUri {
     /// The scheme: `"http"` or `"https"`.
     pub fn scheme(&self) -> &'static str {
         match self.scheme {
@@ -390,10 +390,10 @@ impl Uri {
     ///
     /// ```rust
     /// # use anyhow::Result;
-    /// use iiif::Uri;
+    /// use iiif::BaseUri;
     ///
     /// # fn main() -> Result<()> {
-    /// let uri: Uri = "https://example.org/iiif/a%2Fb/12345".parse()?;
+    /// let uri: BaseUri = "https://example.org/iiif/a%2Fb/12345".parse()?;
     /// assert_eq!(uri.prefix(), ["iiif", "a/b"]);
     /// # Ok(())
     /// # }
@@ -406,10 +406,10 @@ impl Uri {
     ///
     /// ```rust
     /// # use anyhow::Result;
-    /// use iiif::Uri;
+    /// use iiif::BaseUri;
     ///
     /// # fn main() -> Result<()> {
-    /// let uri: Uri = "https://example.org/images/ark:%2F12025%2F654xz321".parse()?;
+    /// let uri: BaseUri = "https://example.org/images/ark:%2F12025%2F654xz321".parse()?;
     /// assert_eq!(uri.identifier(), "ark:/12025/654xz321");
     /// # Ok(())
     /// # }
@@ -419,7 +419,7 @@ impl Uri {
     }
 }
 
-impl Display for Uri {
+impl Display for BaseUri {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
             "{}://{}{}/{}",

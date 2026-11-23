@@ -3,7 +3,7 @@ use std::str::FromStr;
 use std::{cmp::Ordering, fmt::Display};
 
 use crate::{
-    ParameterError, RequestError, Uri,
+    BaseUri, ParameterError, RequestError,
     builder::{Set, Unset},
 };
 
@@ -834,11 +834,11 @@ impl FromStr for Format {
 /// ```rust
 /// # use anyhow::Result;
 /// use std::str::FromStr;
-/// use iiif::{Degree, Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
+/// use iiif::{Degree, Format, ImageRequest, Quality, Region, Rotation, Size, BaseUri};
 ///
 /// # fn main() -> Result<()> {
 /// let image_request = ImageRequest::new(
-///     Uri::from_str("https://example.org/images/12345")?,
+///     BaseUri::from_str("https://example.org/images/12345")?,
 ///     Region::Full,
 ///     Size::Width(1024),
 ///     Rotation::Degrees(Degree::default()),
@@ -857,7 +857,7 @@ impl FromStr for Format {
 /// ```rust
 /// # use anyhow::Result;
 /// # use std::str::FromStr;
-/// # use iiif::{Degree, Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
+/// # use iiif::{Degree, Format, ImageRequest, Quality, Region, Rotation, Size, BaseUri};
 /// #
 /// # fn main() -> Result<()> {
 /// let mut image_request = ImageRequest::builder();
@@ -870,7 +870,7 @@ impl FromStr for Format {
 /// // The following won't compile because the URI isn't set:
 /// // let _ = image_request.build();
 ///     
-/// let uri = Uri::from_str("https://example.org/images/12345")?;
+/// let uri = BaseUri::from_str("https://example.org/images/12345")?;
 /// let mut image_request = image_request.uri(uri);
 /// // Now we can build it!
 ///
@@ -886,7 +886,7 @@ impl FromStr for Format {
 /// ```rust
 /// # use anyhow::Result;
 /// # use std::str::FromStr;
-/// # use iiif::{Format, ImageRequest, Quality, Region, Rotation, Size, Uri};
+/// # use iiif::{Format, ImageRequest, Quality, Region, Rotation, Size, BaseUri};
 /// #
 /// # fn main() -> Result<()> {
 /// let image_request: ImageRequest = "https://example.org/images/12345/full/1024,/0/default.png".parse()?;
@@ -899,7 +899,7 @@ impl FromStr for Format {
 /// [typestate pattern]: https://stanford-cs242.github.io/f19/lectures/08-2-typestate.html
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ImageRequest {
-    uri: Uri,
+    uri: BaseUri,
     region: Region,
     size: Size,
     rotation: Rotation,
@@ -967,7 +967,7 @@ impl FromStr for ImageRequest {
 impl ImageRequest {
     /// Constructs a new request.
     pub fn new(
-        uri: Uri,
+        uri: BaseUri,
         region: Region,
         size: Size,
         rotation: Rotation,
@@ -990,7 +990,7 @@ impl ImageRequest {
     }
 
     /// The base URI of the image service.
-    pub fn uri(&self) -> &Uri {
+    pub fn uri(&self) -> &BaseUri {
         &self.uri
     }
 
@@ -1022,7 +1022,7 @@ impl ImageRequest {
 
 #[derive(Clone, Debug, Default)]
 struct Partial {
-    uri: Option<Uri>,
+    uri: Option<BaseUri>,
     region: Region,
     size: Size,
     rotation: Rotation,
@@ -1081,7 +1081,7 @@ impl Builder<Set, Set, Set, Set, Set, Set> {
 }
 
 impl<A, B, C, D, E, F> Builder<A, B, C, D, E, F> {
-    pub fn uri(mut self, uri: Uri) -> Builder<Set, B, C, D, E, F> {
+    pub fn uri(mut self, uri: BaseUri) -> Builder<Set, B, C, D, E, F> {
         self.under_construction.uri = Some(uri);
         Builder {
             under_construction: self.under_construction,
@@ -1311,8 +1311,8 @@ mod tests {
         )
     }
 
-    fn uri() -> Uri {
-        Uri::from_str("https://www.artic.edu/iiif/2/abc").unwrap()
+    fn uri() -> BaseUri {
+        BaseUri::from_str("https://www.artic.edu/iiif/2/abc").unwrap()
     }
 
     #[test]

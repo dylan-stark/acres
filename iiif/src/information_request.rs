@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use crate::{RequestError, uri::Uri};
+use crate::{RequestError, uri::BaseUri};
 
 /// Defines an [information request] for the IIIF Image API 2.0.
 ///
@@ -22,10 +22,10 @@ use crate::{RequestError, uri::Uri};
 /// ```rust
 /// # use anyhow::Result;
 /// # use iiif::InformationRequest;
-/// use iiif::Uri;
+/// use iiif::BaseUri;
 ///
 /// # fn main() -> Result<()> {
-/// let uri: Uri = "https://example.org/images/12345".parse()?;
+/// let uri: BaseUri = "https://example.org/images/12345".parse()?;
 /// let info_request: InformationRequest = uri.into();
 /// # assert_eq!(info_request.to_string(), "https://example.org/images/12345/info.json");
 /// # Ok(())
@@ -48,17 +48,17 @@ use crate::{RequestError, uri::Uri};
 /// [information request]: https://iiif.io/api/image/2.0/#information-request
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InformationRequest {
-    uri: Uri,
+    uri: BaseUri,
 }
 
 impl InformationRequest {
     /// Create a new information request.
-    pub fn new(uri: Uri) -> Self {
+    pub fn new(uri: BaseUri) -> Self {
         InformationRequest { uri }
     }
 
     /// The base URI of the image service.
-    pub fn uri(&self) -> &Uri {
+    pub fn uri(&self) -> &BaseUri {
         &self.uri
     }
 }
@@ -74,7 +74,7 @@ impl FromStr for InformationRequest {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(uri) = s.strip_suffix("/info.json") {
-            let uri = Uri::from_str(uri)?;
+            let uri = BaseUri::from_str(uri)?;
             Ok(InformationRequest::from(uri))
         } else {
             Err(RequestError::MissingInfoJson(s.to_string()))
@@ -82,8 +82,8 @@ impl FromStr for InformationRequest {
     }
 }
 
-impl From<Uri> for InformationRequest {
-    fn from(value: Uri) -> Self {
+impl From<BaseUri> for InformationRequest {
+    fn from(value: BaseUri) -> Self {
         InformationRequest { uri: value }
     }
 }

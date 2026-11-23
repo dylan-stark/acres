@@ -1,4 +1,4 @@
-//! Specification tests for [`iiif::Uri`], the IIIF base URI.
+//! Specification tests for [`iiif::BaseUri`], the IIIF base URI.
 //!
 //! The base URI is `{scheme}://{server}{/prefix}/{identifier}`. Image API 2.1 and 3.0 define it
 //! identically, so these tests apply to both:
@@ -15,13 +15,13 @@
 //! Errors are matched by variant, not message, so rewording errors does not break tests. Where
 //! the specs don't determine which variant applies, the pattern accepts each reasonable one.
 
-use iiif::Uri;
+use iiif::BaseUri;
 
-/// Asserts that parsing `$input` as a [`Uri`] fails with an error matching `$pattern`.
+/// Asserts that parsing `$input` as a [`BaseUri`] fails with an error matching `$pattern`.
 macro_rules! assert_err {
     ($input:expr, $pattern:pat $(,)?) => {{
         let input: &str = $input;
-        match input.parse::<::iiif::Uri>() {
+        match input.parse::<::iiif::BaseUri>() {
             Err($pattern) => {}
             other => panic!(
                 "{input:?}: expected Err({}), got {other:?}",
@@ -43,7 +43,7 @@ mod syntax;
 
 /// Parses `s`, panicking with the input and error on failure.
 #[track_caller]
-fn ok(s: &str) -> Uri {
+fn ok(s: &str) -> BaseUri {
     s.parse()
         .unwrap_or_else(|e| panic!("{s:?} should parse, got {e:?}"))
 }
@@ -63,7 +63,7 @@ fn assert_round_trips(s: &str) {
 /// Asserts that `s` is rejected. Use only where the specs give no basis for picking a variant.
 #[track_caller]
 fn assert_rejected(s: &str) {
-    if let Ok(uri) = s.parse::<Uri>() {
+    if let Ok(uri) = s.parse::<BaseUri>() {
         panic!("{s:?}: expected an error, got Ok({uri})");
     }
 }

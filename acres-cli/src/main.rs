@@ -382,7 +382,7 @@ async fn main() -> Result<(), Report> {
                     .into_reader()?,
             )
             .ok_or(AcresError::LoadArtworkInfo)?;
-            let base_uri: iiif::Uri = artwork.try_into()?;
+            let base_uri: iiif::BaseUri = artwork.try_into()?;
             let image_request = iiif::ImageRequest::builder()
                 .uri(base_uri)
                 .region(
@@ -437,7 +437,7 @@ async fn main() -> Result<(), Report> {
                     .into_reader()?,
             )
             .ok_or(AcresError::LoadArtworkInfo)?;
-            let request: iiif::InformationRequest = iiif::Uri::try_from(artwork)?.into();
+            let request: iiif::InformationRequest = iiif::BaseUri::try_from(artwork)?.into();
             let response: bytes::Bytes = Api::new().fetch(request.to_string()).await?;
             io::stdout()
                 .write_all(&response)

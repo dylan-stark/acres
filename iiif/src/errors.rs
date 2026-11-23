@@ -26,7 +26,7 @@ pub enum Error {
     InvalidRequest(#[from] RequestError),
 }
 
-/// An invalid [base URI](crate::Uri). Each variant holds the offending input.
+/// An invalid [base URI](crate::BaseUri). Each variant holds the offending input.
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
 pub enum UriError {

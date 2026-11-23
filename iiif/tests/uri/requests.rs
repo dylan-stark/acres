@@ -5,8 +5,8 @@
 use std::{mem::discriminant, str::FromStr};
 
 use iiif::{
-    Format, ImageRequest, InformationRequest, Quality, Region, RequestError, Rotation, Size, Uri,
-    UriError,
+    BaseUri, Format, ImageRequest, InformationRequest, Quality, Region, RequestError, Rotation,
+    Size, UriError,
 };
 use rstest::rstest;
 
@@ -77,7 +77,9 @@ fn requests_normalize_the_base_uri() {
 #[case::raw_non_ascii("https://example.org/☃")]
 #[case::bad_escape("https://example.org/abc%zz")]
 fn requests_propagate_base_uri_errors(#[case] uri: &str) {
-    let expected = uri.parse::<Uri>().expect_err("base URI should be invalid");
+    let expected = uri
+        .parse::<BaseUri>()
+        .expect_err("base URI should be invalid");
 
     let info = InformationRequest::from_str(&format!("{uri}/info.json"));
     assert!(
