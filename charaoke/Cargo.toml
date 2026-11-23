@@ -1,0 +1,20 @@
+[package]
+name = "charaoke"
+version = "0.1.0"
+edition = "2024"
+description = "Fast image-to-ASCII conversion, built for live terminal rendering."
+keywords = [ "ascii", "ascii-art", "image", "terminal" ]
+categories = [ "multimedia::images", "command-line-interface" ]
+repository = "https://github.com/dylan-stark/acres"
+authors = [ "Dylan Stark <dylan.stark@gmail.com>" ]
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+
+[dev-dependencies]
+criterion = "0.8.2"
+image = { version = "0.25.10", default-features = false, features = ["jpeg"] }
+
+[[bench]]
+name = "stages"
+harness = false
