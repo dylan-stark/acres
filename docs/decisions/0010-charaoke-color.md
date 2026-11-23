@@ -47,9 +47,25 @@ Palette reduction (option C) stays out. It can come later as a `Cells` post-pass
   - `charaoke/end_to_end` adds truecolor ANSI, to compare with `baseline/end_to_end`.
   - `charaoke/tui_proxy/drag` writes cells straight into the `Buffer`.
   - `charaoke/tui_proxy/drag_ansi` and `baseline/ansi_parse` measure the `ansi-to-tui` round trip that this decision removes.
-- The estimate was 1.5 to 2.5 ms for a color resize on the M1 Air. Gate: if `charaoke/tui_proxy/drag` goes over 4 ms there, revisit B2 or C before step 4.
+- A color resize costs less than the old grayscale one, because writing straight into the `Buffer` saves more than color adds. The estimate was 1.5 to 2.5 ms and the gate 4 ms, and on the M1 Air it measures under 1 ms. These are from one `make bench` run per machine, on an 843x632 image at 160 columns (results on PR #70):
+
+  | | M1 Air (target) | Ryzen 9700X (dev) |
+  | --- | --- | --- |
+  | `charaoke/tui_proxy/drag` (render + direct `Buffer` write, 120-200 col drag) | 0.96 ms | 0.54 ms |
+  | `charaoke/tui_proxy/drag_ansi` (render + ANSI + `ansi-to-tui` + `Paragraph`) | 1.66 ms | 1.11 ms |
+  | Step 2 grayscale `tui_proxy` (ADR 0009) | 0.98 ms | 0.56 ms |
+  | `charaoke/render` (with color) | 0.52 ms | 0.32 ms |
+  | `charaoke/ansi` truecolor / 256-color | 0.033 / 0.025 ms | 0.026 / 0.023 ms |
+  | `charaoke/load` | 0.037 ms | 0.022 ms |
+  | `charaoke/end_to_end` (decode + load + render + truecolor ANSI) | 1.91 ms | 1.18 ms |
+  | `baseline/color` | 6.36 ms | 4.01 ms |
+  | `baseline/ansi_parse` | 1.10 ms | 1.14 ms |
+  | `baseline/end_to_end` | 33.8 ms | 21.9 ms |
+
+- Color costs about 0.17 ms in `render` on the Air (0.35 to 0.52 ms), for the extra two channel sums. ANSI output is about 190x faster than the old color stage, and the TUI path also drops `ansi-to-tui`'s 1.1 ms parse, which no bench measured before this change.
+- The x86-64 `load` gap from ADR 0009 is gone now that `load` is a copy (0.022 ms on the Ryzen against 0.037 ms on the Air).
 - `render`'s signature changed from `&mut String` to `&mut Cells`. `charaoke` is pre-1.0 and has no users outside the workspace, so this is the cheapest time to change it.
 - Memory per loaded image rises from 1 to 3 bytes per pixel, about 1.6 MB for 843x632.
 - Brightness now comes from each cell's mean color rather than from each pixel. The two agree within 1, and a unit test pins that down.
-- `load` is now a copy, so the x86-64 vectorization question from ADR 0009 moves to `render`'s three-channel sums. That investigation follows in its own change.
+- The x86-64 vectorization question moves to `render`'s three-channel sums. That investigation follows in its own change.
 - Render still sums every pixel of each cell. If that becomes the bottleneck, for example with large images, zoom or panning, a summed-area table built at load would cut each cell to 4 lookups per channel at about 4x the memory. Not planned for now.
