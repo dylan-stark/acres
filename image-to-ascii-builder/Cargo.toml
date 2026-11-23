@@ -22,6 +22,8 @@ thiserror = "2.0.17"
 tracing = "0.1.41"
 
 [dev-dependencies]
+# Same version as acres-tui, to measure its parse of the colored string.
+ansi-to-tui = "7.0.0"
 criterion = "0.8.2"
 
 [[bench]]

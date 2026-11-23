@@ -16,3 +16,4 @@ Short records of non-obvious decisions, so a later reader (human or agent) knows
 | [0007](0007-iiif-builder-typestate-only-uri.md) | Typestate only the required part of the `iiif` image request builder | Accepted |
 | [0008](0008-charaoke-from-scratch-engine.md) | Build `charaoke`, a from-scratch ASCII engine, with an 8 ms frame budget | Proposed |
 | [0009](0009-charaoke-load-once-render-many.md) | `charaoke` loads an image once and renders it many times | Proposed |
+| [0010](0010-charaoke-color.md) | `charaoke` renders colored cells and writes ANSI separately | Accepted |

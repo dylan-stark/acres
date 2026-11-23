@@ -6,15 +6,17 @@
 //!
 //! - `charaoke/decode` and `charaoke/luma`: JPEG decode and `to_luma8` in `image` 0.25, for reference.
 //! - `charaoke/load`: [`Converter::set_image`] from decoded RGB8, paid once per image.
-//! - `charaoke/render`: [`Converter::render`] at each width, paid on every resize.
-//! - `charaoke/end_to_end`: decode, load and render, comparable to `baseline/end_to_end` minus
-//!   ANSI coloring, which `charaoke` does not do yet.
+//! - `charaoke/render`: [`Converter::render`] into [`Cells`] at each width, paid on every resize.
+//! - `charaoke/ansi`: [`Cells::write_ansi`] at each width and color depth, the CLI's output step,
+//!   comparable to `baseline/color`.
+//! - `charaoke/end_to_end`: decode, load, render and truecolor ANSI, comparable to
+//!   `baseline/end_to_end`.
 
 mod common;
 
 use std::hint::black_box;
 
-use charaoke::{Converter, Grid, PixelFormat};
+use charaoke::{Cells, ColorDepth, Converter, Grid, PixelFormat};
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use image::{DynamicImage, ImageFormat};
 
@@ -63,7 +65,7 @@ fn load(c: &mut Criterion) {
 fn render(c: &mut Criterion) {
     let mut group = c.benchmark_group("charaoke/render");
     let mut converter = Converter::default();
-    let mut out = String::new();
+    let mut cells = Cells::default();
     for (name, bytes) in inputs() {
         let image = decode_rgb(&bytes);
         let (w, h) = dimensions(&image);
@@ -74,8 +76,37 @@ fn render(c: &mut Criterion) {
             let grid = Grid::fit(w, h, cols(n));
             group.throughput(Throughput::Elements(grid.cells()));
             group.bench_with_input(BenchmarkId::new(name, n), &grid, |b, &grid| {
-                b.iter(|| converter.render(black_box(grid), &mut out))
+                b.iter(|| converter.render(black_box(grid), &mut cells))
             });
+        }
+    }
+    group.finish();
+}
+
+fn ansi(c: &mut Criterion) {
+    let mut group = c.benchmark_group("charaoke/ansi");
+    let mut converter = Converter::default();
+    let mut cells = Cells::default();
+    let mut out = String::new();
+    for (name, bytes) in inputs() {
+        let image = decode_rgb(&bytes);
+        let (w, h) = dimensions(&image);
+        converter
+            .set_image(&image, w, h, PixelFormat::Rgb8)
+            .expect("loads");
+        for &n in COLS {
+            let grid = Grid::fit(w, h, cols(n));
+            converter.render(grid, &mut cells);
+            group.throughput(Throughput::Elements(grid.cells()));
+            for (depth_name, depth) in [
+                ("truecolor", ColorDepth::TrueColor),
+                ("256", ColorDepth::Ansi256),
+            ] {
+                let id = BenchmarkId::new(format!("{name}/{depth_name}"), n);
+                group.bench_with_input(id, &cells, |b, cells| {
+                    b.iter(|| black_box(cells).write_ansi(depth, &mut out))
+                });
+            }
         }
     }
     group.finish();
@@ -84,6 +115,7 @@ fn render(c: &mut Criterion) {
 fn end_to_end(c: &mut Criterion) {
     let mut group = c.benchmark_group("charaoke/end_to_end");
     let mut converter = Converter::default();
+    let mut cells = Cells::default();
     let mut out = String::new();
     for (name, bytes) in inputs() {
         for &n in COLS {
@@ -94,7 +126,8 @@ fn end_to_end(c: &mut Criterion) {
                     converter
                         .set_image(&image, w, h, PixelFormat::Rgb8)
                         .expect("loads");
-                    converter.render(Grid::fit(w, h, cols(n)), &mut out);
+                    converter.render(Grid::fit(w, h, cols(n)), &mut cells);
+                    cells.write_ansi(ColorDepth::TrueColor, &mut out);
                 })
             });
         }
@@ -102,5 +135,5 @@ fn end_to_end(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, decode, luma, load, render, end_to_end);
+criterion_group!(benches, decode, luma, load, render, ansi, end_to_end);
 criterion_main!(benches);

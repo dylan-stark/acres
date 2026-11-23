@@ -1,11 +1,13 @@
 //! Baseline benchmarks for the `image-to-ascii` path that `charaoke` replaces.
 //!
 //! Stages are measured separately (decode, luminance, font loading, conversion, coloring) and
-//! end to end, over the same inputs and output widths as `charaoke/benches/stages.rs`. Run with
+//! end to end, plus `baseline/ansi_parse`, the `ansi-to-tui` parse the TUI runs on the colored
+//! string, over the same inputs and output widths as `charaoke/benches/stages.rs`. Run with
 //! `cargo bench -p image-to-ascii-builder`.
 
 use std::{hint::black_box, io::Cursor, path::PathBuf};
 
+use ansi_to_tui::IntoText;
 use bytes::{Buf, Bytes};
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use image::{DynamicImage, ImageFormat, ImageOutputFormat, imageops::FilterType};
@@ -139,6 +141,26 @@ fn color(c: &mut Criterion) {
     group.finish();
 }
 
+fn ansi_parse(c: &mut Criterion) {
+    let font = load_font();
+    let metric = Metric::default().to_string();
+    let algo = get_conversion_algorithm(&ConversionAlgorithm::Base.to_string());
+    let mut group = c.benchmark_group("baseline/ansi_parse");
+    for (name, bytes) in inputs() {
+        let image = decoded(&bytes);
+        let luma = LumaImage::<f32>::from(&image);
+        for &cols in COLS {
+            let rows =
+                img_to_char_rows(&font, &luma, get_converter(&metric), Some(cols), 0.0, &algo);
+            let ansi = char_rows_to_terminal_color_string(&rows, &image);
+            group.bench_with_input(BenchmarkId::new(name, cols), &ansi, |b, ansi| {
+                b.iter(|| black_box(ansi.as_bytes()).into_text().expect("parses"))
+            });
+        }
+    }
+    group.finish();
+}
+
 fn end_to_end(c: &mut Criterion) {
     let mut group = c.benchmark_group("baseline/end_to_end");
     for (name, bytes) in inputs() {
@@ -160,6 +182,6 @@ fn end_to_end(c: &mut Criterion) {
 criterion_group! {
     name = benches;
     config = Criterion::default().sample_size(20);
-    targets = decode, luma, font_load, convert, color, end_to_end
+    targets = decode, luma, font_load, convert, color, ansi_parse, end_to_end
 }
 criterion_main!(benches);

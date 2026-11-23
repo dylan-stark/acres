@@ -12,6 +12,8 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 
 [dev-dependencies]
+# Same version as acres-tui, for the ANSI round-trip test and bench.
+ansi-to-tui = "7.0.0"
 criterion = "0.8.2"
 image = { version = "0.25.10", default-features = false, features = ["jpeg"] }
 # Same version as acres-tui, for the headless resize bench.

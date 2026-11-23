@@ -32,7 +32,7 @@ Decode, luma and font are fixed costs paid again on every call, 6.1 ms on the M1
 
 ## Decision
 
-Build a new workspace crate, `charaoke`, from scratch with no workspace dependencies. Its target is to convert a full TUI pane on resize in 8 ms or less on Dylan's M1 MacBook Air, half the 60 FPS frame, so drawing and app work fit in the rest. Benchmarks exist before any optimization: `charaoke/benches/stages.rs` measures each stage on the same inputs and widths as the baseline, so the two reports line up.
+Build a new workspace crate, `charaoke`, from scratch with no workspace dependencies. Its target is to convert a full TUI pane on resize in 8 ms or less on an M1 MacBook Air, the target machine, half the 60 FPS frame, so drawing and app work fit in the rest. Benchmarks exist before any optimization: `charaoke/benches/stages.rs` measures each stage on the same inputs and widths as the baseline, so the two reports line up.
 
 ## Consequences
 

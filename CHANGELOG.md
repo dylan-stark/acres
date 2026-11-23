@@ -18,6 +18,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `make bench` runs criterion benchmarks for `charaoke` and for the existing `image-to-ascii` path as a baseline. `make bench-save` and `make bench-compare` save a named baseline and report regressions against it.
 - `charaoke::Converter` turns RGB, RGBA or grayscale pixels into ASCII: it loads an image once, then renders it at any grid size into a reused `String`. `charaoke::Ramp` sets the characters (see [ADR 0009](docs/decisions/0009-charaoke-load-once-render-many.md)).
 - `charaoke` benches for loading, rendering and end-to-end conversion, plus a headless Ratatui resize bench (`charaoke/tui_proxy`).
+- `charaoke` renders in color: `Converter::render` fills `charaoke::Cells` with a character and a mean color per cell, and `Cells::write_ansi` writes truecolor or 256-color ANSI (`ColorDepth`, `charaoke::ansi256`), while `Cells::write_plain` writes plain text (see [ADR 0010](docs/decisions/0010-charaoke-color.md)).
+- Benches for `charaoke` ANSI output (`charaoke/ansi`), a direct-to-`Buffer` color resize and its `ansi-to-tui` alternative (`charaoke/tui_proxy/drag`, `drag_ansi`), and today's `ansi-to-tui` parse (`baseline/ansi_parse`). `charaoke/end_to_end` now includes ANSI output.
 
 ### Changed
 
