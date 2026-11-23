@@ -744,7 +744,10 @@ pub enum Quality {
     Gray,
     /// Black-and-white.
     Bitonal,
-    /// Server's choice.
+    /// Server's choice, named `default` in the IIIF spec.
+    ///
+    /// This is also what the [`Default`] trait gives: `Quality::default()` returns
+    /// `Quality::Default`.
     #[default]
     Default,
 }
