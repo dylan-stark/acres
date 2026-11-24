@@ -97,7 +97,7 @@ impl<T> Fetched<T> {
 ///
 /// let catalog = Catalog::builder().build()?;
 /// let request = search::Request::builder()
-///     .base_uri(catalog.base_uri().to_string())
+///     .base_uri(catalog.base_uri())
 ///     .q(Some("monet".into()))
 ///     .fields(Some(ArtworkSummary::FIELDS.iter().map(|f| f.to_string()).collect()))
 ///     .build()?;

@@ -132,3 +132,55 @@ async fn artwork_manifest_command_outputs_json() -> Result<(), Box<dyn std::erro
 //
 //    Ok(())
 //}
+
+#[tokio::test]
+async fn artwork_command_prints_the_body_as_sent() -> Result<(), Box<dyn std::error::Error>> {
+    let body = r#"{"data": {"title": "Priest and Boy", "id": 4}}"#;
+    let mock_server = wiremock::MockServer::start().await;
+    wiremock::Mock::given(wiremock::matchers::path("/api/v1/artworks/4"))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_string(body))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let output = Command::cargo_bin("acres-cli")?
+        .env("ACRES_BASE_URI", format!("{}/api/v1", mock_server.uri()))
+        .env("ACRES_USE_CACHE", "false")
+        .args(["artwork", "4"])
+        .output()?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?, format!("{body}\n"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn offline_answers_from_the_cache_and_never_sends() -> Result<(), Box<dyn std::error::Error>>
+{
+    let cache_dir = assert_fs::TempDir::new()?;
+    let mock_server = wiremock::MockServer::start().await;
+    wiremock::Mock::given(wiremock::matchers::path("/api/v1/artworks/4"))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_string(r#"{"data":{"id":4}}"#))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+    let run = |args: &[&str]| {
+        Command::cargo_bin("acres-cli")
+            .unwrap()
+            .env("ACRES_BASE_URI", format!("{}/api/v1", mock_server.uri()))
+            .env("ACRES_CACHE_DIR", cache_dir.path())
+            .args(args)
+            .output()
+            .unwrap()
+    };
+
+    // Online, the first run fills the cache.
+    assert!(run(&["artwork", "4"]).status.success());
+    // Offline, a cached record is served and a missing one fails, neither reaching the server.
+    let hit = run(&["--offline", "artwork", "4"]);
+    assert!(hit.status.success());
+    assert_eq!(String::from_utf8(hit.stdout)?, "{\"data\":{\"id\":4}}\n");
+    let miss = run(&["--offline", "artwork", "5"]);
+    assert!(!miss.status.success());
+    assert!(String::from_utf8(miss.stderr)?.contains("not cached while offline"));
+    Ok(())
+}

@@ -32,9 +32,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - The `acres` search builder takes `fields`, `limit`, `page` and typed `Filters` (image, public domain, on view, department, type, artist, years), and refuses a `limit` over 100 or a page past 10,000 records.
 - `ACRES_OFFLINE` answers only from the cache, and `ACRES_CONTACT` adds a contact to `AIC-User-Agent`.
 - `acres/parse/search_page` bench, run by `make bench` with the others.
+- `acres::DEFAULT_BASE_URI`, the public API's base URI.
 
 ### Changed
 
+- `acres-cli` fetches through one `acres::Catalog`, so its commands share the rate limit, retries and cache lifetimes, and it takes `--offline` (or `ACRES_OFFLINE=true`) to answer only from the cache. JSON commands print the body exactly as the API sent it, instead of re-serializing it with sorted keys.
+- `acres-tui` fetches images through one shared `Catalog`, and a newer image request cancels the one still waiting.
+- The `acres` request constructors and builders take `impl Into<String>` for the base URI, so a `&str` such as `acres::DEFAULT_BASE_URI` or `Catalog::base_uri()` works directly.
 - `acres-cli` and `acres-tui` convert images with `charaoke` instead of `image-to-ascii`. Characters are chosen by brightness, so line art looks softer than with the old edge-matching default (see [ADR 0011](docs/decisions/0011-switch-to-charaoke.md)).
 - `acres-cli ascii-art --width` defaults to the terminal width, or 80 when stdout isn't a terminal, instead of the image width. With `--color auto`, the default, output is plain text when stdout isn't a terminal or `NO_COLOR` is set.
 - The `acres-tui` alphabets list (`a`) is now a ramps list.
@@ -61,6 +65,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Removed
 
+- `acres::Api`, `ApiBuilder`, `Cached` and the free `acres::fetch()`: use `acres::Catalog`. The untyped `artworks::Search` and `artworks::Manifest` responses are removed too: use `Page<ArtworkSummary>`, or `Catalog::raw` for the JSON as sent.
 - `acres-cli ascii-art` no longer takes `--alphabet` (use `--ramp`), `--font`, `--metric` or `--conversion-algorithm`, which only applied to glyph matching.
 - `acres-tui` no longer has the font (`f`), metric (`m`) or conversion algorithm (`c`) lists.
 - Removed the hidden `iiif::builder::{Set, Unset}` typestate markers; `iiif::NoBaseUri` replaces them.

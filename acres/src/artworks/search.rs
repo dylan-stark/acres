@@ -2,68 +2,19 @@
 
 use std::fmt::Display;
 
-use bytes::{Buf, Bytes};
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, ParseError, RequestError};
-
-// TODO: Finish out the implementation of this type and document.
-#[doc(hidden)]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct Search(serde_json::Value);
-
-impl Display for Search {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let json = serde_json::to_string(&self.0).map_err(|_| std::fmt::Error)?;
-        f.write_str(json.as_str())
-    }
-}
-
-impl From<Bytes> for Search {
-    fn from(value: Bytes) -> Self {
-        let reader = value.reader();
-        serde_json::from_reader(reader).unwrap()
-    }
-}
-
-impl TryFrom<Vec<u8>> for Search {
-    type Error = Error;
-
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        serde_json::from_slice::<Search>(&value)
-            .map_err(|e| ParseError::body("search bytes", e).into())
-    }
-}
-
-impl TryFrom<Search> for Vec<u8> {
-    type Error = Error;
-
-    fn try_from(value: Search) -> Result<Self, Self::Error> {
-        serde_json::to_vec::<Search>(&value).map_err(|e| ParseError::body("search value", e).into())
-    }
-}
-
-impl Search {
-    #[doc(hidden)]
-    pub fn new(response: serde_json::Value) -> Self {
-        Search(response)
-    }
-
-    /// Creates a new search builder.
-    pub fn builder() -> Builder {
-        Builder::default()
-    }
-}
+use crate::{Error, RequestError};
 
 /// A [`GET /artworks/search`] request.
 ///
 /// ```rust
 /// # use anyhow::Result;
-/// use acres::{Api, artworks::request::search};
+/// use acres::artworks::request::search;
 ///
 /// # fn main() -> Result<()> {
 /// let request = search::Request::builder()
-///     .base_uri(Api::new().base_uri())
+///     .base_uri(acres::DEFAULT_BASE_URI)
 ///     .q(Some("monet".to_string()))
 ///     .build()?;
 /// # Ok(())
@@ -97,11 +48,11 @@ impl Request {
 ///
 /// ```rust
 /// # use anyhow::Result;
-/// use acres::{Api, artworks::request::search};
+/// use acres::artworks::request::search;
 ///
 /// # fn main() -> Result<()> {
 /// let builder = search::Request::builder()
-///     .base_uri(Api::new().base_uri())
+///     .base_uri(acres::DEFAULT_BASE_URI)
 ///     .q(Some("monet".to_string()));
 /// # Ok(())
 /// # }
@@ -129,22 +80,16 @@ impl Builder {
         Builder::default()
     }
 
-    /// Sets API.
-    ///
-    /// Use this when you want to directly construct the collection operation, but also want customize
-    /// the API.
-    ///
-    /// # Examples
+    /// Sets the API base URI, such as a mock server's in tests. The default is
+    /// [`acres::DEFAULT_BASE_URI`](crate::DEFAULT_BASE_URI).
     ///
     /// ```
-    /// use acres::Api;
     /// use acres::artworks::request::search::Builder;
     ///
-    /// let api = Api::builder().use_cache(false).build();
-    /// Builder::new().base_uri(api.base_uri());
+    /// Builder::new().base_uri("http://127.0.0.1:8080/api/v1");
     /// ```
-    pub fn base_uri(mut self, base_uri: String) -> Self {
-        self.base_uri = base_uri;
+    pub fn base_uri(mut self, base_uri: impl Into<String>) -> Self {
+        self.base_uri = base_uri.into();
         self
     }
 
@@ -227,7 +172,7 @@ impl Builder {
     /// use acres::artworks::request::search::{Builder, Filters};
     ///
     /// let request = Builder::new()
-    ///     .base_uri("https://api.artic.edu/api/v1".into())
+    ///     .base_uri("https://api.artic.edu/api/v1")
     ///     .q(Some("monet".into()))
     ///     .filters(Filters { is_public_domain: Some(true), ..Filters::default() })
     ///     .build()

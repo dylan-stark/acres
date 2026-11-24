@@ -40,7 +40,7 @@ fn catalog(base: &str) -> Catalog {
 
 fn search_request(base: &str) -> search::Request {
     search::Request::builder()
-        .base_uri(base.to_string())
+        .base_uri(base)
         .q(Some("monet".into()))
         .fields(Some(
             ArtworkSummary::FIELDS

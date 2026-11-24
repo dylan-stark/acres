@@ -9,8 +9,6 @@ mod search;
 
 pub use artwork::ArtworkInfo;
 pub use collection::Artworks;
-pub use manifest::Manifest;
-pub use search::Search;
 
 pub use crate::model::{Artwork, ArtworkSummary, Thumbnail};
 

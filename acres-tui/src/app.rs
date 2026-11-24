@@ -39,6 +39,8 @@ impl App {
         artworks: acres::artworks::Artworks,
     ) -> Result<Self> {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
+        // One catalog for the whole app, so every request shares its rate limit and cache.
+        let catalog = acres::Catalog::builder().build()?;
         Ok(Self {
             tick_rate,
             frame_rate,
@@ -46,7 +48,7 @@ impl App {
                 // Drawn in order: the HUD slides out over the art, and lists open over both.
                 Box::new(Home::new()),
                 Box::new(Hud::new()),
-                Box::new(Iiif::new(action_tx.clone())),
+                Box::new(Iiif::new(action_tx.clone(), catalog)),
                 Box::new(Artworks::new(artworks)),
                 Box::new(Ramps::new()),
             ],

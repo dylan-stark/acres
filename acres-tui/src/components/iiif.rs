@@ -1,8 +1,8 @@
-use acres::Api;
+use acres::Catalog;
 use color_eyre::eyre::{self};
 use iiif::{BaseUri, Format, ImageRequest, Quality, Region, Rotation, Size};
 use ratatui::{Frame, prelude::Rect};
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 
 use crate::{action::Action, components::Component};
 
@@ -15,10 +15,14 @@ pub struct Iiif {
     quality: Quality,
     format: Format,
     action_tx: UnboundedSender<Action>,
+    catalog: Catalog,
+    /// The image being fetched. A newer request aborts it, which also gives up its place in the
+    /// catalog's queue.
+    pending: Option<JoinHandle<()>>,
 }
 
 impl Iiif {
-    pub fn new(action_tx: UnboundedSender<Action>) -> Self {
+    pub fn new(action_tx: UnboundedSender<Action>, catalog: Catalog) -> Self {
         Self {
             base_uri: None,
             artwork_id: 0,
@@ -28,6 +32,8 @@ impl Iiif {
             quality: Quality::Default,
             format: Format::Jpg,
             action_tx,
+            catalog,
+            pending: None,
         }
     }
 }
@@ -60,22 +66,24 @@ impl Component for Iiif {
                     tracing::debug!(image_request = %image_request, raw_image_request = ?image_request);
 
                     let action_tx = self.action_tx.clone();
+                    let catalog = self.catalog.clone();
                     let id = self.artwork_id;
-                    tokio::spawn(async move {
+                    if let Some(previous) = self.pending.take() {
+                        previous.abort();
+                    }
+                    self.pending = Some(tokio::spawn(async move {
                         let start = std::time::Instant::now();
-                        let response: Option<bytes::Bytes> = Api::new()
-                            .fetch(image_request.to_string())
-                            .await
-                            .inspect_err(|e| tracing::error!("failed to get image: {e}"))
-                            .ok();
-                        if let Some(image) = response {
-                            let _ = action_tx.send(Action::UpdateImage {
-                                id,
-                                image,
-                                fetch: start.elapsed(),
-                            });
+                        match catalog.image(&image_request).await {
+                            Ok(fetched) => {
+                                let _ = action_tx.send(Action::UpdateImage {
+                                    id,
+                                    image: fetched.value,
+                                    fetch: start.elapsed(),
+                                });
+                            }
+                            Err(e) => tracing::error!("failed to get image: {e}"),
                         }
-                    });
+                    }));
                 }
                 Ok(None)
             }
