@@ -100,9 +100,9 @@ impl ArtworkInfo {
 /// A [`GET /artworks/{id}`] request.
 ///
 /// ```rust
-/// use acres::{Api, artworks::request::artwork::Request};
+/// use acres::artworks::request::artwork::Request;
 ///
-/// let request = Request::new(Api::new().base_uri(), 4);
+/// let request = Request::new(acres::DEFAULT_BASE_URI, 4);
 /// ```
 ///
 /// [`GET /artworks/{id}`]: https://api.artic.edu/docs/#get-artworks-id
@@ -120,7 +120,10 @@ impl Display for Request {
 
 impl Request {
     /// Constructs a new artwork request.
-    pub fn new(base_uri: String, id: u32) -> Self {
-        Self { base_uri, id }
+    pub fn new(base_uri: impl Into<String>, id: u32) -> Self {
+        Self {
+            base_uri: base_uri.into(),
+            id,
+        }
     }
 }

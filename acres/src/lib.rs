@@ -6,7 +6,8 @@
 //! This library powers the [`acres-cli`] and [`acres-tui`].
 //!
 //! We currently have support for the endpoints in the [Artworks collection].
-//! You can create requests for endpoints and use the built-in [API helper] and [fetch function] to retrieve resources.
+//! You build a request for an endpoint and fetch it with a shared [`Catalog`], which rate-limits,
+//! retries and caches (see ADR 0016).
 //!
 //! For instance, you can [get artwork by id].
 //!
@@ -49,11 +50,11 @@
 //! #     .expect(1)
 //! #     .mount(&mock_server)
 //! #     .await;
-//! let api = acres::Api::new();
-//! # let api = acres::Api::builder().base_uri(&mock_uri).use_cache(false).build();
+//! let catalog = acres::Catalog::builder().build()?;
+//! # let catalog = acres::Catalog::builder().base_uri(&mock_uri).no_cache().build()?;
 //!
-//! let request = artwork::Request::new(api.base_uri(), 4);
-//! let json: acres::Cached = api.fetch(request.to_string()).await?;
+//! let request = artwork::Request::new(catalog.base_uri(), 4);
+//! let json = catalog.raw(request, acres::Resource::Record).await?.value;
 //! # Ok(())
 //! # }
 //! ```
@@ -115,15 +116,15 @@
 //! #     .expect(1)
 //! #     .mount(&mock_server)
 //! #     .await;
-//! let api = acres::Api::new();
-//! # let api = acres::Api::builder().base_uri(&mock_uri).use_cache(false).build();
+//! let catalog = acres::Catalog::builder().build()?;
+//! # let catalog = acres::Catalog::builder().base_uri(&mock_uri).no_cache().build()?;
 //!
 //! let request = artworks::Request::builder()
-//!     .base_uri(api.base_uri())
+//!     .base_uri(catalog.base_uri())
 //!     .limit(Some(2))
 //!     .fields(Some(vec!["id".into(), "title".into(), "api_link".into()]))
 //!     .build()?;
-//! let json: acres::Cached = api.fetch(request.to_string()).await?;
+//! let json = catalog.raw(request, acres::Resource::Page).await?.value;
 //! # Ok(())
 //! # }
 //! ```
@@ -144,8 +145,6 @@
 //! [`GET /artworks/{id}/manifest.json`]: https://api.artic.edu/docs/#get-artworks-id-manifest-json
 //! [`acres::artworks::request::manifest`]: artworks/request/manifest/index.html
 //! [Artworks collection]: https://api.artic.edu/docs/#artworks
-//! [API helper]: struct.Api.html
-//! [fetch function]: fn.fetch.html
 //! [get artwork by id]: https://api.artic.edu/docs/#get-artworks-id
 //! [list artworks]: https://api.artic.edu/docs/#get-artworks
 //! [public APIs]: https://api.artic.edu/docs/#introduction
@@ -153,15 +152,13 @@
 //! [`acres-tui`]: ../acres_tui/index.html
 //! [builders]: https://rust-unofficial.github.io/patterns/patterns/creational/builder.html
 
-mod api;
 pub mod artworks;
 mod catalog;
 mod config;
 mod error;
 mod model;
 
-pub use api::fetch;
-pub use api::{Api, Cached};
 pub use catalog::{Catalog, CatalogBuilder, Fetched, Lane, Resource};
+pub use config::DEFAULT_BASE_URI;
 pub use error::{BoxError, CacheError, Error, ParseError, RequestError, ResponseError};
 pub use model::{ApiConfig, Item, Page, Pagination};

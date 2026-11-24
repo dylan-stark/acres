@@ -7,8 +7,8 @@
 use std::io::{self, IsTerminal, Write};
 
 use acres::{
-    Api, Cached,
-    artworks::{self, Manifest, request::artwork},
+    Catalog, Resource,
+    artworks::{self, request::artwork},
 };
 use clap::{Arg, Command, command, value_parser};
 use clap_stdin::FileOrStdin;
@@ -40,6 +40,13 @@ async fn main() -> Result<(), Report> {
     let matches = command!()
         .propagate_version(true)
         .subcommand_required(true)
+        .arg(
+            Arg::new("offline")
+                .long("offline")
+                .global(true)
+                .action(clap::ArgAction::SetTrue)
+                .help("answer only from the cache (also ACRES_OFFLINE=true)"),
+        )
         .subcommand(
             Command::new("artwork")
                 .about("Retrieve a piece of artwork")
@@ -252,31 +259,32 @@ async fn main() -> Result<(), Report> {
         )
         .get_matches();
 
+    let mut catalog = Catalog::builder();
+    if matches.get_flag("offline") {
+        catalog = catalog.offline(true);
+    }
+    let catalog = catalog.build()?;
+
     match matches.subcommand() {
         Some(("artwork", matches)) => {
-            let api = Api::new();
             let id = matches
                 .get_one::<u32>("id")
                 .copied()
                 .expect("clap ensures this is provided");
-            let request = artwork::Request::new(api.base_uri(), id);
-            let artwork: Cached = Api::new().fetch(request.to_string()).await?;
-            println!("{}", artwork)
+            let request = artwork::Request::new(catalog.base_uri(), id);
+            print_body(&catalog.raw(request, Resource::Record).await?.value)?;
         }
         Some(("artwork-manifest", matches)) => {
-            let api = Api::new();
             let id = matches
                 .get_one::<u32>("id")
                 .copied()
                 .expect("clap ensures id is provided");
-            let request = artworks::request::manifest::Request::new(api.base_uri(), id);
-            let manifest: Manifest = Api::new().fetch(request.to_string()).await?;
-            println!("{}", manifest)
+            let request = artworks::request::manifest::Request::new(catalog.base_uri(), id);
+            print_body(&catalog.raw(request, Resource::Record).await?.value)?;
         }
         Some(("artworks", matches)) => {
-            let api = Api::new();
             match artworks::request::artworks::Request::builder()
-                .base_uri(api.base_uri())
+                .base_uri(catalog.base_uri())
                 .ids(
                     matches
                         .get_many::<u32>("ids")
@@ -296,17 +304,13 @@ async fn main() -> Result<(), Report> {
                 )
                 .build()
             {
-                Ok(request) => {
-                    let collection: Cached = api.fetch(request.to_string()).await?;
-                    println!("{}", collection)
-                }
+                Ok(request) => print_body(&catalog.raw(request, Resource::Page).await?.value)?,
                 Err(error) => return Err(error).wrap_err("We couldn't get that list ..."),
             }
         }
         Some(("artworks-search", matches)) => {
-            let api = Api::new();
-            match artworks::Search::builder()
-                .base_uri(api.base_uri())
+            match artworks::request::search::Request::builder()
+                .base_uri(catalog.base_uri())
                 .q(matches.get_one::<String>("q").cloned())
                 .query(matches.get_one::<String>("query").cloned())
                 .sort(matches.get_one::<String>("sort").cloned())
@@ -319,10 +323,7 @@ async fn main() -> Result<(), Report> {
                 )
                 .build()
             {
-                Ok(request) => {
-                    let search: Cached = api.fetch(request.to_string()).await?;
-                    println!("{}", search)
-                }
+                Ok(request) => print_body(&catalog.raw(request, Resource::Page).await?.value)?,
                 Err(error) => return Err(error).wrap_err("We couldn't complete that search ..."),
             }
         }
@@ -406,10 +407,9 @@ async fn main() -> Result<(), Report> {
             match matches.get_one::<IiifTo>("to") {
                 Some(IiifTo::Url) => println!("{}", image_request),
                 Some(IiifTo::Bytes) => {
-                    let response: bytes::Bytes =
-                        Api::new().fetch(image_request.to_string()).await?;
+                    let image = catalog.image(&image_request).await?.value;
                     io::stdout()
-                        .write_all(&response)
+                        .write_all(&image)
                         .context("failed to write image bytes")?;
                 }
                 None => unreachable!("default value means we shouldn't get here"),
@@ -424,13 +424,25 @@ async fn main() -> Result<(), Report> {
                     .into_reader()?,
             )?;
             let request: iiif::InformationRequest = iiif::BaseUri::try_from(artwork)?.into();
-            let response: bytes::Bytes = Api::new().fetch(request.to_string()).await?;
-            io::stdout()
-                .write_all(&response)
-                .context("failed to write json bytes")?;
+            print_body(&catalog.raw(request, Resource::Record).await?.value)?;
         }
         _ => unreachable!("clap should ensure we don't get here"),
     };
 
+    Ok(())
+}
+
+/// Writes a JSON body to stdout as the API sent it, ending with a newline.
+#[doc(hidden)]
+fn print_body(body: &[u8]) -> Result<()> {
+    let mut stdout = io::stdout().lock();
+    stdout
+        .write_all(body)
+        .context("failed to write the response")?;
+    if !body.ends_with(b"\n") {
+        stdout
+            .write_all(b"\n")
+            .context("failed to write the response")?;
+    }
     Ok(())
 }

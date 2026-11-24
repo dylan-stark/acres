@@ -46,7 +46,7 @@ The API's rules ([AIC API docs](https://api.artic.edu/docs/), as of 2026-11-24):
 
 **Errors.** `acres::Error` wraps `RequestError` (`InvalidQuery`, `OutOfRange`, `InvalidImageUrl`, `InvalidContact`, `Iiif`), `ResponseError` (`Status`, `Expired`, `TooManyRequests`, `Transport`), `CacheError` (`Missing`, `Io`) and `ParseError` (`InvalidBody`). Messages are lowercase, leave out their source, and third-party causes are boxed, so `anyhow` leaves `acres`.
 
-**Consumers.** `acres-cli` builds one `Catalog` and every fetching command goes through it, with unchanged output and a new `--offline`. `acres-tui` shares one `Catalog` from `App` for images. `Api`, `Search` and `Cached` are deprecated, pointing to `Catalog`, and removed in a later release. `Artworks` stays as the TUI's file format.
+**Consumers.** `acres-cli` builds one `Catalog` and every fetching command goes through it, printing each body as the API sent it, and a new `--offline` flag. `acres-tui` shares one `Catalog` from `App` for images, and a newer image request aborts the one in flight, which also frees its place in the queue. `Api`, `Cached`, the free `fetch()`, and the untyped `Search` and `Manifest` responses are removed rather than deprecated: no backward compatibility is needed, and two clients side by side would each keep their own limit and cache. `Artworks` stays as the TUI's file format.
 
 `acres` gains `tokio` with only the `time` and `sync` features, and still depends only on `iiif` in the workspace.
 
@@ -56,7 +56,7 @@ The API's rules ([AIC API docs](https://api.artic.edu/docs/), as of 2026-11-24):
 - Requests no longer carry a personal address. Anyone who wants the API to be able to reach them sets `ACRES_CONTACT`.
 - Cached search pages and records can go stale and be refetched, so working fully offline now takes `ACRES_OFFLINE`.
 - At 60 requests a minute, a burst can wait a few hundred milliseconds. The wait is visible in `Fetched::wait` instead of turning into failures.
-- Code matching on `AcresError` breaks, and `Api`, `Search` and `Cached` warn. The project is pre-1.0 and the binaries are the only users.
+- Code matching on `AcresError`, or using `Api`, `Cached`, `fetch()`, `Search` or `Manifest`, no longer compiles. The project is pre-1.0 and the binaries are the only users.
 - Alternatives we passed on: a limiter hidden inside `Api::fetch` (still a client per call, hard to test); the `governor` crate (a 60-a-minute bucket is a few lines over `tokio::time`, and our own is easier to test on a paused clock); an HTTP cache that obeys cache headers (a new on-disk format and dependency tree for three fixed lifetimes); and types generated from a schema (the API publishes none, and we use about a dozen fields).
 - Tests use `wiremock` and a paused Tokio clock, so none sleeps or reaches the API. The one bench, `acres/parse/search_page`, parses a 50-row page fixture:
 

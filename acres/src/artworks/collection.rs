@@ -63,11 +63,11 @@ pub struct Pagination {
 ///
 /// ```rust
 /// # use anyhow::Result;
-/// use acres::{Api, artworks::request::artworks};
+/// use acres::artworks::request::artworks;
 ///
 /// # fn main() -> Result<()> {
 /// let request = artworks::Request::builder()
-///     .base_uri(Api::new().base_uri())
+///     .base_uri(acres::DEFAULT_BASE_URI)
 ///     .limit(Some(2))
 ///     .fields(Some(vec!["id".into(), "title".into(), "api_link".into()]))
 ///     .build()?;
@@ -102,11 +102,11 @@ impl Request {
 ///
 /// ```rust
 /// # use anyhow::Result;
-/// use acres::{Api, artworks::request::artworks};
+/// use acres::artworks::request::artworks;
 ///
 /// # fn main() -> Result<()> {
 /// let builder = artworks::Request::builder()
-///     .base_uri(Api::new().base_uri())
+///     .base_uri(acres::DEFAULT_BASE_URI)
 ///     .limit(Some(2))
 ///     .fields(Some(vec!["id".into(), "title".into(), "api_link".into()]));
 /// # Ok(())
@@ -130,22 +130,16 @@ impl Builder {
         Builder::default()
     }
 
-    /// Sets API.
-    ///
-    /// Use this when you want to directly construct the collection operation, but also want customize
-    /// the API.
-    ///
-    /// # Examples
+    /// Sets the API base URI, such as a mock server's in tests. The default is
+    /// [`acres::DEFAULT_BASE_URI`](crate::DEFAULT_BASE_URI).
     ///
     /// ```
-    /// use acres::Api;
     /// use acres::artworks::request::artworks::Builder;
     ///
-    /// let api = Api::builder().use_cache(false).build();
-    /// Builder::new().base_uri(api.base_uri());
+    /// Builder::new().base_uri("http://127.0.0.1:8080/api/v1");
     /// ```
-    pub fn base_uri(mut self, base_uri: String) -> Self {
-        self.base_uri = base_uri;
+    pub fn base_uri(mut self, base_uri: impl Into<String>) -> Self {
+        self.base_uri = base_uri.into();
         self
     }
 
