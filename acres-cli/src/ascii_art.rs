@@ -1,4 +1,4 @@
-//! The `ascii-art` subcommand: converts an image to ASCII art with `charaoke`.
+//! The `ascii-art` subcommand: converts an image to ASCII art or block art with `charaoke`.
 
 use std::{
     fmt,
@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use charaoke::{Cells, ColorDepth, Converter, Grid, PixelFormat, Ramp};
+use charaoke::{BlockMode, Blocks, Cells, ColorDepth, Converter, Grid, PixelFormat, Ramp};
 use color_eyre::{Result, eyre::WrapErr};
 
 /// Width used when stdout is not a terminal, in columns.
@@ -48,6 +48,29 @@ impl ColorChoice {
                     _ => Some(ColorDepth::Ansi256),
                 }
             }
+        }
+    }
+}
+
+/// The `--mode` choice.
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Mode {
+    /// Characters picked by brightness from the ramp.
+    #[default]
+    Ascii,
+    /// `▀` half blocks in two colors, two pixels per cell.
+    Half,
+    /// Quadrant blocks in two colors, four pixels per cell.
+    Quadrant,
+}
+
+impl Mode {
+    /// The block mode to render with, or `None` for ASCII.
+    pub fn blocks(self) -> Option<BlockMode> {
+        match self {
+            Mode::Ascii => None,
+            Mode::Half => Some(BlockMode::Half),
+            Mode::Quadrant => Some(BlockMode::Quadrant),
         }
     }
 }
@@ -101,7 +124,9 @@ impl fmt::Display for Timings {
 
 /// What to draw, from the command line.
 pub struct Options {
-    /// Characters from darkest to brightest, with the brightness offset applied.
+    /// ASCII or one of the block modes.
+    pub mode: Mode,
+    /// Characters from darkest to brightest, with the brightness offset applied. ASCII only.
     pub ramp: Ramp,
     /// Width of the art in columns.
     pub width: NonZeroU32,
@@ -111,8 +136,14 @@ pub struct Options {
     pub timings: bool,
 }
 
-/// Reads an image from `input`, writes it as ASCII art to `out`, then the timings to stderr.
+/// Reads an image from `input`, writes it as art to `out`, then the timings to stderr.
 pub fn run(mut input: impl Read, out: &mut impl Write, options: Options) -> Result<()> {
+    let blocks_mode = options.mode.blocks();
+    if blocks_mode.is_some() && options.depth.is_none() {
+        color_eyre::eyre::bail!(
+            "half and quadrant modes need color: pass --color truecolor or --color 256"
+        );
+    }
     let start = Instant::now();
     let mut timings = Timings::default();
 
@@ -141,17 +172,21 @@ pub fn run(mut input: impl Read, out: &mut impl Write, options: Options) -> Resu
         })
         .context("failed to load image")?;
 
+    let grid = Grid::fit(w, h, options.width);
     let mut cells = Cells::default();
-    timings.time("render", || {
-        converter.render(Grid::fit(w, h, options.width), &mut cells)
+    let mut blocks = Blocks::default();
+    timings.time("render", || match blocks_mode {
+        Some(mode) => converter.render_blocks(grid, mode, &mut blocks),
+        None => converter.render(grid, &mut cells),
     });
 
     timings
         .time("write", || {
             let mut text = String::new();
-            match options.depth {
-                Some(depth) => cells.write_ansi(depth, &mut text),
-                None => cells.write_plain(&mut text),
+            match (blocks_mode, options.depth) {
+                (Some(_), Some(depth)) => blocks.write_ansi(depth, &mut text),
+                (None, Some(depth)) => cells.write_ansi(depth, &mut text),
+                (_, None) => cells.write_plain(&mut text),
             }
             text.push('\n');
             out.write_all(text.as_bytes())?;

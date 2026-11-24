@@ -35,6 +35,8 @@ pub enum Action {
     Help,
     /// Draws with the named ramp preset.
     SetRamp(String),
+    /// Switches the art to the next mode: ASCII, half blocks, then quadrant blocks.
+    CycleArtMode,
     /// A fetched image for artwork `id`, and how long the fetch took.
     #[strum(to_string = "UpdateImage(id: {id})")]
     UpdateImage {

@@ -32,6 +32,7 @@ From here you can select something else or hit `esc` again to close the pop-up.
 
 The art fits the window and redraws in color whenever you resize it.
 Hit `a` to pick a different ramp, the characters the art is drawn with, from a pop-up.
+Hit `b` to cycle from ASCII to half blocks to quadrant blocks and back, for more detail in full color.
 Hit `t` to slide out a HUD with how long each fetch, decode, render and frame took, and `t` again to close it.
 
 When you're done, you can hit `q`, `ctrl-d`, or `ctrl-c` to quit.
@@ -232,6 +233,14 @@ Pass `--color truecolor`, `--color 256` or `--color never` to choose yourself, f
 
 ```sh
 % acres-cli ascii-art 77333.jpg --color truecolor > 77333.ans
+```
+
+For more detail in full color, draw with block glyphs instead of characters.
+`--mode half` draws `▀` in two colors, two pixels per cell, and `--mode quadrant` draws quadrant blocks, four pixels per cell.
+Block modes need color, so they don't work with `--color never` or when `auto` turns color off:
+
+```sh
+% acres-cli ascii-art 77333.jpg --mode half
 ```
 
 Add `--timings` to see how long each stage took. The timings go to stderr after the art, so they never break up the image.

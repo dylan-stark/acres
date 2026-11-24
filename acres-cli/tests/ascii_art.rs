@@ -100,3 +100,44 @@ fn timings_go_to_stderr_after_the_art() -> Result<(), Box<dyn std::error::Error>
     }
     Ok(())
 }
+
+#[test]
+fn block_modes_write_foreground_and_background() -> Result<(), Box<dyn std::error::Error>> {
+    for (mode, glyph) in [("half", "\u{2580}"), ("quadrant", "\u{2580}")] {
+        let output = ascii_art()?
+            .args(["--mode", mode, "--color", "truecolor"])
+            .output()?;
+        assert!(output.status.success(), "{mode}");
+        let text = String::from_utf8(output.stdout)?;
+        assert!(text.contains("48;2;"), "{mode}");
+        assert!(text.contains(glyph), "{mode}");
+        assert_eq!(text.lines().count(), 13, "{mode} keeps the ASCII grid");
+    }
+    Ok(())
+}
+
+#[test]
+fn quadrant_mode_uses_quadrant_glyphs() -> Result<(), Box<dyn std::error::Error>> {
+    ascii_art()?
+        .args(["--mode", "quadrant", "--color", "256"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\x1b[48;5;").or(predicate::str::contains(";48;5;")))
+        .stdout(predicate::str::is_match(
+            "[\u{2596}-\u{259f}\u{258c}\u{2590}\u{2584}]",
+        )?);
+    Ok(())
+}
+
+#[test]
+fn block_modes_need_color() -> Result<(), Box<dyn std::error::Error>> {
+    for args in [["--color", "never"], ["--color", "auto"]] {
+        ascii_art()?
+            .args(["--mode", "half"])
+            .args(args)
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("need color"));
+    }
+    Ok(())
+}

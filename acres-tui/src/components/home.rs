@@ -1,6 +1,8 @@
 use std::{num::NonZeroU32, time::Instant};
 
-use charaoke::{Cells, ColorDepth, Converter, Grid, PixelFormat, Ramp, ansi256};
+use charaoke::{
+    BlockMode, Blocks, Cells, ColorDepth, Converter, Grid, PixelFormat, QUADRANTS, Ramp, ansi256,
+};
 use color_eyre::{Result, eyre};
 use ratatui::{prelude::*, widgets::*};
 use tokio::sync::mpsc::UnboundedSender;
@@ -13,8 +15,11 @@ pub struct Home {
     converter: Converter,
     /// The loaded image's size in pixels.
     image_size: Option<(NonZeroU32, NonZeroU32)>,
+    /// Block glyphs to draw in place of characters, or `None` for ASCII.
+    mode: Option<BlockMode>,
     cells: Cells,
-    /// The pane `cells` was rendered for, so a redraw at the same size skips the render.
+    blocks: Blocks,
+    /// The pane `cells` or `blocks` was rendered for, so a redraw at the same size skips the render.
     rendered_for: Option<Rect>,
     depth: ColorDepth,
     show_logs: bool,
@@ -39,7 +44,9 @@ impl Home {
         Self {
             converter: Converter::new(Ramp::preset(DEFAULT_RAMP).expect("default is a preset")),
             image_size: None,
+            mode: None,
             cells: Cells::default(),
+            blocks: Blocks::default(),
             rendered_for: None,
             depth,
             show_logs: false,
@@ -94,16 +101,51 @@ impl Home {
             NonZeroU32::new(area.height.into()),
         ) else {
             self.cells = Cells::default();
+            self.blocks = Blocks::default();
             return None;
         };
         let (w, h) = self.image_size?;
+        let grid = Grid::fit_within(w, h, max_cols, max_rows);
         let start = Instant::now();
-        self.converter
-            .render(Grid::fit_within(w, h, max_cols, max_rows), &mut self.cells);
+        match self.mode {
+            Some(mode) => self.converter.render_blocks(grid, mode, &mut self.blocks),
+            None => self.converter.render(grid, &mut self.cells),
+        }
         Some(
-            Timing::new(format!("resize {}x{}", area.width, area.height))
-                .stage("render", start.elapsed()),
+            Timing::new(format!(
+                "resize {}x{} {}",
+                area.width,
+                area.height,
+                mode_name(self.mode)
+            ))
+            .stage("render", start.elapsed()),
         )
+    }
+
+    /// Columns and rows of the art last rendered.
+    fn art_size(&self) -> (usize, usize) {
+        match self.mode {
+            Some(_) => (self.blocks.cols(), self.blocks.rows()),
+            None => (self.cells.cols(), self.cells.rows()),
+        }
+    }
+}
+
+/// The art mode after `mode`: ASCII, then half blocks, then quadrant blocks.
+fn next_mode(mode: Option<BlockMode>) -> Option<BlockMode> {
+    match mode {
+        None => Some(BlockMode::Half),
+        Some(BlockMode::Half) => Some(BlockMode::Quadrant),
+        Some(_) => None,
+    }
+}
+
+/// How the HUD and logs name an art mode.
+fn mode_name(mode: Option<BlockMode>) -> &'static str {
+    match mode {
+        None => "ascii",
+        Some(BlockMode::Half) => "half",
+        Some(_) => "quadrant",
     }
 }
 
@@ -149,6 +191,45 @@ impl Widget for CellsWidget<'_> {
     }
 }
 
+/// Draws [`Blocks`] straight into a Ratatui buffer: one glyph with a foreground and a background
+/// color per cell.
+///
+/// `charaoke/benches/tui_proxy.rs` carries a copy of this widget for its `drag_half` and
+/// `drag_quadrant` benches, and a test below checks the two draw the same buffer.
+pub struct BlocksWidget<'a> {
+    pub blocks: &'a Blocks,
+    pub depth: ColorDepth,
+}
+
+impl Widget for BlocksWidget<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let cols = self.blocks.cols();
+        if cols == 0 {
+            return;
+        }
+        let color = |[r, g, b]: [u8; 3]| match self.depth {
+            ColorDepth::TrueColor => Color::Rgb(r, g, b),
+            _ => Color::Indexed(ansi256([r, g, b])),
+        };
+        let rows = self
+            .blocks
+            .masks()
+            .chunks(cols)
+            .zip(self.blocks.foreground().chunks(cols))
+            .zip(self.blocks.background().chunks(cols));
+        for (((masks, fgs), bgs), y) in rows.zip(area.top()..area.bottom()) {
+            let cells = masks.iter().zip(fgs).zip(bgs);
+            for (((&mask, &fg), &bg), x) in cells.zip(area.left()..area.right()) {
+                if let Some(cell) = buf.cell_mut((x, y)) {
+                    cell.set_char(QUADRANTS[usize::from(mask)])
+                        .set_fg(color(fg))
+                        .set_bg(color(bg));
+                }
+            }
+        }
+    }
+}
+
 impl Component for Home {
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<()> {
         self.action_tx = Some(tx);
@@ -176,6 +257,11 @@ impl Component for Home {
                     }
                     None => self.log(format!("no ramp named {name}")),
                 }
+            }
+            Action::CycleArtMode => {
+                self.mode = next_mode(self.mode);
+                self.log(format!("action: CycleArtMode({})", mode_name(self.mode)));
+                self.rendered_for = None;
             }
             Action::ToggleLogs => self.show_logs = !self.show_logs,
             Action::Log(message) => self.log(message),
@@ -206,7 +292,8 @@ impl Component for Home {
 
         let rendered = self.fit(view_area);
         let start = Instant::now();
-        let art = Rect::new(0, 0, self.cells.cols() as u16, self.cells.rows() as u16);
+        let (cols, rows) = self.art_size();
+        let art = Rect::new(0, 0, cols as u16, rows as u16);
         let [_, middle, _] = Layout::horizontal([
             Constraint::Fill(1),
             Constraint::Length(art.width),
@@ -219,13 +306,22 @@ impl Component for Home {
             Constraint::Fill(1),
         ])
         .areas(middle);
-        frame.render_widget(
-            CellsWidget {
-                cells: &self.cells,
-                depth: self.depth,
-            },
-            art_area,
-        );
+        match self.mode {
+            Some(_) => frame.render_widget(
+                BlocksWidget {
+                    blocks: &self.blocks,
+                    depth: self.depth,
+                },
+                art_area,
+            ),
+            None => frame.render_widget(
+                CellsWidget {
+                    cells: &self.cells,
+                    depth: self.depth,
+                },
+                art_area,
+            ),
+        }
         if let Some(timing) = rendered {
             self.send(Action::Timing(timing.stage("draw", start.elapsed())));
         }
@@ -237,6 +333,10 @@ impl Component for Home {
 #[cfg(test)]
 #[path = "../../../charaoke/benches/common/cells_widget.rs"]
 mod bench_widget;
+
+#[cfg(test)]
+#[path = "../../../charaoke/benches/common/blocks_widget.rs"]
+mod bench_blocks_widget;
 
 #[cfg(test)]
 mod tests {
@@ -307,7 +407,7 @@ mod tests {
         let Ok(Action::Timing(resize)) = rx.try_recv() else {
             panic!("expected resize timing");
         };
-        assert_eq!(resize.label, "resize 40x12");
+        assert_eq!(resize.label, "resize 40x12 ascii");
         render(&mut home, 40, 12);
         assert!(rx.try_recv().is_err(), "same size skips the render");
 
@@ -345,6 +445,85 @@ mod tests {
         });
         let copy = draw(&|f| f.render_widget(bench_widget::CellsWidget(&home.cells), area));
         assert_eq!(real, copy);
+    }
+
+    #[test]
+    fn renders_half_blocks_centered() {
+        let mut home = with_image();
+        home.update(Action::CycleArtMode).unwrap();
+        insta::assert_snapshot!(render(&mut home, 40, 12));
+    }
+
+    #[test]
+    fn renders_quadrant_blocks_centered() {
+        let mut home = with_image();
+        home.update(Action::CycleArtMode).unwrap();
+        home.update(Action::CycleArtMode).unwrap();
+        insta::assert_snapshot!(render(&mut home, 40, 12));
+    }
+
+    #[test]
+    fn cycle_art_mode_re_renders_and_wraps_to_ascii() {
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut home = with_image();
+        home.register_action_handler(tx).unwrap();
+        render(&mut home, 40, 12);
+        for expected in ["half", "quadrant", "ascii"] {
+            while rx.try_recv().is_ok() {}
+            home.update(Action::CycleArtMode).unwrap();
+            render(&mut home, 40, 12);
+            let Ok(Action::Timing(resize)) = rx.try_recv() else {
+                panic!("expected a {expected} render");
+            };
+            assert_eq!(resize.label, format!("resize 40x12 {expected}"));
+            // Every mode draws on the same grid of cells.
+            assert_eq!(home.art_size(), (35, 12), "{expected}");
+        }
+        assert_eq!(home.mode, None);
+    }
+
+    #[test]
+    fn blocks_widget_draws_what_the_bench_copy_draws() {
+        let mut home = with_image();
+        home.update(Action::CycleArtMode).unwrap();
+        home.update(Action::CycleArtMode).unwrap();
+        let area = Rect::new(0, 0, 60, 20);
+        home.fit(area);
+        let mut real = Buffer::empty(area);
+        BlocksWidget {
+            blocks: &home.blocks,
+            depth: ColorDepth::TrueColor,
+        }
+        .render(area, &mut real);
+        let mut copy = Buffer::empty(area);
+        bench_blocks_widget::BlocksWidget(&home.blocks).render(area, &mut copy);
+        assert_eq!(real, copy);
+    }
+
+    #[test]
+    fn blocks_widget_sets_both_colors() {
+        let mut home = with_image();
+        home.update(Action::CycleArtMode).unwrap();
+        home.fit(Rect::new(0, 0, 8, 4));
+        for depth in [ColorDepth::TrueColor, ColorDepth::Ansi256] {
+            let mut buf = Buffer::empty(Rect::new(0, 0, 8, 4));
+            BlocksWidget {
+                blocks: &home.blocks,
+                depth,
+            }
+            .render(buf.area, &mut buf);
+            let ([fr, fg, fb], [br, bg, bb]) =
+                (home.blocks.foreground()[0], home.blocks.background()[0]);
+            let (fore, back) = match depth {
+                ColorDepth::TrueColor => (Color::Rgb(fr, fg, fb), Color::Rgb(br, bg, bb)),
+                _ => (
+                    Color::Indexed(ansi256([fr, fg, fb])),
+                    Color::Indexed(ansi256([br, bg, bb])),
+                ),
+            };
+            assert_eq!(buf[(0, 0)].symbol(), "▀");
+            assert_eq!((buf[(0, 0)].fg, buf[(0, 0)].bg), (fore, back));
+        }
     }
 
     #[test]

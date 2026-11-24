@@ -218,7 +218,7 @@ fn distance(a: [u8; 3], b: [u8; 3]) -> u32 {
 
 /// Appends `v` in decimal.
 #[inline]
-fn push_u8(out: &mut String, v: u8) {
+pub(crate) fn push_u8(out: &mut String, v: u8) {
     if v >= 100 {
         out.push(char::from(b'0' + v / 100));
     }
