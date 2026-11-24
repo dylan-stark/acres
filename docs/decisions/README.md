@@ -18,3 +18,4 @@ Short records of non-obvious decisions, so a later reader (human or agent) knows
 | [0009](0009-charaoke-load-once-render-many.md) | `charaoke` loads an image once and renders it many times | Proposed |
 | [0010](0010-charaoke-color.md) | `charaoke` renders colored cells and writes ANSI separately | Accepted |
 | [0011](0011-switch-to-charaoke.md) | Switch the TUI and CLI to `charaoke` | Accepted |
+| [0012](0012-charaoke-edge-glyphs.md) | `charaoke` does not add edge-aware glyphs | Rejected |
