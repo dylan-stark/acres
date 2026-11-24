@@ -38,12 +38,12 @@ coverage:
 	cargo llvm-cov --locked --all-features --workspace --summary-only
 .PHONY: coverage
 
-# Criterion benches: the charaoke stages and the image-to-ascii baseline (see ADR 0008).
+# Criterion benches: the charaoke stages, the image-to-ascii baseline (see ADR 0008) and acres parsing (ADR 0016).
 # Every run is compared with the previous one. To compare against a fixed point instead, save a
 # named baseline once (`make bench-save`, default name `main`) and compare later runs with
 # `make bench-compare`, which leaves the saved baseline untouched. `FILTER` narrows any of them to
 # matching benchmark names, e.g. `make bench-compare FILTER=charaoke/`.
-BENCH = cargo bench --locked --bench '*' -p charaoke -p image-to-ascii-builder
+BENCH = cargo bench --locked --bench '*' -p charaoke -p image-to-ascii-builder -p acres
 BASELINE ?= main
 FILTER ?=
 

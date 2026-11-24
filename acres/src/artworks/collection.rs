@@ -6,7 +6,7 @@ use std::str::FromStr;
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Serialize};
 
-use crate::AcresError;
+use crate::{Error, RequestError, artworks::search::MAX_LIMIT};
 
 // TODO: Finish out the implementation of this type and document.
 #[doc(hidden)]
@@ -239,7 +239,16 @@ impl Builder {
     }
 
     /// Builds request for artworks collection.
-    pub fn build(&self) -> Result<Request, AcresError> {
+    pub fn build(&self) -> Result<Request, Error> {
+        if let Some(limit) = self.limit
+            && limit > MAX_LIMIT
+        {
+            return Err(RequestError::OutOfRange {
+                name: "limit",
+                value: limit.into(),
+            }
+            .into());
+        }
         let query_params = CollectionQueryParams {
             ids: self.ids.clone(),
             limit: self.limit,

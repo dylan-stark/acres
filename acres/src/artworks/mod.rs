@@ -12,6 +12,8 @@ pub use collection::Artworks;
 pub use manifest::Manifest;
 pub use search::Search;
 
+pub use crate::model::{Artwork, ArtworkSummary, Thumbnail};
+
 /// Modules for requesting items from the [Artworks Collection].
 ///
 /// [Artworks Collection]: https://api.artic.edu/docs/#artworks
@@ -41,6 +43,6 @@ pub mod request {
     ///
     /// [`GET /artworks/search`]: https://api.artic.edu/docs/#get-artworks-search
     pub mod search {
-        pub use crate::artworks::search::{Builder, Request};
+        pub use crate::artworks::search::{Builder, Filters, MAX_LIMIT, MAX_RESULTS, Request};
     }
 }

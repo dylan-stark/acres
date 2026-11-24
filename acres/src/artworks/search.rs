@@ -2,12 +2,10 @@
 
 use std::fmt::Display;
 
-use anyhow::Context;
 use bytes::{Buf, Bytes};
-use serde::ser::SerializeSeq;
 use serde::{Deserialize, Serialize};
 
-use crate::AcresError;
+use crate::{Error, ParseError, RequestError};
 
 // TODO: Finish out the implementation of this type and document.
 #[doc(hidden)]
@@ -29,18 +27,19 @@ impl From<Bytes> for Search {
 }
 
 impl TryFrom<Vec<u8>> for Search {
-    type Error = AcresError;
+    type Error = Error;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(serde_json::from_slice::<Search>(&value).context("loading Search from bytes")?)
+        serde_json::from_slice::<Search>(&value)
+            .map_err(|e| ParseError::body("search bytes", e).into())
     }
 }
 
 impl TryFrom<Search> for Vec<u8> {
-    type Error = AcresError;
+    type Error = Error;
 
     fn try_from(value: Search) -> Result<Self, Self::Error> {
-        Ok(serde_json::to_vec::<Search>(&value).context("dumping Search to bytes")?)
+        serde_json::to_vec::<Search>(&value).map_err(|e| ParseError::body("search value", e).into())
     }
 }
 
@@ -118,6 +117,10 @@ pub struct Builder {
     from: Option<u32>,
     size: Option<u32>,
     facets: Option<Vec<String>>,
+    fields: Option<Vec<String>>,
+    limit: Option<u32>,
+    page: Option<u32>,
+    filters: Filters,
 }
 
 impl Builder {
@@ -195,8 +198,50 @@ impl Builder {
         self
     }
 
+    /// Sets which fields each record returns, such as [`ArtworkSummary::FIELDS`].
+    ///
+    /// [`ArtworkSummary::FIELDS`]: crate::artworks::ArtworkSummary::FIELDS
+    pub fn fields(mut self, fields: Option<Vec<String>>) -> Self {
+        tracing::info!(msg = "Setting fields", ?fields);
+        self.fields = fields;
+        self
+    }
+
+    /// Sets how many records a page holds, at most 100.
+    pub fn limit(mut self, limit: Option<u32>) -> Self {
+        tracing::info!(msg = "Setting limit", ?limit);
+        self.limit = limit;
+        self
+    }
+
+    /// Sets which page to return, counted from 1.
+    pub fn page(mut self, page: Option<u32>) -> Self {
+        tracing::info!(msg = "Setting page", ?page);
+        self.page = page;
+        self
+    }
+
+    /// Narrows the search with typed filters.
+    ///
+    /// ```
+    /// use acres::artworks::request::search::{Builder, Filters};
+    ///
+    /// let request = Builder::new()
+    ///     .base_uri("https://api.artic.edu/api/v1".into())
+    ///     .q(Some("monet".into()))
+    ///     .filters(Filters { is_public_domain: Some(true), ..Filters::default() })
+    ///     .build()
+    ///     .unwrap();
+    /// assert!(request.to_string().contains("query[bool][filter][0][term][is_public_domain]=true"));
+    /// ```
+    pub fn filters(mut self, filters: Filters) -> Self {
+        tracing::info!(msg = "Setting filters", ?filters);
+        self.filters = filters;
+        self
+    }
+
     /// Builds artworks search.
-    pub fn build(&self) -> Result<Request, AcresError> {
+    pub fn build(&self) -> Result<Request, Error> {
         let query_params = SearchQueryParams {
             q: self.q.clone(),
             query: self.query.clone(),
@@ -204,10 +249,80 @@ impl Builder {
             from: self.from,
             size: self.size,
             facets: self.facets.clone(),
+            fields: self.fields.clone(),
+            limit: self.limit,
+            page: self.page,
+            filters: self.filters.clone(),
         };
         query_params.valid()?;
         let request = format!("{}/artworks/search{}", self.base_uri, query_params);
         Ok(Request(request))
+    }
+}
+
+/// The most records one search can reach, across all its pages.
+pub const MAX_RESULTS: u64 = 10_000;
+
+/// The most records one page can hold.
+pub const MAX_LIMIT: u32 = 100;
+
+/// Typed filters for a search. Each one that is set narrows the results; unset ones don't.
+///
+/// They are sent as an Elasticsearch `bool` filter in the API's bracket form, such as
+/// `query[bool][filter][0][exists][field]=image_id`.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Filters {
+    /// Only artworks with an image.
+    pub has_image: bool,
+    /// Only public-domain artworks, or only those that are not.
+    pub is_public_domain: Option<bool>,
+    /// Only artworks on view, or only those that are not.
+    pub is_on_view: Option<bool>,
+    /// Only artworks from this department, such as `PC-10`.
+    pub department_id: Option<String>,
+    /// Only artworks of this type.
+    pub artwork_type_id: Option<u32>,
+    /// Only artworks by this artist.
+    pub artist_id: Option<u32>,
+    /// Only artworks made within these years, inclusive. Negative years are BCE.
+    pub years: Option<(i32, i32)>,
+}
+
+impl Filters {
+    /// Whether no filter is set.
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+
+    /// The `bool` filter's clauses, each as `(path, value)` pairs relative to the clause.
+    fn clauses(&self) -> Vec<Vec<(String, String)>> {
+        let mut clauses = Vec::new();
+        if self.has_image {
+            clauses.push(vec![("[exists][field]".into(), "image_id".into())]);
+        }
+        let terms = [
+            (
+                "is_public_domain",
+                self.is_public_domain.map(|v| v.to_string()),
+            ),
+            ("is_on_view", self.is_on_view.map(|v| v.to_string())),
+            ("department_id", self.department_id.clone()),
+            (
+                "artwork_type_id",
+                self.artwork_type_id.map(|v| v.to_string()),
+            ),
+            ("artist_id", self.artist_id.map(|v| v.to_string())),
+        ];
+        for (field, value) in terms {
+            if let Some(value) = value {
+                clauses.push(vec![(format!("[term][{field}]"), value)]);
+            }
+        }
+        if let Some((start, end)) = self.years {
+            clauses.push(vec![("[range][date_end][gte]".into(), start.to_string())]);
+            clauses.push(vec![("[range][date_start][lte]".into(), end.to_string())]);
+        }
+        clauses
     }
 }
 
@@ -219,19 +334,33 @@ pub(super) struct SearchQueryParams {
     pub(super) from: Option<u32>,
     pub(super) size: Option<u32>,
     pub(super) facets: Option<Vec<String>>,
+    pub(super) fields: Option<Vec<String>>,
+    pub(super) limit: Option<u32>,
+    pub(super) page: Option<u32>,
+    pub(super) filters: Filters,
+}
+
+/// Percent-encodes a query value, so spaces, `&` and `#` in a search don't break the URL.
+fn encode(value: &str) -> String {
+    url::form_urlencoded::byte_serialize(value.as_bytes()).collect()
 }
 
 impl Display for SearchQueryParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut params: Vec<String> = vec![];
         if let Some(q) = &self.q {
-            params.push(format!("q={q}"));
+            params.push(format!("q={}", encode(q)));
         }
         if let Some(query) = &self.query {
-            params.push(format!("query={query}"));
+            params.push(format!("query={}", encode(query)));
+        }
+        for (i, clause) in self.filters.clauses().iter().enumerate() {
+            for (path, value) in clause {
+                params.push(format!("query[bool][filter][{i}]{path}={}", encode(value)));
+            }
         }
         if let Some(sort) = &self.sort {
-            params.push(format!("sort={sort}"));
+            params.push(format!("sort={}", encode(sort)));
         }
         if let Some(from) = &self.from {
             params.push(format!("from={from}"));
@@ -245,6 +374,17 @@ impl Display for SearchQueryParams {
             let facets = facets.join(",");
             params.push(format!("facets={facets}"));
         }
+        if let Some(fields) = &self.fields
+            && !fields.is_empty()
+        {
+            params.push(format!("fields={}", fields.join(",")));
+        }
+        if let Some(limit) = &self.limit {
+            params.push(format!("limit={limit}"));
+        }
+        if let Some(page) = &self.page {
+            params.push(format!("page={page}"));
+        }
         if params.is_empty() {
             Ok(())
         } else {
@@ -253,40 +393,42 @@ impl Display for SearchQueryParams {
     }
 }
 
-impl Serialize for SearchQueryParams {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut seq = serializer.serialize_seq(None)?;
-        if let Some(q) = &self.q {
-            seq.serialize_element(&("q", q))?
-        }
-        if let Some(query) = &self.query {
-            seq.serialize_element(&("query", query))?
-        }
-        if let Some(sort) = &self.sort {
-            seq.serialize_element(&("sort", sort))?
-        }
-        if let Some(from) = &self.from {
-            seq.serialize_element(&("from", from))?
-        }
-        if let Some(size) = &self.size {
-            seq.serialize_element(&("size", size))?
-        }
-        if let Some(facets) = &self.facets {
-            seq.serialize_element(&("facets", facets.join(",")))?
-        }
-        seq.end()
-    }
-}
-
 impl SearchQueryParams {
-    pub fn valid(&self) -> Result<(), AcresError> {
-        if self.sort.is_some() && self.query.is_none() {
-            return Err(AcresError::InvalidSearchQueryParams(
+    pub fn valid(&self) -> Result<(), RequestError> {
+        let has_query = self.query.is_some() || !self.filters.is_empty();
+        if self.sort.is_some() && !has_query {
+            return Err(RequestError::InvalidQuery(
                 "sort can only be used if query is also set".to_string(),
             ));
+        }
+        if self.query.is_some() && !self.filters.is_empty() {
+            return Err(RequestError::InvalidQuery(
+                "query and filters can't both be set".to_string(),
+            ));
+        }
+        for (name, value) in [("limit", self.limit), ("size", self.size)] {
+            if let Some(value) = value
+                && value > MAX_LIMIT
+            {
+                return Err(RequestError::OutOfRange {
+                    name,
+                    value: value.into(),
+                });
+            }
+        }
+        // The last record a request reaches, by page and limit (default 12) or by from and size.
+        let by_page = self
+            .page
+            .map(|page| u64::from(page) * u64::from(self.limit.unwrap_or(12)));
+        let by_from = self
+            .from
+            .map(|from| u64::from(from) + u64::from(self.size.unwrap_or(10)));
+        for (name, last) in [("page", by_page), ("from", by_from)] {
+            if let Some(last) = last
+                && last > MAX_RESULTS
+            {
+                return Err(RequestError::OutOfRange { name, value: last });
+            }
         }
         Ok(())
     }
@@ -295,24 +437,139 @@ impl SearchQueryParams {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::AcresError;
+
+    fn params() -> SearchQueryParams {
+        SearchQueryParams {
+            q: None,
+            query: None,
+            sort: None,
+            from: None,
+            size: None,
+            facets: None,
+            fields: None,
+            limit: None,
+            page: None,
+            filters: Filters::default(),
+        }
+    }
 
     #[test]
     fn sort_requires_query() {
         let params = SearchQueryParams {
-            q: None,
-            query: None,
             sort: Some("field".to_string()),
-            from: None,
-            size: None,
-            facets: None,
+            ..params()
         };
 
         let result = params.valid();
-        assert!(result.is_err());
+        assert!(matches!(result, Err(RequestError::InvalidQuery(_))));
+    }
+
+    #[test]
+    fn sort_works_with_filters() {
+        let params = SearchQueryParams {
+            sort: Some("title".to_string()),
+            filters: Filters {
+                has_image: true,
+                ..Filters::default()
+            },
+            ..params()
+        };
+        assert!(params.valid().is_ok());
+    }
+
+    #[test]
+    fn query_and_filters_conflict() {
+        let params = SearchQueryParams {
+            query: Some("{}".to_string()),
+            filters: Filters {
+                has_image: true,
+                ..Filters::default()
+            },
+            ..params()
+        };
+        assert!(matches!(params.valid(), Err(RequestError::InvalidQuery(_))));
+    }
+
+    #[test]
+    fn limit_over_100_is_refused() {
+        let params = SearchQueryParams {
+            limit: Some(101),
+            ..params()
+        };
         assert!(matches!(
-            result,
-            Err(AcresError::InvalidSearchQueryParams(_))
+            params.valid(),
+            Err(RequestError::OutOfRange {
+                name: "limit",
+                value: 101
+            })
         ));
+    }
+
+    #[test]
+    fn last_page_within_10000_is_allowed() {
+        let params = SearchQueryParams {
+            limit: Some(50),
+            page: Some(200),
+            ..params()
+        };
+        assert!(params.valid().is_ok());
+    }
+
+    #[test]
+    fn page_past_10000_is_refused() {
+        let params = SearchQueryParams {
+            limit: Some(50),
+            page: Some(201),
+            ..params()
+        };
+        assert!(matches!(
+            params.valid(),
+            Err(RequestError::OutOfRange {
+                name: "page",
+                value: 10_050
+            })
+        ));
+    }
+
+    #[test]
+    fn q_is_percent_encoded() {
+        let params = SearchQueryParams {
+            q: Some("water lilies & bridges".into()),
+            ..params()
+        };
+        assert_eq!(params.to_string(), "?q=water+lilies+%26+bridges");
+    }
+
+    #[test]
+    fn filters_become_bool_filter_clauses() {
+        let params = SearchQueryParams {
+            filters: Filters {
+                has_image: true,
+                is_on_view: Some(true),
+                artist_id: Some(35),
+                years: Some((1800, 1900)),
+                ..Filters::default()
+            },
+            ..params()
+        };
+        assert_eq!(
+            params.to_string(),
+            "?query[bool][filter][0][exists][field]=image_id\
+             &query[bool][filter][1][term][is_on_view]=true\
+             &query[bool][filter][2][term][artist_id]=35\
+             &query[bool][filter][3][range][date_end][gte]=1800\
+             &query[bool][filter][4][range][date_start][lte]=1900"
+        );
+    }
+
+    #[test]
+    fn fields_limit_and_page_are_sent() {
+        let params = SearchQueryParams {
+            fields: Some(vec!["id".into(), "title".into()]),
+            limit: Some(50),
+            page: Some(2),
+            ..params()
+        };
+        assert_eq!(params.to_string(), "?fields=id,title&limit=50&page=2");
     }
 }
