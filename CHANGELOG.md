@@ -27,6 +27,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `charaoke/tui_proxy/drag_fit` bench, a resize drag that changes both width and height through `Grid::fit_within`.
 - Block modes, for more detail in full color: half blocks (`▀`, two pixels per cell) and quadrant blocks (four pixels per cell). `acres-cli ascii-art` takes `--mode ascii|half|quadrant`, and `b` cycles the modes in `acres-tui` (see [ADR 0014](docs/decisions/0014-charaoke-block-modes.md)).
 - `charaoke::Converter::render_blocks`, `BlockMode`, `Blocks` (with `Blocks::write_ansi`) and `QUADRANTS`, plus the `charaoke/render_blocks`, `charaoke/ansi_blocks` and `charaoke/tui_proxy/drag_half` and `drag_quadrant` benches.
+- `acres::Catalog`, a shared client for the AIC API that rate-limits to 60 requests a minute, retries 429 and 503 responses, caches with lifetimes (images forever, records 7 days, search pages 24 hours) and sends `AIC-User-Agent`. Waiting requests can be cancelled by dropping them, expire after 10 seconds by default, and metadata goes before images (see [ADR 0016](docs/decisions/0016-acres-catalog-client.md)).
+- Typed responses in `acres`: `Page<T>`, `Item<T>`, `artworks::ArtworkSummary` and `artworks::Artwork`, each with a `FIELDS` list to request.
+- The `acres` search builder takes `fields`, `limit`, `page` and typed `Filters` (image, public domain, on view, department, type, artist, years), and refuses a `limit` over 100 or a page past 10,000 records.
+- `ACRES_OFFLINE` answers only from the cache, and `ACRES_CONTACT` adds a contact to `AIC-User-Agent`.
+- `acres/parse/search_page` bench, run by `make bench` with the others.
 
 ### Changed
 
@@ -44,12 +49,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `iiif` error variants are renamed to describe what is wrong with the input: `HasQuery`/`HasFragment`/`InvalidUriWithUserInfo` are `UnexpectedQuery`/`UnexpectedFragment`/`UnexpectedUserInfo`; `InvalidUriChar`/`InvalidUriEscape` are `InvalidChar`/`InvalidEscape`; `InvalidUriPrefix` is merged into `InvalidPrefix`; out-of-range `InvalidPercentage`/`InvalidDegree` are `PercentageOutOfRange`/`DegreesOutOfRange`, and the non-numeric `InvalidPercentageString`/`InvalidDegreeString` are `InvalidPercentage`/`InvalidDegrees`; `MissingInfoPart` is `MissingInfoJson`; and an `ImageRequest` with too few segments reports `RequestError::MissingBaseUri` instead of `MissingIdentifier`. `InvalidPrefix` and `InvalidIdentifier` now live on `BaseUriError`. The unused `MissingParams` is removed.
 - `BaseUriError::Malformed` (formerly `InvalidUri`) no longer exposes `url::ParseError`, so `url` stays out of the `iiif` public API (see [ADR 0005](docs/decisions/0005-iiif-no-public-url.md)).
 - `iiif` and `acres` error messages no longer repeat their source error, so `eyre`/`anyhow` reports print each cause once. Deserializing an `iiif` type still includes the whole cause chain in its message. Several `iiif` messages are reworded to match the variant names (e.g. "unexpected query in URI", "malformed URI", "missing region in image request").
-- `acres::AcresError` has a new `InvalidImageUrl` variant for an artwork image URL that can't be built, instead of reusing an `iiif` error. `AcresError` isn't `#[non_exhaustive]`, so exhaustive matches on it need the new arm.
 - `iiif::BaseUri` parsing follows IIIF Image API §2/§3/§9 and RFC 3986 strictly. It now rejects user info, missing or extra slashes after the scheme, queries, fragments, trailing slashes, empty path segments, unencoded `@ [ ]`, raw non-ASCII or other characters outside RFC 3986, malformed `%` escapes, and `.`/`..` identifiers (encoded or not). Valid but non-canonical input is still accepted and displayed in canonical form.
 - `BaseUriError` has variants for these cases: `UnexpectedUserInfo`, `InvalidChar`, `InvalidEscape`, `InvalidPrefix`, `InvalidIdentifier`, `BadSlashes`, `UnexpectedQuery`, `UnexpectedFragment` and `TrailingSlash`. `MissingServer` now carries the offending URI.
 - `iiif` types serialize as their IIIF string form (e.g. `"https://example.org/images/12345"`) instead of their internal structure, and serde support is now behind the optional `serde` feature (see [ADR 0004](docs/decisions/0004-iiif-serde-as-strings.md)).
 - The `iiif` image request builder is now the public, documented `iiif::ImageRequestBuilder`, so it can be named (e.g. `ImageRequestBuilder<NoBaseUri>`). Only the base URI must be set before `build()`; the other parts default to `full/full/0/default.jpg`. `build()` takes `self` instead of `&self` (see [ADR 0007](docs/decisions/0007-iiif-builder-typestate-only-uri.md)).
 - `iiif` errors no longer implement `From<ParseFloatError>`; `ParameterError::InvalidPercentage` is used only for percentages.
+- `acres` errors are layered as in [ADR 0006](docs/decisions/0006-iiif-error-naming.md): `acres::Error` replaces `AcresError` and wraps `RequestError`, `ResponseError`, `CacheError` and `ParseError`. An artwork image URL that can't be built is `RequestError::InvalidImageUrl`, and `ArtworkInfo::load` returns a `Result`. No `anyhow` or `url` type is part of the API any more.
+- `acres` sends `AIC-User-Agent: acres/<version>` instead of an `ACRES-User-Agent` header with a hard-coded address.
+- The `acres` cache keeps each kind of response in its own folder (`pages`, `records`, `images`) under the cache directory, names entries by the hex hash of the URL, and writes them atomically. Caches from earlier versions are not read; delete the old files at the top of the cache directory to reclaim the space.
+- Search `q`, `query` and `sort` values are percent-encoded, so a search with spaces or `&` reaches the API intact.
 
 ### Removed
 

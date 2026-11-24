@@ -9,6 +9,7 @@ dependencies = [
  "anyhow",
  "bytes",
  "config",
+ "criterion",
  "directories",
  "iiif",
  "predicates",

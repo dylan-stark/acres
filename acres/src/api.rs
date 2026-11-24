@@ -1,9 +1,9 @@
 use std::fmt::{Debug, Display};
 
-use crate::{AcresError, config::Config};
-use anyhow::{Context, anyhow};
+use crate::{
+    CacheError, Error, ParseError, Resource, ResponseError, catalog::Cache, config::Config,
+};
 use bytes::{Buf, Bytes};
-use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 
 #[doc(hidden)]
@@ -18,11 +18,11 @@ impl Display for Cached {
 }
 
 impl TryFrom<Bytes> for Cached {
-    type Error = AcresError;
+    type Error = Error;
 
     fn try_from(value: Bytes) -> Result<Self, Self::Error> {
         let reader = value.reader();
-        serde_json::from_reader(reader).map_err(|e| AcresError::Unexpected(anyhow!(e.to_string())))
+        serde_json::from_reader(reader).map_err(|e| ParseError::body("response", e).into())
     }
 }
 
@@ -105,73 +105,50 @@ impl Api {
 }
 
 impl Api {
-    // TODO: Clean up optional query params handling. Passing usize here is a hack.
-    /// Fetch
-    pub async fn fetch<T>(&self, endpoint: String) -> Result<T, AcresError>
+    /// Fetches `endpoint`, from the cache when it holds it, and converts the body to `T`.
+    pub async fn fetch<T>(&self, endpoint: String) -> Result<T, Error>
     where
         T: TryFrom<Bytes>,
+        T::Error: std::error::Error + Send + Sync + 'static,
     {
         let cached: Option<Bytes> = self.load_from_cache(&endpoint)?;
         let results: Bytes = match cached {
             Some(results) => results,
-            None => fetch(&endpoint).await?,
+            None => {
+                let results = fetch(&endpoint).await?;
+                self.store_in_cache(&endpoint, results.clone())?;
+                results
+            }
         };
-        let results = self.store_in_cache(&endpoint, results)?;
-        T::try_from(results)
-            .map_err(|_| anyhow!("failed to store in cache"))
-            .map_err(AcresError::from)
+        T::try_from(results).map_err(|e| ParseError::body(endpoint, e).into())
+    }
+
+    fn cache(&self) -> Option<Cache> {
+        if !self.use_cache {
+            return None;
+        }
+        Config::new()
+            .ok()
+            .map(|config| Cache::new(Some(config.cache_dir), false))
     }
 
     /// Stores an item in cache.
-    pub fn store_in_cache(&self, endpoint: &String, data: Bytes) -> Result<Bytes, AcresError> {
-        if !self.use_cache {
-            return Ok(data);
+    ///
+    /// `Api` doesn't know what kind of resource it fetched, so everything it caches is kept as a
+    /// record, fresh for 7 days. [`crate::Catalog`] names the kind of each request.
+    pub fn store_in_cache(&self, endpoint: &str, data: Bytes) -> Result<Bytes, CacheError> {
+        if let Some(cache) = self.cache() {
+            cache.store(endpoint, Resource::Record, &data)?;
         }
-        let id = xxhash_rust::xxh3::xxh3_64(format!("{:?}", endpoint).as_bytes()).to_string();
-        tracing::debug!("Looking to store id '{}' to cache", &id);
-        let cache_file_path = match Config::new() {
-            Ok(config) => config.cache_dir.join(&id),
-            Err(_) => return Ok(data),
-        };
-        tracing::debug!(?cache_file_path);
-        if cache_file_path.is_file() {
-            return Ok(data);
-        }
-        std::fs::write(&cache_file_path, data.clone()).with_context(|| "writing data to file")?;
-        tracing::info!(
-            "Wrote '{}' to cache at '{}'",
-            id,
-            cache_file_path.to_str().unwrap_or("???")
-        );
         Ok(data)
     }
 
     /// Loads an item from cache.
-    pub fn load_from_cache(&self, endpoint: &String) -> Result<Option<Bytes>, AcresError> {
-        if !self.use_cache {
-            return Ok(None);
+    pub fn load_from_cache(&self, endpoint: &str) -> Result<Option<Bytes>, CacheError> {
+        match self.cache() {
+            Some(cache) => cache.load(endpoint, Resource::Record),
+            None => Ok(None),
         }
-        let id = xxhash_rust::xxh3::xxh3_64(format!("{:?}", endpoint).as_bytes()).to_string();
-        tracing::debug!("Looking to load id '{}' from cache", id);
-        let cache_file_path = match Config::new() {
-            Ok(config) => config.cache_dir.join(&id),
-            Err(_) => return Ok(None),
-        };
-        if !cache_file_path.is_file() {
-            return Ok(None);
-        }
-        let data = std::fs::read(&cache_file_path).with_context(|| {
-            format!(
-                "failed to read cached file from {}",
-                cache_file_path.display()
-            )
-        })?;
-        tracing::info!(
-            "Loaded '{}' from cache at '{}'",
-            id,
-            cache_file_path.display()
-        );
-        Ok(Some(data.into()))
     }
 }
 
@@ -264,40 +241,23 @@ impl Default for ApiBuilder {
 /// with caching.
 ///
 /// [`Api::fetch()`]: struct.Api.html#method.fetch
-pub async fn fetch(endpoint: &String) -> Result<Bytes, AcresError> {
-    let client = reqwest::Client::new();
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(
-        "user-agent",
-        format!("ACRES/{}", env!("CARGO_PKG_VERSION"),)
-            .parse()
-            .context("failed constructing user-agent header")?,
-    );
-    headers.insert(
-        "ACRES-User-Agent",
-        "ACRES (dylan.stark@gmail.com)"
-            .parse()
-            .context("failed constructing ACRES-User-Agent header")?,
-    );
-    let request = client.get(endpoint).headers(headers);
-    let response = request
-        .send()
-        .await
-        .with_context(|| format!("GET {}", endpoint))?;
-    let value = match response.status() {
-        StatusCode::OK => Ok(response
-            .bytes()
-            //.json::<serde_json::Value>()
-            .await
-            .with_context(|| format!("awaiting JSON from GET {}", endpoint))?),
-        _ => Err(response
-            .json::<serde_json::Value>()
-            .await
-            .map(|value| anyhow!("{}: {}", value["error"], value["detail"]))
-            .with_context(|| format!("awaiting errror from GET {}", endpoint))?),
+pub async fn fetch(endpoint: &String) -> Result<Bytes, Error> {
+    let transport = |e: reqwest::Error| ResponseError::Transport {
+        endpoint: endpoint.clone(),
+        source: e.into(),
     };
-    Ok(value?)
+    let contact = Config::new().ok().and_then(|config| config.contact);
+    let client = crate::catalog::http_client(contact.as_deref())?;
+    let response = client.get(endpoint).send().await.map_err(transport)?;
+    let status = response.status();
+    let body = response.bytes().await.map_err(transport)?;
+    if status.is_success() {
+        Ok(body)
+    } else {
+        Err(crate::catalog::status_error(endpoint, status, &body).into())
+    }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

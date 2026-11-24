@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AcresError, artworks::Artworks};
+use crate::{Error, ParseError, RequestError, artworks::Artworks};
 
 /// Artwork config.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -62,7 +62,7 @@ impl From<Artworks> for Vec<ArtworkInfo> {
 }
 
 impl TryFrom<ArtworkInfo> for iiif::BaseUri {
-    type Error = AcresError;
+    type Error = Error;
 
     fn try_from(artwork: ArtworkInfo) -> std::result::Result<Self, Self::Error> {
         tracing::debug!(artwork = ?artwork);
@@ -76,19 +76,24 @@ impl TryFrom<ArtworkInfo> for iiif::BaseUri {
             url
         };
         tracing::debug!(url = ?url);
-        let url = url.join(&artwork.data.image_id)?;
+        let url = url
+            .join(&artwork.data.image_id)
+            .map_err(|e| RequestError::InvalidImageUrl {
+                image_id: artwork.data.image_id.clone(),
+                source: e.into(),
+            })?;
         tracing::debug!(url = %url);
         tracing::trace!(url = ?url);
         url.as_str()
             .parse::<iiif::BaseUri>()
-            .map_err(|e| AcresError::Iiif(e.into()))
+            .map_err(|e| RequestError::Iiif(e.into()).into())
     }
 }
 
 impl ArtworkInfo {
-    /// Load from reader.
-    pub fn load<R: std::io::Read>(reader: R) -> Option<Self> {
-        serde_json::from_reader(reader).ok()
+    /// Loads artwork info from JSON, such as a saved `GET /artworks/{id}` response.
+    pub fn load<R: std::io::Read>(reader: R) -> Result<Self, ParseError> {
+        serde_json::from_reader(reader).map_err(|e| ParseError::body("artwork info", e))
     }
 }
 
