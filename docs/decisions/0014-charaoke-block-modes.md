@@ -65,7 +65,15 @@ Braille stays out and waits for its own ADR, if line art ever calls for it. Sext
 - Benches and tests:
   - `charaoke/render_blocks/{half,quadrant}` sit beside `charaoke/render`, and `charaoke/ansi_blocks` covers quadrant output at both color depths.
   - `charaoke/tui_proxy/drag_half` and `drag_quadrant` use the same drag as `drag`, drawing with the bench's copy of `BlocksWidget` (`charaoke/benches/common/blocks_widget.rs`). A unit test in `acres-tui` checks that the real widget draws the same buffer.
-  - The gates, on the Air: `drag_half` under 2 ms and `drag_quadrant` under 3 ms, against 0.94 ms for ASCII.
+  - The gates, on the Air: `drag_half` under 2 ms and `drag_quadrant` under 3 ms, against 0.94 ms for ASCII. Both pass, from one `make bench FILTER=charaoke/tui_proxy` run on the synthetic 843x632 bench image (results on PR #75):
+
+    | | M1 Air (target) |
+    | --- | --- |
+    | `charaoke/tui_proxy/drag` (ASCII) | 0.93 ms |
+    | `charaoke/tui_proxy/drag_half` | 1.03 ms |
+    | `charaoke/tui_proxy/drag_quadrant` | 1.43 ms |
+
+    Every mode reads each image pixel once, but half blocks average onto twice as many pixels as ASCII has cells, and quadrants onto four times as many, plus the split search. That is about 0.1 ms and 0.5 ms more than ASCII.
   - Unit tests cover half-block colors, quadrant splits, ANSI runs and resets at both depths, and empty renders. The existing ASCII tests pass unchanged on the shared summing pass.
   - TUI snapshots show a fixture artwork in each block mode. Snapshots hold symbols only, so colors are checked on the widget's buffer.
   - CLI tests check `48;2;` and `48;5;` escapes, the ASCII grid size in block modes, and the error when there is no color.
