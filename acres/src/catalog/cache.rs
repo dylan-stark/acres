@@ -1,16 +1,21 @@
 //! The on-disk response cache, with a lifetime per kind of resource (ADR 0016).
 //!
-//! Each response is one file named by a hash of its URL, the same layout `Api` has always used,
-//! so existing caches stay readable. Age comes from the file's modified time.
+//! Each response is one file, `<dir>/<kind>/<hash>`, where `<kind>` is `pages`, `records` or
+//! `images` and `<hash>` is the hex xxh3 hash of the URL. Keeping kinds apart lets a user clear
+//! one kind (stale records, say) without losing the images. Age comes from the file's modified
+//! time. Writes go to a temporary file that is then renamed, so a crash mid-write never leaves a
+//! truncated entry behind, which matters most for images, since they never expire.
 
 use std::{
     io::ErrorKind,
     path::PathBuf,
-    time::{Duration, SystemTime},
+    sync::atomic::{AtomicU64, Ordering},
+    time::SystemTime,
 };
 
 use bytes::Bytes;
 
+use super::Resource;
 use crate::CacheError;
 
 /// Where responses are kept, if anywhere.
@@ -27,20 +32,26 @@ impl Cache {
         Self { dir, offline }
     }
 
-    fn path(&self, endpoint: &str) -> Option<PathBuf> {
-        // `{:?}` quotes the URL. It's kept so files written by earlier versions still match.
-        let key = xxhash_rust::xxh3::xxh3_64(format!("{endpoint:?}").as_bytes());
-        self.dir.as_ref().map(|dir| dir.join(key.to_string()))
+    fn path(&self, endpoint: &str, resource: Resource) -> Option<PathBuf> {
+        let kind = match resource {
+            Resource::Page => "pages",
+            Resource::Record => "records",
+            Resource::Image => "images",
+        };
+        let key = xxhash_rust::xxh3::xxh3_64(endpoint.as_bytes());
+        self.dir
+            .as_ref()
+            .map(|dir| dir.join(kind).join(format!("{key:016x}")))
     }
 
-    /// The cached body for `endpoint`, unless there is none or it is older than `lifetime`.
-    /// Offline, the lifetime is ignored. A `lifetime` of `None` never expires.
+    /// The cached body for `endpoint`, unless there is none or it is older than the resource's
+    /// lifetime. Offline, the lifetime is ignored.
     pub(crate) fn load(
         &self,
         endpoint: &str,
-        lifetime: Option<Duration>,
+        resource: Resource,
     ) -> Result<Option<Bytes>, CacheError> {
-        let Some(path) = self.path(endpoint) else {
+        let Some(path) = self.path(endpoint, resource) else {
             return Ok(None);
         };
         let io = |source| CacheError::Io {
@@ -53,7 +64,7 @@ impl Cache {
             Err(e) => return Err(io(e)),
         };
         if !self.offline
-            && let Some(lifetime) = lifetime
+            && let Some(lifetime) = resource.lifetime()
         {
             let modified = metadata.modified().map_err(io)?;
             // A file from the future (clock skew) counts as brand new.
@@ -71,8 +82,13 @@ impl Cache {
     }
 
     /// Writes `data` for `endpoint`, replacing any older entry.
-    pub(crate) fn store(&self, endpoint: &str, data: &Bytes) -> Result<(), CacheError> {
-        let Some(path) = self.path(endpoint) else {
+    pub(crate) fn store(
+        &self,
+        endpoint: &str,
+        resource: Resource,
+        data: &Bytes,
+    ) -> Result<(), CacheError> {
+        let Some(path) = self.path(endpoint, resource) else {
             return Ok(());
         };
         let io = |source| CacheError::Io {
@@ -82,7 +98,19 @@ impl Cache {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir).map_err(io)?;
         }
-        std::fs::write(&path, data).map_err(io)?;
+        // Unique per process and call, so two writers never share a temporary file. A rename
+        // within one directory replaces the old entry in one step.
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let temp = path.with_extension(format!(
+            "tmp-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let written = std::fs::write(&temp, data).and_then(|()| std::fs::rename(&temp, &path));
+        if let Err(e) = written {
+            let _ = std::fs::remove_file(&temp);
+            return Err(io(e));
+        }
         tracing::debug!(endpoint, path = %path.display(), "stored in cache");
         Ok(())
     }
@@ -90,7 +118,10 @@ impl Cache {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::{
+        sync::atomic::{AtomicU32, Ordering},
+        time::Duration,
+    };
 
     use super::*;
 
@@ -107,8 +138,8 @@ pub(crate) mod tests {
     }
 
     /// Makes the entry for `endpoint` look `age` old.
-    pub(crate) fn age_entry(cache: &Cache, endpoint: &str, age: Duration) {
-        let path = cache.path(endpoint).unwrap();
+    pub(crate) fn age_entry(cache: &Cache, endpoint: &str, resource: Resource, age: Duration) {
+        let path = cache.path(endpoint, resource).unwrap();
         let file = std::fs::File::options().write(true).open(path).unwrap();
         file.set_modified(SystemTime::now() - age).unwrap();
     }
@@ -119,56 +150,96 @@ pub(crate) mod tests {
     #[test]
     fn a_fresh_entry_is_served() {
         let cache = Cache::new(Some(temp_dir("fresh")), false);
-        cache.store(URL, &Bytes::from_static(b"{}")).unwrap();
-        assert_eq!(cache.load(URL, Some(DAY)).unwrap().unwrap(), "{}");
+        cache
+            .store(URL, Resource::Record, &Bytes::from_static(b"{}"))
+            .unwrap();
+        assert_eq!(cache.load(URL, Resource::Record).unwrap().unwrap(), "{}");
     }
 
     #[test]
     fn an_entry_past_its_lifetime_is_a_miss() {
         let cache = Cache::new(Some(temp_dir("stale")), false);
-        cache.store(URL, &Bytes::from_static(b"{}")).unwrap();
-        age_entry(&cache, URL, 2 * DAY);
-        assert_eq!(cache.load(URL, Some(DAY)).unwrap(), None);
+        cache
+            .store(URL, Resource::Record, &Bytes::from_static(b"{}"))
+            .unwrap();
+        age_entry(&cache, URL, Resource::Record, 8 * DAY);
+        assert_eq!(cache.load(URL, Resource::Record).unwrap(), None);
     }
 
     #[test]
-    fn no_lifetime_never_expires() {
+    fn images_never_expire() {
         let cache = Cache::new(Some(temp_dir("forever")), false);
-        cache.store(URL, &Bytes::from_static(b"{}")).unwrap();
-        age_entry(&cache, URL, 400 * DAY);
-        assert!(cache.load(URL, None).unwrap().is_some());
+        cache
+            .store(URL, Resource::Image, &Bytes::from_static(b"{}"))
+            .unwrap();
+        age_entry(&cache, URL, Resource::Image, 400 * DAY);
+        assert!(cache.load(URL, Resource::Image).unwrap().is_some());
     }
 
     #[test]
     fn offline_ignores_lifetimes() {
         let dir = temp_dir("offline");
         let online = Cache::new(Some(dir.clone()), false);
-        online.store(URL, &Bytes::from_static(b"{}")).unwrap();
-        age_entry(&online, URL, 2 * DAY);
+        online
+            .store(URL, Resource::Record, &Bytes::from_static(b"{}"))
+            .unwrap();
+        age_entry(&online, URL, Resource::Record, 8 * DAY);
         let offline = Cache::new(Some(dir), true);
-        assert!(offline.load(URL, Some(DAY)).unwrap().is_some());
+        assert!(offline.load(URL, Resource::Record).unwrap().is_some());
     }
 
     #[test]
     fn a_missing_entry_is_a_miss() {
         let cache = Cache::new(Some(temp_dir("missing")), false);
-        assert_eq!(cache.load(URL, None).unwrap(), None);
+        assert_eq!(cache.load(URL, Resource::Record).unwrap(), None);
     }
 
     #[test]
     fn no_dir_caches_nothing() {
         let cache = Cache::new(None, false);
-        cache.store(URL, &Bytes::from_static(b"{}")).unwrap();
-        assert_eq!(cache.load(URL, None).unwrap(), None);
+        cache
+            .store(URL, Resource::Record, &Bytes::from_static(b"{}"))
+            .unwrap();
+        assert_eq!(cache.load(URL, Resource::Record).unwrap(), None);
     }
 
     #[test]
-    fn keys_match_the_old_api_layout() {
-        let cache = Cache::new(Some(PathBuf::from("/c")), false);
-        let old_key = xxhash_rust::xxh3::xxh3_64(format!("{:?}", URL.to_string()).as_bytes());
+    fn kinds_are_kept_apart() {
+        let cache = Cache::new(Some(temp_dir("kinds")), false);
+        cache
+            .store(URL, Resource::Record, &Bytes::from_static(b"record"))
+            .unwrap();
+        cache
+            .store(URL, Resource::Page, &Bytes::from_static(b"page"))
+            .unwrap();
         assert_eq!(
-            cache.path(URL).unwrap(),
-            PathBuf::from("/c").join(old_key.to_string())
+            cache.load(URL, Resource::Record).unwrap().unwrap(),
+            "record"
         );
+        assert_eq!(cache.load(URL, Resource::Page).unwrap().unwrap(), "page");
+        assert_eq!(cache.load(URL, Resource::Image).unwrap(), None);
+    }
+
+    #[test]
+    fn entries_live_under_their_kind() {
+        let cache = Cache::new(Some(PathBuf::from("/c")), false);
+        let path = cache.path(URL, Resource::Image).unwrap();
+        assert_eq!(path.parent().unwrap(), PathBuf::from("/c/images"));
+        assert_eq!(path.file_name().unwrap().len(), 16);
+    }
+
+    #[test]
+    fn a_store_leaves_no_temporary_files() {
+        let dir = temp_dir("temp");
+        let cache = Cache::new(Some(dir.clone()), false);
+        cache
+            .store(URL, Resource::Record, &Bytes::from_static(b"a"))
+            .unwrap();
+        cache
+            .store(URL, Resource::Record, &Bytes::from_static(b"b"))
+            .unwrap();
+        let files: Vec<_> = std::fs::read_dir(dir.join("records")).unwrap().collect();
+        assert_eq!(files.len(), 1);
+        assert_eq!(cache.load(URL, Resource::Record).unwrap().unwrap(), "b");
     }
 }

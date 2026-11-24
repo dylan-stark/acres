@@ -42,7 +42,7 @@ The API's rules ([AIC API docs](https://api.artic.edu/docs/), as of 2026-11-24):
 
 **Retries.** A 429 or 503 is retried up to 3 times, honoring `Retry-After` in seconds, otherwise backing off 1, 2, then 4 seconds. Each retry goes back through the queue and counts against the same maximum wait.
 
-**Cache lifetimes.** Images are kept forever, records for 7 days and search or listing pages for 24 hours. Age is the file's modified time, so the on-disk layout and existing caches are unchanged. `ACRES_OFFLINE=true` answers only from the cache, ignoring lifetimes, and a miss is `CacheError::Missing`.
+**Cache lifetimes.** Images are kept forever, records for 7 days and search or listing pages for 24 hours. Each entry is `<cache dir>/<pages|records|images>/<hex xxh3 of the URL>`, so one kind can be cleared without losing the others, and age is the file's modified time. Writes go to a temporary file that is then renamed, so a crash never leaves a truncated entry, which matters most for images since they never expire. We don't read caches written by earlier versions: this is a major update, and keeping the old keys would have meant keeping their quirks (a hash of the URL's debug form, one flat folder). `ACRES_OFFLINE=true` answers only from the cache, ignoring lifetimes, and a miss is `CacheError::Missing`.
 
 **Errors.** `acres::Error` wraps `RequestError` (`InvalidQuery`, `OutOfRange`, `InvalidImageUrl`, `InvalidContact`, `Iiif`), `ResponseError` (`Status`, `Expired`, `TooManyRequests`, `Transport`), `CacheError` (`Missing`, `Io`) and `ParseError` (`InvalidBody`). Messages are lowercase, leave out their source, and third-party causes are boxed, so `anyhow` leaves `acres`.
 

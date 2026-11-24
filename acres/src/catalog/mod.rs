@@ -206,7 +206,7 @@ impl Catalog {
     ) -> Result<Fetched<Bytes>, Error> {
         let endpoint = endpoint.to_string();
         let inner = &self.inner;
-        if let Some(value) = inner.cache.load(&endpoint, resource.lifetime())? {
+        if let Some(value) = inner.cache.load(&endpoint, resource)? {
             return Ok(Fetched {
                 value,
                 from_cache: true,
@@ -247,7 +247,7 @@ impl Catalog {
             drop(permit);
 
             if status.is_success() {
-                if let Err(e) = inner.cache.store(&endpoint, &body) {
+                if let Err(e) = inner.cache.store(&endpoint, resource, &body) {
                     tracing::warn!(error = %e, "could not cache response");
                 }
                 return Ok(Fetched {

@@ -1,6 +1,8 @@
 use std::fmt::{Debug, Display};
 
-use crate::{CacheError, Error, ParseError, ResponseError, catalog::Cache, config::Config};
+use crate::{
+    CacheError, Error, ParseError, Resource, ResponseError, catalog::Cache, config::Config,
+};
 use bytes::{Buf, Bytes};
 use serde::{Deserialize, Serialize};
 
@@ -131,9 +133,12 @@ impl Api {
     }
 
     /// Stores an item in cache.
+    ///
+    /// `Api` doesn't know what kind of resource it fetched, so everything it caches is kept as a
+    /// record, fresh for 7 days. [`crate::Catalog`] names the kind of each request.
     pub fn store_in_cache(&self, endpoint: &str, data: Bytes) -> Result<Bytes, CacheError> {
         if let Some(cache) = self.cache() {
-            cache.store(endpoint, &data)?;
+            cache.store(endpoint, Resource::Record, &data)?;
         }
         Ok(data)
     }
@@ -141,7 +146,7 @@ impl Api {
     /// Loads an item from cache.
     pub fn load_from_cache(&self, endpoint: &str) -> Result<Option<Bytes>, CacheError> {
         match self.cache() {
-            Some(cache) => cache.load(endpoint, None),
+            Some(cache) => cache.load(endpoint, Resource::Record),
             None => Ok(None),
         }
     }
