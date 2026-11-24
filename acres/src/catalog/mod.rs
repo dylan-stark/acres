@@ -2,6 +2,7 @@
 
 mod cache;
 mod limiter;
+mod shared;
 
 use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
@@ -16,6 +17,7 @@ use tokio::time::Instant;
 pub(crate) use cache::Cache;
 pub use limiter::Lane;
 use limiter::Limiter;
+use shared::SharedBucket;
 
 use crate::{
     Error, Item, Page, ParseError, RequestError, ResponseError,
@@ -25,6 +27,9 @@ use crate::{
     },
     config::{Config, DEFAULT_BASE_URI, get_acres_cache_dir},
 };
+
+/// The file in the cache directory that holds the shared rate limit.
+const RATE_LIMIT_FILE: &str = "rate-limit";
 
 /// What kind of resource a request fetches, which sets its queue and how long it stays cached.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -432,12 +437,17 @@ impl CatalogBuilder {
 
     /// Builds the catalog.
     pub fn build(self) -> Result<Catalog, Error> {
+        // With a cache directory, the rate limit is shared by every process that uses it.
+        let mut limiter = Limiter::new(self.per_minute, self.burst);
+        if let Some(dir) = &self.cache_dir {
+            limiter = limiter.shared(SharedBucket::new(dir.join(RATE_LIMIT_FILE)));
+        }
         Ok(Catalog {
             inner: Arc::new(Inner {
                 client: http_client(self.contact.as_deref())?,
                 base_uri: self.base_uri,
                 cache: Cache::new(self.cache_dir, self.offline),
-                limiter: Arc::new(Limiter::new(self.per_minute, self.burst)),
+                limiter: Arc::new(limiter),
                 retries: self.retries,
             }),
             max_wait: self.max_wait,

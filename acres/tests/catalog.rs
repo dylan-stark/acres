@@ -331,3 +331,37 @@ async fn raw_returns_the_body_unchanged() {
         .unwrap();
     assert_eq!(fetched.value, body);
 }
+
+#[tokio::test]
+async fn catalogs_on_one_cache_dir_share_the_rate_limit() {
+    let (server, base) = server().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("{}"))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    // Like two CLI runs: separate catalogs, one cache directory, one token a minute between them.
+    let dir = temp_dir("shared-limit");
+    let catalog = || {
+        Catalog::builder()
+            .base_uri(&base)
+            .cache_dir(&dir)
+            .rate_limit(1, 1)
+            .max_wait(Duration::from_millis(50))
+            .build()
+            .unwrap()
+    };
+    catalog()
+        .raw(format!("{base}/artworks/1"), Resource::Record)
+        .await
+        .unwrap();
+    let error = catalog()
+        .raw(format!("{base}/artworks/2"), Resource::Record)
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Response(ResponseError::Expired { .. })
+    ));
+}
