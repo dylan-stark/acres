@@ -16,6 +16,7 @@
     "View": {
       "esc": "EnterBrowseArtworksMode", // Browse artworks list
       "<a>": "EnterBrowseRampsMode", // Browse ramps list
+      "<b>": "CycleArtMode", // Cycle ASCII, half blocks and quadrant blocks
       "<l>": "ToggleLogs", // Toggle showing logs
       "<t>": "ToggleHud", // Toggle the timing HUD
       "<q>": "Quit", // Quit the application

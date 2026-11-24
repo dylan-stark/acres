@@ -145,10 +145,17 @@ async fn main() -> Result<(), Report> {
                         .value_parser(value_parser!(FileOrStdin)),
                 )
                 .arg(
+                    Arg::new("mode")
+                        .long("mode")
+                        .help("ASCII characters, or half or quadrant block glyphs in full color")
+                        .default_value("ascii")
+                        .value_parser(value_parser!(ascii_art::Mode)),
+                )
+                .arg(
                     Arg::new("ramp")
                         .long("ramp")
                         .help(format!(
-                            "preset ({}) or characters from darkest to brightest",
+                            "preset ({}) or characters from darkest to brightest (ascii mode)",
                             charaoke::Ramp::PRESETS
                                 .iter()
                                 .map(|(name, _)| *name)
@@ -161,7 +168,7 @@ async fn main() -> Result<(), Report> {
                 .arg(
                     Arg::new("brightness-offset")
                         .long("brightness-offset")
-                        .help("darkens the art by subtracting this from each cell's brightness")
+                        .help("darkens the art by subtracting this from each cell's brightness (ascii mode)")
                         .default_value("0")
                         .value_parser(value_parser!(u8)),
                 )
@@ -344,6 +351,9 @@ async fn main() -> Result<(), Report> {
                 .expect("at least default set")
                 .depth(io::stdout().is_terminal(), |key| std::env::var(key).ok());
             let options = ascii_art::Options {
+                mode: *matches
+                    .get_one::<ascii_art::Mode>("mode")
+                    .expect("at least default set"),
                 ramp,
                 width: std::num::NonZeroU32::new(width).expect("clap ensures at least 1"),
                 depth,

@@ -8,7 +8,9 @@
 //! [`render`](Converter::render) then fits it to a [`Grid`] of cells, averages each cell's color
 //! and picks a character from a [`Ramp`] by that color's brightness. The result is a set of
 //! [`Cells`], which can be written as plain text or as ANSI-colored text (see ADR 0010).
-//! Re-rendering at a new size reuses every buffer.
+//! [`render_blocks`](Converter::render_blocks) instead splits each cell into pixels and draws half
+//! or quadrant block glyphs in two colors, as [`Blocks`] (see ADR 0014). Re-rendering at a new size
+//! reuses every buffer.
 //!
 //! ```rust
 //! use std::num::NonZeroU32;
@@ -33,14 +35,16 @@
 //! assert_eq!(ascii, "::::\n####");
 //! ```
 
+mod blocks;
 mod cells;
 mod convert;
 mod error;
 mod grid;
 mod ramp;
 
+pub use self::blocks::{Blocks, QUADRANTS};
 pub use self::cells::{Cells, ColorDepth, ansi256};
-pub use self::convert::{Converter, PixelFormat};
+pub use self::convert::{BlockMode, Converter, PixelFormat};
 pub use self::error::Error;
 pub use self::grid::{CELL_ASPECT, Grid};
 pub use self::ramp::Ramp;

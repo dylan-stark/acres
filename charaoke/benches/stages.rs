@@ -7,8 +7,12 @@
 //! - `charaoke/decode` and `charaoke/luma`: JPEG decode and `to_luma8` in `image` 0.25, for reference.
 //! - `charaoke/load`: [`Converter::set_image`] from decoded RGB8, paid once per image.
 //! - `charaoke/render`: [`Converter::render`] into [`Cells`] at each width, paid on every resize.
+//! - `charaoke/render_blocks`: [`Converter::render_blocks`] into [`Blocks`] at each width, in
+//!   half and quadrant modes (ADR 0014).
 //! - `charaoke/ansi`: [`Cells::write_ansi`] at each width and color depth, the CLI's output step,
 //!   comparable to `baseline/color`.
+//! - `charaoke/ansi_blocks`: [`Blocks::write_ansi`] at each width and color depth, for quadrant
+//!   blocks.
 //! - `charaoke/end_to_end`: decode, load, render and truecolor ANSI, comparable to
 //!   `baseline/end_to_end`.
 
@@ -16,7 +20,7 @@ mod common;
 
 use std::hint::black_box;
 
-use charaoke::{Cells, ColorDepth, Converter, Grid, PixelFormat};
+use charaoke::{BlockMode, Blocks, Cells, ColorDepth, Converter, Grid, PixelFormat};
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use image::{DynamicImage, ImageFormat};
 
@@ -83,6 +87,30 @@ fn render(c: &mut Criterion) {
     group.finish();
 }
 
+fn render_blocks(c: &mut Criterion) {
+    let mut group = c.benchmark_group("charaoke/render_blocks");
+    let mut converter = Converter::default();
+    let mut blocks = Blocks::default();
+    for (name, bytes) in inputs() {
+        let image = decode_rgb(&bytes);
+        let (w, h) = dimensions(&image);
+        converter
+            .set_image(&image, w, h, PixelFormat::Rgb8)
+            .expect("loads");
+        for (mode_name, mode) in [("half", BlockMode::Half), ("quadrant", BlockMode::Quadrant)] {
+            for &n in COLS {
+                let grid = Grid::fit(w, h, cols(n));
+                group.throughput(Throughput::Elements(grid.cells()));
+                let id = BenchmarkId::new(format!("{name}/{mode_name}"), n);
+                group.bench_with_input(id, &grid, |b, &grid| {
+                    b.iter(|| converter.render_blocks(black_box(grid), mode, &mut blocks))
+                });
+            }
+        }
+    }
+    group.finish();
+}
+
 fn ansi(c: &mut Criterion) {
     let mut group = c.benchmark_group("charaoke/ansi");
     let mut converter = Converter::default();
@@ -105,6 +133,35 @@ fn ansi(c: &mut Criterion) {
                 let id = BenchmarkId::new(format!("{name}/{depth_name}"), n);
                 group.bench_with_input(id, &cells, |b, cells| {
                     b.iter(|| black_box(cells).write_ansi(depth, &mut out))
+                });
+            }
+        }
+    }
+    group.finish();
+}
+
+fn ansi_blocks(c: &mut Criterion) {
+    let mut group = c.benchmark_group("charaoke/ansi_blocks");
+    let mut converter = Converter::default();
+    let mut blocks = Blocks::default();
+    let mut out = String::new();
+    for (name, bytes) in inputs() {
+        let image = decode_rgb(&bytes);
+        let (w, h) = dimensions(&image);
+        converter
+            .set_image(&image, w, h, PixelFormat::Rgb8)
+            .expect("loads");
+        for &n in COLS {
+            let grid = Grid::fit(w, h, cols(n));
+            converter.render_blocks(grid, BlockMode::Quadrant, &mut blocks);
+            group.throughput(Throughput::Elements(grid.cells()));
+            for (depth_name, depth) in [
+                ("truecolor", ColorDepth::TrueColor),
+                ("256", ColorDepth::Ansi256),
+            ] {
+                let id = BenchmarkId::new(format!("{name}/{depth_name}"), n);
+                group.bench_with_input(id, &blocks, |b, blocks| {
+                    b.iter(|| black_box(blocks).write_ansi(depth, &mut out))
                 });
             }
         }
@@ -135,5 +192,15 @@ fn end_to_end(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, decode, luma, load, render, ansi, end_to_end);
+criterion_group!(
+    benches,
+    decode,
+    luma,
+    load,
+    render,
+    render_blocks,
+    ansi,
+    ansi_blocks,
+    end_to_end
+);
 criterion_main!(benches);

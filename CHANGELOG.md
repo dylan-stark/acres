@@ -25,6 +25,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `acres-cli ascii-art` takes `--ramp` (a preset name or custom characters), `--color auto|truecolor|256|never` and `--timings`, which writes stage times to stderr after the art.
 - `charaoke::Ramp::PRESETS`, `Ramp::preset`, `Ramp::with_brightness_offset`, `Grid::fit_within` and `Converter::set_ramp`.
 - `charaoke/tui_proxy/drag_fit` bench, a resize drag that changes both width and height through `Grid::fit_within`.
+- Block modes, for more detail in full color: half blocks (`▀`, two pixels per cell) and quadrant blocks (four pixels per cell). `acres-cli ascii-art` takes `--mode ascii|half|quadrant`, and `b` cycles the modes in `acres-tui` (see [ADR 0014](docs/decisions/0014-charaoke-block-modes.md)).
+- `charaoke::Converter::render_blocks`, `BlockMode`, `Blocks` (with `Blocks::write_ansi`) and `QUADRANTS`, plus the `charaoke/render_blocks`, `charaoke/ansi_blocks` and `charaoke/tui_proxy/drag_half` and `drag_quadrant` benches.
 
 ### Changed
 

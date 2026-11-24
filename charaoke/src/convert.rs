@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use crate::{Cells, Error, Grid, Ramp};
+use crate::{Blocks, Cells, Error, Grid, Ramp};
 
 /// Widest image a converter accepts: a row segment's sum must fit in a `u32`.
 const MAX_WIDTH: u32 = u32::MAX / 255;
@@ -56,8 +56,9 @@ pub struct Converter {
     rgb: Vec<u8>,
     width: usize,
     height: usize,
-    sums: Vec<[u64; 3]>,
-    col_bounds: Vec<usize>,
+    scratch: Scratch,
+    /// The pending top row of pixels in [`render_blocks`](Self::render_blocks).
+    top: Vec<[u8; 3]>,
 }
 
 impl Converter {
@@ -133,14 +134,188 @@ impl Converter {
             return;
         }
         let (cols, rows) = (grid.cols() as usize, grid.rows() as usize);
-        let (w, h) = (self.width, self.height);
+        cells.reserve(cols, rows);
+        let ramp = &self.ramp;
+        self.scratch
+            .mean_rows(&self.rgb, self.width, self.height, cols, rows, |means| {
+                for &mean in means {
+                    cells.push(ramp.lookup(bt601(&mean)), mean);
+                }
+            });
+    }
 
+    /// Renders the loaded image onto `grid` as block glyphs, replacing the contents of `blocks`.
+    ///
+    /// Each cell is split into pixels ([`BlockMode::pixels_per_cell`]), and each pixel takes the
+    /// mean color of the image pixels it covers, as in [`render`](Self::render). Half blocks draw
+    /// `▀` with the top pixel as foreground and the bottom one as background. Quadrant blocks try
+    /// the 7 ways to split a cell's 4 pixels into two groups and keep the split whose group means
+    /// are closest to the pixels, by squared RGB distance. With no image loaded, `blocks` is left
+    /// empty.
+    ///
+    /// ```rust
+    /// use std::num::NonZeroU32;
+    /// use charaoke::{BlockMode, Blocks, Converter, Grid, PixelFormat};
+    ///
+    /// let nz = |n| NonZeroU32::new(n).unwrap();
+    /// // A 2x2 image: black on the left, white on the right.
+    /// let pixels = [0, 255, 0, 255];
+    ///
+    /// let mut converter = Converter::default();
+    /// converter.set_image(&pixels, nz(2), nz(2), PixelFormat::Luma8).unwrap();
+    /// let mut blocks = Blocks::default();
+    /// converter.render_blocks(Grid::fit(nz(2), nz(2), nz(1)), BlockMode::Quadrant, &mut blocks);
+    /// assert_eq!(blocks.glyphs().collect::<String>(), "▌");
+    /// assert_eq!((blocks.foreground()[0], blocks.background()[0]), ([0; 3], [255; 3]));
+    /// ```
+    pub fn render_blocks(&mut self, grid: Grid, mode: BlockMode, blocks: &mut Blocks) {
+        blocks.clear();
+        if self.rgb.is_empty() {
+            return;
+        }
+        let (cols, rows) = (grid.cols() as usize, grid.rows() as usize);
+        let (px_w, px_h) = mode.pixels_per_cell();
+        let (px_w, px_h) = (px_w as usize, px_h as usize);
+        blocks.reserve(cols, rows);
+
+        // Two rows of pixels make one row of cells, so keep the top row until its pair arrives.
+        let mut top = std::mem::take(&mut self.top);
+        top.clear();
+        self.scratch.mean_rows(
+            &self.rgb,
+            self.width,
+            self.height,
+            cols * px_w,
+            rows * px_h,
+            |means| {
+                if top.is_empty() {
+                    top.extend_from_slice(means);
+                    return;
+                }
+                match mode {
+                    BlockMode::Half => {
+                        for (&t, &b) in top.iter().zip(means) {
+                            blocks.push(HALF_MASK, t, b);
+                        }
+                    }
+                    BlockMode::Quadrant => {
+                        let tops = top.as_chunks::<2>().0;
+                        let bottoms = means.as_chunks::<2>().0;
+                        for (&[tl, tr], &[bl, br]) in tops.iter().zip(bottoms) {
+                            let (mask, fg, bg) = split_quadrants([tl, tr, bl, br]);
+                            blocks.push(mask, fg, bg);
+                        }
+                    }
+                }
+                top.clear();
+            },
+        );
+        self.top = top;
+    }
+}
+
+/// How [`Converter::render_blocks`] splits each cell into pixels.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum BlockMode {
+    /// `▀` in two colors: one pixel on top of another, each about square.
+    #[default]
+    Half,
+    /// One of the quadrant glyphs in two colors: a 2x2 grid of pixels, each twice as tall as it is
+    /// wide.
+    Quadrant,
+}
+
+impl BlockMode {
+    /// Pixels across and down each cell.
+    pub fn pixels_per_cell(self) -> (u32, u32) {
+        match self {
+            BlockMode::Half => (1, 2),
+            BlockMode::Quadrant => (2, 2),
+        }
+    }
+}
+
+/// Quadrant mask of `▀`: the top-left and top-right quarters.
+const HALF_MASK: u8 = 0b0011;
+
+/// Splits to try, as masks of the foreground group (bit 0 top left, 1 top right, 2 bottom left,
+/// 3 bottom right). Every split of four pixels into two groups appears once, with the bottom-right
+/// pixel in the background group. `▀` comes first, so a flat cell draws as a half block.
+const SPLITS: [u8; 7] = [HALF_MASK, 0b0101, 0b0001, 0b0010, 0b0100, 0b0110, 0b0111];
+
+/// The split of four pixels into two groups whose means are closest to the pixels, as the
+/// foreground mask, the foreground mean and the background mean.
+///
+/// A group's squared error is the sum of its squares less `sum² / n`, and the sum of squares is the
+/// same for every split, so the best split has the largest `sum² / n` over both groups. That is
+/// compared as `6 sum² / n`, which stays an integer for groups of 1 to 3 pixels.
+#[inline]
+fn split_quadrants(px: [[u8; 3]; 4]) -> (u8, [u8; 3], [u8; 3]) {
+    // Sums of each channel over every subset of the first three pixels, indexed by mask.
+    let sums: [[u32; 3]; 8] = std::array::from_fn(|mask| {
+        std::array::from_fn(|k| {
+            (0..3)
+                .filter(|&q| mask >> q & 1 == 1)
+                .map(|q| u32::from(px[q][k]))
+                .sum()
+        })
+    });
+    let total: [u32; 3] = std::array::from_fn(|k| sums[7][k] + u32::from(px[3][k]));
+    let score = |mask: u8| -> u32 {
+        let n = mask.count_ones();
+        let (wf, wb) = (6 / n, 6 / (4 - n));
+        let fg = sums[usize::from(mask)];
+        (0..3)
+            .map(|k| {
+                let bg = total[k] - fg[k];
+                wf * fg[k] * fg[k] + wb * bg * bg
+            })
+            .sum()
+    };
+    let mut best = (score(SPLITS[0]), SPLITS[0]);
+    for &mask in &SPLITS[1..] {
+        let s = score(mask);
+        if s > best.0 {
+            best = (s, mask);
+        }
+    }
+    let mask = best.1;
+    let fg = sums[usize::from(mask)];
+    let n = mask.count_ones();
+    let mean = |sum: u32, n: u32| ((sum + n / 2) / n) as u8;
+    (
+        mask,
+        std::array::from_fn(|k| mean(fg[k], n)),
+        std::array::from_fn(|k| mean(total[k] - fg[k], 4 - n)),
+    )
+}
+
+/// Buffers for averaging an image onto a grid, reused from one render to the next.
+#[derive(Clone, Debug, Default)]
+struct Scratch {
+    sums: Vec<[u64; 3]>,
+    col_bounds: Vec<usize>,
+    means: Vec<[u8; 3]>,
+}
+
+impl Scratch {
+    /// Averages a `width` by `height` RGB image onto `cols` by `rows` cells, passing each row of
+    /// mean colors to `emit`, top to bottom.
+    fn mean_rows(
+        &mut self,
+        rgb: &[u8],
+        w: usize,
+        h: usize,
+        cols: usize,
+        rows: usize,
+        mut emit: impl FnMut(&[[u8; 3]]),
+    ) {
         // Pixel column bounds of each cell column, shared by every row.
         self.col_bounds.clear();
         self.col_bounds.extend((0..=cols).map(|c| c * w / cols));
         self.sums.clear();
         self.sums.resize(cols, [0; 3]);
-        cells.reserve(cols, rows);
 
         for r in 0..rows {
             let y0 = r * h / rows;
@@ -148,7 +323,7 @@ impl Converter {
             let y0 = y0.min(y1 - 1);
 
             self.sums.fill([0; 3]);
-            for row in self.rgb[y0 * w * 3..y1 * w * 3].chunks_exact(w * 3) {
+            for row in rgb[y0 * w * 3..y1 * w * 3].chunks_exact(w * 3) {
                 let row = row.as_chunks::<3>().0;
                 for (c, sum) in self.sums.iter_mut().enumerate() {
                     let (x0, x1) = cell_span(&self.col_bounds, c, w);
@@ -165,12 +340,14 @@ impl Converter {
             }
 
             let band = (y1 - y0) as u64;
-            for (c, sum) in self.sums.iter().enumerate() {
-                let (x0, x1) = cell_span(&self.col_bounds, c, w);
-                let count = band * (x1 - x0) as u64;
-                let mean = sum.map(|s| ((s + count / 2) / count) as u8);
-                cells.push(self.ramp.lookup(bt601(&mean)), mean);
-            }
+            self.means.clear();
+            self.means
+                .extend(self.sums.iter().enumerate().map(|(c, sum)| {
+                    let (x0, x1) = cell_span(&self.col_bounds, c, w);
+                    let count = band * (x1 - x0) as u64;
+                    sum.map(|s| ((s + count / 2) / count) as u8)
+                }));
+            emit(&self.means);
         }
     }
 }

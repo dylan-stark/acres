@@ -13,7 +13,11 @@
 //! - `charaoke/tui_proxy/drag_ansi`: render, write truecolor ANSI, parse it back with
 //!   `ansi-to-tui` and draw it as a `Paragraph` (the TUI's path before ADR 0011), to show what
 //!   the direct write saves.
+//! - `charaoke/tui_proxy/drag_half` and `charaoke/tui_proxy/drag_quadrant`: the `drag`, rendered
+//!   as half or quadrant blocks (ADR 0014) and written with a foreground and background per cell.
 
+#[path = "common/blocks_widget.rs"]
+mod blocks_widget;
 #[path = "common/cells_widget.rs"]
 mod cells_widget;
 mod common;
@@ -21,10 +25,11 @@ mod common;
 use std::hint::black_box;
 
 use ansi_to_tui::IntoText;
-use charaoke::{Cells, ColorDepth, Converter, Grid, PixelFormat};
+use charaoke::{BlockMode, Blocks, Cells, ColorDepth, Converter, Grid, PixelFormat};
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use ratatui::{Terminal, backend::TestBackend, layout::Rect, widgets::Paragraph};
 
+use blocks_widget::BlocksWidget;
 use cells_widget::CellsWidget;
 use common::{cols, decode, dimensions, inputs};
 
@@ -45,6 +50,7 @@ fn resize_drag(c: &mut Criterion) {
         Terminal::new(TestBackend::new(*DRAG.end(), TERMINAL_ROWS)).expect("test terminal");
     let mut converter = Converter::default();
     let mut cells = Cells::default();
+    let mut blocks = Blocks::default();
     let mut ansi = String::new();
 
     for (name, bytes) in inputs() {
@@ -94,6 +100,23 @@ fn resize_drag(c: &mut Criterion) {
                     .expect("draws");
             })
         });
+
+        for (mode_name, mode) in [
+            ("drag_half", BlockMode::Half),
+            ("drag_quadrant", BlockMode::Quadrant),
+        ] {
+            let mut frame = 0;
+            group.bench_function(BenchmarkId::new(mode_name, name), |b| {
+                b.iter(|| {
+                    let (grid, area) = pane(frame);
+                    frame += 1;
+                    converter.render_blocks(black_box(grid), mode, &mut blocks);
+                    terminal
+                        .draw(|f| f.render_widget(BlocksWidget(&blocks), area))
+                        .expect("draws");
+                })
+            });
+        }
 
         let mut frame = 0;
         group.bench_function(BenchmarkId::new("drag_ansi", name), |b| {
