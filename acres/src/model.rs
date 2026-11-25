@@ -186,6 +186,18 @@ pub struct ArtworkSummary {
     /// The accession number, such as `1933.1157`.
     #[serde(default)]
     pub main_reference_number: Option<String>,
+    /// The artist's ID, for finding more by the same artist.
+    #[serde(default)]
+    pub artist_id: Option<u32>,
+    /// The artist's name alone, such as `Claude Monet`.
+    #[serde(default)]
+    pub artist_title: Option<String>,
+    /// The department's ID, such as `PC-3`, for finding more from the same department.
+    #[serde(default)]
+    pub department_id: Option<String>,
+    /// The museum department holding it.
+    #[serde(default)]
+    pub department_title: Option<String>,
 }
 
 impl ArtworkSummary {
@@ -200,6 +212,10 @@ impl ArtworkSummary {
         "medium_display",
         "credit_line",
         "main_reference_number",
+        "artist_id",
+        "artist_title",
+        "department_id",
+        "department_title",
     ];
 }
 
@@ -217,15 +233,6 @@ pub struct Artwork {
     /// Where it was made.
     #[serde(default)]
     pub place_of_origin: Option<String>,
-    /// The museum department holding it.
-    #[serde(default)]
-    pub department_title: Option<String>,
-    /// The department's ID, for finding more from the same department.
-    #[serde(default)]
-    pub department_id: Option<String>,
-    /// The artist's ID, for finding more by the same artist.
-    #[serde(default)]
-    pub artist_id: Option<u32>,
     /// Whether it is in the public domain.
     #[serde(default)]
     pub is_public_domain: bool,
@@ -252,11 +259,12 @@ impl Artwork {
         "medium_display",
         "credit_line",
         "main_reference_number",
+        "artist_id",
+        "artist_title",
+        "department_id",
+        "department_title",
         "dimensions",
         "place_of_origin",
-        "department_title",
-        "department_id",
-        "artist_id",
         "is_public_domain",
         "is_on_view",
         "gallery_title",
@@ -312,6 +320,6 @@ mod tests {
             Some("Oil on canvas")
         );
         assert!(artwork.is_on_view);
-        assert_eq!(artwork.artist_id, Some(35));
+        assert_eq!(artwork.summary.artist_id, Some(35));
     }
 }

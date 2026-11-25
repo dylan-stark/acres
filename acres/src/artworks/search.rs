@@ -227,7 +227,10 @@ impl Builder {
 }
 
 /// The most records one search can reach, across all its pages.
-pub const MAX_RESULTS: u64 = 10_000;
+///
+/// The API's documentation says 10,000, but it answers 403 for any page that ends past the
+/// 1,000th record, such as page 21 of 50.
+pub const MAX_RESULTS: u64 = 1_000;
 
 /// The most records one page can hold.
 pub const MAX_LIMIT: u32 = 100;
@@ -492,27 +495,27 @@ mod tests {
     }
 
     #[test]
-    fn last_page_within_10000_is_allowed() {
+    fn last_page_within_1000_is_allowed() {
         let params = SearchQueryParams {
             limit: Some(50),
-            page: Some(200),
+            page: Some(20),
             ..params()
         };
         assert!(params.valid().is_ok());
     }
 
     #[test]
-    fn page_past_10000_is_refused() {
+    fn page_past_1000_is_refused() {
         let params = SearchQueryParams {
             limit: Some(50),
-            page: Some(201),
+            page: Some(21),
             ..params()
         };
         assert!(matches!(
             params.valid(),
             Err(RequestError::OutOfRange {
                 name: "page",
-                value: 10_050
+                value: 1_050
             })
         ));
     }

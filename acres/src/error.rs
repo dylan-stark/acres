@@ -41,7 +41,7 @@ pub enum RequestError {
     /// The query parameters don't fit together, such as a `sort` without a `query`.
     #[error("invalid query: {0}")]
     InvalidQuery(String),
-    /// A value the API would reject, such as a `limit` over 100 or a page past 10,000 records.
+    /// A value the API would reject, such as a `limit` over 100 or a page past 1,000 records.
     #[error("{name} out of range: {value}")]
     OutOfRange {
         /// The parameter, such as `limit`.

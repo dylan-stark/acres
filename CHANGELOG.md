@@ -48,9 +48,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `acres::artworks::search::Filters::words`, which keeps only artworks whose title or artist contains every word, for sorted searches where `q`'s loose matches would come first.
 - `acres::Catalog::departments` and `Catalog::artwork_types` list the filter choices as typed `Department` and `ArtworkType` pages, and `ApiConfig::image_base_uri` and `ApiConfig::artwork_url` build an image's IIIF base URI and an artwork's website link from a response's config. `acres-tui` uses them instead of building these URLs itself.
 
+- `acres-tui` pivots, goes back, saves and surprises (ADR 0013, step 5). `A` lists more by the selected artwork's artist and `D` more from its department, keeping the filters and sort, and the status bar names them (`by Claude Monet`). `backspace` goes back through earlier lists with their cursor and loaded pages. `R` shows a random artwork from the first 1,000 matching the search and filters.
+- Saved artworks in `acres-tui`: `m` saves or unsaves the selected artwork (marked `*` in the results), `'` switches to the saved list and back, and `e` writes a one-line note, shown under the wall label. They are kept in `saved.json` in the data directory, a versioned file holding each record whole with when it was saved and its note, so the list opens offline. `--from-file` reads `saved.json` as well as an Artworks JSON.
+
 ### Changed
 
-- `acres::artworks::ArtworkSummary` carries `medium_display`, `credit_line` and `main_reference_number`, moved from `Artwork` (which still has them through `summary`), so a results list has everything a wall label needs.
+- `acres::artworks::ArtworkSummary` carries `medium_display`, `credit_line` and `main_reference_number`, moved from `Artwork` (which still has them through `summary`), so a results list has everything a wall label needs. It also carries `artist_id`, `artist_title`, `department_id` and `department_title` (the first three moved from `Artwork`), for pivots.
 - `acres-tui` previews artworks with the `lqip` placeholder that comes with each search result, a few pixels scaled up into a soft blur, so browsing downloads no images. The full image is fetched only on `enter` or `space`. `enter` in the results no longer focuses the art. A saved file has no placeholders, so its art is blank until fetched.
 - The `acres-tui` log (`L`) slides out over the left of the art like the timing HUD, instead of squeezing the art aside.
 - `acres-tui` reads a file of artworks with `--from-file <FILE>` (or `-` for stdin) instead of a positional argument, and searches the collection when no file is given. The record pane shows the artist and date when the list has them.
@@ -93,6 +96,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- `acres::artworks::search::MAX_RESULTS` is 1,000, not 10,000: the API answers 403 for any search page that ends past the 1,000th record, although its documentation says 10,000. The TUI's list stops there and asks for a narrower search.
 - `acres::Page` parses listings by `ids`, which come without `pagination`.
 - `acres-tui` builds in release mode again: the panic hook no longer uses `human-panic`, which was never a dependency.
 - `iiif::Quality` and `iiif::Format` are now `Copy`.

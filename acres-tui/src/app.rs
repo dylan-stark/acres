@@ -5,9 +5,10 @@ use tokio::sync::mpsc;
 use crate::{
     action::Action,
     components::{Component, catalog::Fetcher, iiif::Iiif},
-    config::Config,
+    config::{Config, get_data_dir},
     entry::{Entry, highlights},
     explorer::{Explorer, Source},
+    saved::{self, SavedList},
     tui::{Event, Tui},
 };
 
@@ -38,6 +39,7 @@ impl App {
         }
         let catalog = catalog.build()?;
         let config = Config::new()?;
+        let saved = SavedList::open(get_data_dir().join(saved::FILE_NAME))?;
         let source = match from_file {
             Some(entries) => Source::File(entries),
             None => Source::Live {
@@ -49,7 +51,7 @@ impl App {
             frame_rate,
             components: vec![
                 // The explorer owns the screen and the keys; the others only fetch.
-                Box::new(Explorer::new(source, &config)),
+                Box::new(Explorer::new(source, &config).with_saved(saved)),
                 Box::new(Fetcher::new(action_tx.clone(), catalog.clone())),
                 Box::new(Iiif::new(action_tx.clone(), catalog)),
             ],

@@ -51,6 +51,15 @@ impl Entry {
         base64::engine::general_purpose::STANDARD.decode(data).ok()
     }
 
+    /// The artworks in `text`: a saved list (`saved.json`), or an `Artworks` JSON as
+    /// `acres-cli artworks` writes it.
+    pub fn from_text(text: &str) -> color_eyre::Result<Vec<Entry>> {
+        if crate::saved::is_saved_list(text) {
+            return crate::saved::entries_from(text);
+        }
+        Ok(Entry::from_file(serde_json::from_str(text)?))
+    }
+
     /// The artworks with images in a saved `Artworks` file, as `acres-cli artworks` writes it.
     pub fn from_file(artworks: acres::artworks::Artworks) -> Vec<Entry> {
         let config = ApiConfig {

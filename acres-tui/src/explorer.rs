@@ -9,6 +9,10 @@
 //! Each search gets a new generation, and a list that comes back for an older one is dropped,
 //! so only the latest search ever reaches the screen. From a file, the search bar narrows the
 //! loaded list by title instead.
+//!
+//! Every new list, from a search, a pivot (`A`, `D`) or a surprise (`R`), first pushes the one
+//! showing onto a history that `backspace` pops, with its cursor and pages. `'` swaps the list
+//! for the saved artworks, which `m` adds to and removes from and `e` notes.
 
 use acres::artworks::request::search::MAX_RESULTS;
 use color_eyre::Result;
@@ -29,6 +33,7 @@ use crate::{
         home::Home,
         hud::Hud,
         logs::Logs,
+        note::NoteEditor,
         pane_block,
         quit::QuitPrompt,
         ramps::Ramps,
@@ -39,6 +44,7 @@ use crate::{
     },
     config::{Config, Context, KeyBindings, key_event_to_string, normalize},
     entry::Entry,
+    saved::SavedList,
 };
 
 /// Where the list comes from.
@@ -52,6 +58,9 @@ pub enum Source {
 
 /// Start loading the next page when the cursor is this close to the end of the list.
 const LOAD_AHEAD: usize = 10;
+
+/// The most earlier lists `backspace` can go back through.
+const HISTORY: usize = 50;
 
 /// What the live list holds and what is on its way.
 #[derive(Debug, Default)]
@@ -74,6 +83,31 @@ struct Live {
     /// Why the last request failed, until the next one.
     error: Option<String>,
     rate_limited: bool,
+    /// Whether the list is one surprise artwork, which has no more pages.
+    surprise: bool,
+    /// Whether the first page of a new list is on its way, so the list showing is already in
+    /// the history.
+    replacing: bool,
+}
+
+/// A live list as it was, for going back to it.
+#[derive(Clone)]
+struct Snapshot {
+    results: Results,
+    query: Option<Query>,
+    settings: Query,
+    total: u64,
+    next_page: u32,
+    fallback: bool,
+    surprise: bool,
+}
+
+/// Which list the results pane shows.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum View {
+    #[default]
+    Results,
+    Saved,
 }
 
 /// A pane that can take focus, in `tab` order.
@@ -116,6 +150,8 @@ pub enum Overlay {
     Record,
     /// The search's filters.
     Filters,
+    /// Edits a saved artwork's note.
+    Note,
 }
 
 /// Where the last draw put each pane, for mapping mouse events.
@@ -150,7 +186,16 @@ pub struct Explorer {
     /// The last key and what it did, for the status bar.
     echo: Option<String>,
     search: Search,
+    /// The list showing, and the other one: the results while the saved list shows, or the
+    /// other way around.
     results: Results,
+    other: Results,
+    view: View,
+    history: Vec<Snapshot>,
+    saved: SavedList,
+    note: NoteEditor,
+    /// The state of the random numbers for surprises.
+    seed: u64,
     art: Home,
     record: Record,
     full_record: Record,
@@ -198,6 +243,12 @@ impl Explorer {
             echo: None,
             search: Search::default(),
             results,
+            other: Results::default(),
+            view: View::Results,
+            history: Vec::new(),
+            saved: SavedList::in_memory(),
+            note: NoteEditor::default(),
+            seed: clock_seed(),
             art,
             record,
             full_record: Record::overlay(),
@@ -213,6 +264,17 @@ impl Explorer {
             live,
             action_tx: None,
         }
+    }
+
+    /// Keeps saved artworks in `saved` instead of in memory.
+    pub fn with_saved(mut self, saved: SavedList) -> Self {
+        self.saved = saved;
+        self.refresh_saved();
+        self
+    }
+
+    pub fn view(&self) -> View {
+        self.view
     }
 
     /// The artwork selected now.
@@ -300,8 +362,12 @@ impl Explorer {
             // The prompt names its own keys.
             (Some(Overlay::Quit), _) => &[],
             (Some(Overlay::Filters), _) => &[],
+            (Some(Overlay::Note), _) => &[],
             (Some(Overlay::Record), _) => &[Action::MoveDown, Action::NextArtwork, Action::Cancel],
             (None, Pane::Search) => &[Action::RunSearch, Action::EarlierQuery, Action::Cancel],
+            (None, Pane::Results) if self.view == View::Saved => {
+                &[Action::MoveDown, Action::EditNote, Action::SwitchSaved]
+            }
             (None, Pane::Results) => {
                 &[Action::MoveDown, Action::ShowFullImage, Action::FocusSearch]
             }
@@ -344,12 +410,38 @@ impl Explorer {
     fn preview(&mut self, artwork: Option<Entry>) -> Option<Action> {
         self.load_more();
         let artwork = artwork?;
-        self.record.show(Some(artwork.clone()));
+        self.show_record(Some(artwork.clone()));
         if self.overlay == Some(Overlay::Record) {
             self.full_record.show(Some(artwork.clone()));
             self.fetch_full_record();
         }
         Some(Action::ShowArtwork(artwork))
+    }
+
+    /// Shows `artwork` in the record pane, with its note if it is saved.
+    fn show_record(&mut self, artwork: Option<Entry>) {
+        let id = artwork.as_ref().map(Entry::id);
+        self.record.show(artwork);
+        self.record.saved = id.is_some_and(|id| self.saved.contains(id));
+        self.record.note = id.and_then(|id| self.saved.note(id)).map(String::from);
+    }
+
+    /// Marks the saved artworks in both lists and shows the selected one's note.
+    fn refresh_saved(&mut self) {
+        let ids: Vec<u32> = self.saved.entries().iter().map(Entry::id).collect();
+        self.results.mark(ids.iter().copied());
+        self.other.mark(ids);
+        self.show_record(self.results.selected().cloned());
+    }
+
+    /// A random number for the next surprise (xorshift64*).
+    fn random(&mut self) -> u64 {
+        let mut x = self.seed;
+        x ^= x >> 12;
+        x ^= x << 25;
+        x ^= x >> 27;
+        self.seed = x;
+        x.wrapping_mul(0x2545_f491_4f6c_dd1d)
     }
 
     /// Asks for the overlay's full record, if it still needs one.
@@ -373,10 +465,24 @@ impl Explorer {
     /// Starts a new live search for `text` with the current filters and sort, or the
     /// Highlights when there is nothing to search for.
     fn search_live(&mut self, text: String) {
+        let Some(live) = &self.live else { return };
+        let settings = Query {
+            text,
+            ..live.settings.clone()
+        };
+        self.run_live(settings);
+    }
+
+    /// Starts a new live list with `settings`, remembering the one showing for `backspace`.
+    fn run_live(&mut self, settings: Query) {
+        self.show_results();
+        self.remember();
         let Some(live) = &mut self.live else { return };
-        live.settings.text = text;
+        live.settings = settings;
         live.generation += 1;
         live.loading = true;
+        live.replacing = true;
+        live.surprise = false;
         live.error = None;
         let load = if live.settings.is_empty() {
             live.query = None;
@@ -392,14 +498,225 @@ impl Explorer {
         self.send(Action::Load { generation, load });
     }
 
+    /// Asks for one random artwork matching the search and filters, or picks one from the
+    /// file's list.
+    fn surprise(&mut self) -> Option<Action> {
+        let seed = self.random();
+        if self.live.is_none() || self.view == View::Saved {
+            let (shown, _) = self.results.counts();
+            if shown == 0 {
+                return None;
+            }
+            let to = usize::try_from(seed % shown as u64).unwrap_or(0);
+            let delta = to as isize - self.results.selected_row() as isize;
+            let moved = self.results.step(delta);
+            return self.preview(moved);
+        }
+        // Another surprise replaces one, rather than filling the history with them.
+        if !self.live.as_ref().is_some_and(|live| live.surprise) {
+            self.remember();
+        }
+        let live = self.live.as_mut()?;
+        live.generation += 1;
+        live.loading = true;
+        live.replacing = true;
+        live.surprise = true;
+        live.error = None;
+        let query = live.settings.clone();
+        live.query = Some(query.clone());
+        let generation = live.generation;
+        self.send(Action::Load {
+            generation,
+            load: Load::Surprise { query, seed },
+        });
+        None
+    }
+
+    /// Lists more like the selected artwork: by its artist, or from its department.
+    fn pivot(&mut self, by_artist: bool) {
+        let what = if by_artist { "artist" } else { "department" };
+        if self.live.is_none() {
+            self.echo = Some(format!(
+                "more by {what} needs a live search, not --from-file"
+            ));
+            return;
+        }
+        let Some(summary) = self.results.selected().map(|e| e.summary.clone()) else {
+            return;
+        };
+        let Some(live) = &self.live else { return };
+        let query = match (by_artist, summary.artist_id, summary.department_id) {
+            (true, Some(id), _) => live.settings.by_artist(id, summary.artist_title),
+            (false, _, Some(id)) => live.settings.from_department(id, summary.department_title),
+            _ => {
+                self.echo = Some(format!("this artwork has no {what} on record"));
+                return;
+            }
+        };
+        self.search.clear();
+        self.focus = Pane::Results;
+        self.run_live(query);
+    }
+
+    /// Pushes the live list showing onto the history, unless it is already there.
+    fn remember(&mut self) {
+        let Some(live) = &self.live else { return };
+        if self.view != View::Results || live.replacing || self.results.counts().1 == 0 {
+            return;
+        }
+        if self.history.len() == HISTORY {
+            self.history.remove(0);
+        }
+        self.history.push(Snapshot {
+            results: self.results.clone(),
+            query: live.query.clone(),
+            settings: live.settings.clone(),
+            total: live.total,
+            next_page: live.next_page,
+            fallback: live.fallback,
+            surprise: live.surprise,
+        });
+    }
+
+    /// Goes back to the list before this one, with its cursor, or from the saved list back to
+    /// the results.
+    fn back(&mut self) -> Option<Action> {
+        if self.view == View::Saved {
+            return self.switch_saved();
+        }
+        let Some(snapshot) = self.history.pop() else {
+            self.echo = Some("backspace · no earlier list".into());
+            return None;
+        };
+        let live = self.live.as_mut()?;
+        // Drop whatever is still on its way for the list being left.
+        live.generation += 1;
+        live.loading = false;
+        live.replacing = false;
+        live.error = None;
+        live.query = snapshot.query;
+        live.settings = snapshot.settings;
+        live.total = snapshot.total;
+        live.next_page = snapshot.next_page;
+        live.fallback = snapshot.fallback;
+        live.surprise = snapshot.surprise;
+        self.search.set(&live.settings.text);
+        self.results = snapshot.results;
+        self.refresh_saved();
+        let selected = self.results.selected().cloned();
+        self.preview(selected)
+    }
+
+    /// Shows the results again if the saved list is showing.
+    fn show_results(&mut self) {
+        if self.view == View::Saved {
+            self.switch_saved();
+        }
+    }
+
+    /// Swaps the results for the saved list, or back.
+    fn switch_saved(&mut self) -> Option<Action> {
+        let showing = match self.view {
+            View::Results => {
+                let mut saved = Results::new(self.saved.entries());
+                saved.saved_view = true;
+                self.other = std::mem::replace(&mut self.results, saved);
+                View::Saved
+            }
+            View::Saved => {
+                self.results = std::mem::take(&mut self.other);
+                View::Results
+            }
+        };
+        self.view = showing;
+        self.focus = Pane::Results;
+        self.refresh_saved();
+        let selected = self.results.selected().cloned();
+        match selected {
+            Some(artwork) => self.preview(Some(artwork)),
+            None => Some(Action::ClearImage),
+        }
+    }
+
+    /// Saves the selected artwork, or unsaves it.
+    fn toggle_saved(&mut self) -> Option<Action> {
+        let artwork = self.results.selected().cloned()?;
+        let row = self.results.selected_row();
+        match self.saved.toggle(&artwork) {
+            Ok(saved) => {
+                let done = if saved { "saved" } else { "removed from saved" };
+                self.echo = Some(format!("{done} · {}", artwork.title()));
+            }
+            Err(error) => {
+                self.echo = Some(format!("could not save: {error:#}"));
+                return None;
+            }
+        }
+        if self.view == View::Saved {
+            // Unsaving takes it off the saved list, and the next one is selected.
+            self.results.replace(self.saved.entries());
+            let selected = self.results.reselect(Some(artwork.id()), row);
+            self.refresh_saved();
+            return match selected {
+                Some(next) if next.id() != artwork.id() => self.preview(Some(next)),
+                Some(_) => None,
+                None => Some(Action::ClearImage),
+            };
+        }
+        self.refresh_saved();
+        None
+    }
+
+    /// Opens the note editor on the selected artwork, if it is saved.
+    fn edit_note(&mut self) {
+        let Some(artwork) = self.results.selected() else {
+            return;
+        };
+        let id = artwork.id();
+        if !self.saved.contains(id) {
+            let save = self
+                .key_for(Context::Global, &Action::ToggleSaved)
+                .unwrap_or_else(|| "m".into());
+            self.echo = Some(format!(
+                "only saved artworks take notes; save it with {save}"
+            ));
+            return;
+        }
+        let title = artwork.title().to_string();
+        self.note.open(id, &title, self.saved.note(id));
+        self.note.save_keys = self.keys_for(Context::Overlay, &Action::Select);
+        self.note.cancel_keys = self.keys_for(Context::Overlay, &Action::Cancel);
+        if self.note.cancel_keys.is_empty() {
+            self.note.cancel_keys = self.keys_for(Context::Global, &Action::Cancel);
+        }
+        self.overlay = Some(Overlay::Note);
+    }
+
+    /// Saves the note being edited and closes the editor.
+    fn save_note(&mut self) {
+        self.overlay = None;
+        let Some(id) = self.note.id else { return };
+        match self.saved.set_note(id, self.note.text()) {
+            Ok(()) => self.echo = Some("note saved".into()),
+            Err(error) => self.echo = Some(format!("could not save the note: {error:#}")),
+        }
+        self.show_record(self.results.selected().cloned());
+    }
+
     /// Asks for the next page when the cursor is near the end of a live search's list.
     fn load_more(&mut self) {
+        if self.view == View::Saved {
+            return;
+        }
         let rows_below = self.results.rows_below();
         let (_, loaded) = self.results.counts();
         let Some(live) = &mut self.live else { return };
         let Some(query) = live.query.clone() else {
             return;
         };
+        if live.surprise {
+            return;
+        }
         let reachable = live.total.min(MAX_RESULTS);
         if live.loading || loaded as u64 >= reachable || rows_below > LOAD_AHEAD {
             return;
@@ -420,6 +737,7 @@ impl Explorer {
             return None;
         }
         live.loading = false;
+        live.replacing = false;
         let Listing {
             entries,
             total,
@@ -434,21 +752,35 @@ impl Explorer {
         };
         live.error = None;
         let first = match loaded.load {
-            Load::Highlights(_) => true,
+            Load::Highlights(_) | Load::Surprise { .. } => true,
             Load::Search { page, .. } => page == 1,
         };
         live.total = total;
         live.fallback = fallback;
+        // While the saved list shows, the results keep loading out of sight.
+        let hidden = self.view == View::Saved;
+        let list = if hidden {
+            &mut self.other
+        } else {
+            &mut self.results
+        };
         if first {
             live.next_page = 2;
-            let selected = self.results.replace(entries);
-            self.record.show(selected.clone());
-            let next = selected.map(Action::ShowArtwork);
+            let selected = list.replace(entries);
+            if hidden {
+                return None;
+            }
+            self.refresh_saved();
+            let next = match selected {
+                Some(artwork) => Some(Action::ShowArtwork(artwork)),
+                None => Some(Action::ClearImage),
+            };
             self.load_more();
             next
         } else {
             live.next_page += 1;
-            self.results.append(entries);
+            list.append(entries);
+            self.refresh_saved();
             self.load_more();
             None
         }
@@ -457,19 +789,29 @@ impl Explorer {
     /// What the status bar says about the list.
     fn counts(&self) -> String {
         let (shown, loaded) = self.results.counts();
+        if self.view == View::Saved {
+            let noun = if loaded == 1 { "artwork" } else { "artworks" };
+            return format!("Saved · {loaded} {noun}");
+        }
         let Some(live) = &self.live else {
             return if shown == loaded {
-                format!("{loaded} artworks")
+                let noun = if loaded == 1 { "artwork" } else { "artworks" };
+                format!("{loaded} {noun}")
             } else {
                 format!("{shown} / {loaded} artworks")
             };
         };
         let mut parts = vec![match (&live.query, live.fallback) {
+            _ if live.surprise && loaded == 0 && !live.loading => {
+                "Surprise · nothing matches".into()
+            }
+            _ if live.surprise => "Surprise".into(),
             (None, false) => format!("Highlights · {loaded} artworks"),
             (None, true) => format!("Recent public domain · {loaded}"),
             (Some(_), _) => format!("{} / {}", thousands(loaded as u64), thousands(live.total)),
         }];
         if let Some(query) = &live.query {
+            parts.extend(query.pivots());
             match query.filter_count() {
                 0 => {}
                 1 => parts.push("1 filter".into()),
@@ -479,7 +821,11 @@ impl Explorer {
                 parts.push(query.sort.label().into());
             }
         }
-        if live.query.is_some() && live.total > MAX_RESULTS && loaded as u64 >= MAX_RESULTS {
+        if live.query.is_some()
+            && !live.surprise
+            && live.total > MAX_RESULTS
+            && loaded as u64 >= MAX_RESULTS
+        {
             parts.push("narrow the search to see more".into());
         }
         if live.rate_limited {
@@ -507,6 +853,7 @@ impl Explorer {
             (Some(Overlay::Quit), _) => {}
             (Some(Overlay::Record), _) => self.full_record.scroll(delta),
             (Some(Overlay::Filters), _) => self.filters.step(delta),
+            (Some(Overlay::Note), _) => {}
             (None, Pane::Results) => {
                 let moved = self.results.step(delta);
                 return self.preview(moved);
@@ -564,6 +911,23 @@ impl Component for Explorer {
                 _ => {}
             }
         }
+        if self.overlay == Some(Overlay::Note) {
+            // The note takes every printable key, like the search bar.
+            let plain = !key
+                .modifiers
+                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
+            match key.code {
+                KeyCode::Char(c) if plain => {
+                    self.note.push(c);
+                    return Ok(None);
+                }
+                KeyCode::Backspace if plain => {
+                    self.note.backspace();
+                    return Ok(None);
+                }
+                _ => {}
+            }
+        }
         if let Some(action) = self.lookup(context, key).cloned() {
             self.set_echo(key, Some(&action));
             return Ok(Some(action));
@@ -606,6 +970,7 @@ impl Component for Explorer {
                 Overlay::Quit => self.quit.area,
                 Overlay::Record => self.full_record.area,
                 Overlay::Filters => self.filters.area,
+                Overlay::Note => self.note.area,
             };
             if delta == 0 && !area.contains(at) {
                 self.overlay = None;
@@ -720,13 +1085,16 @@ impl Component for Explorer {
             Action::RunSearch => {
                 let query = self.search.submit();
                 self.focus = Pane::Results;
+                if self.view == View::Saved {
+                    self.switch_saved();
+                }
                 if self.live.is_some() {
                     self.search_live(query);
                     None
                 } else {
                     let moved = self.results.filter(&query);
                     if self.results.selected().is_none() {
-                        self.record.show(None);
+                        self.show_record(None);
                     }
                     self.preview(moved)
                 }
@@ -772,6 +1140,14 @@ impl Component for Explorer {
                 self.filters.change(1);
                 None
             }
+            Action::Select if self.overlay == Some(Overlay::Note) => {
+                self.save_note();
+                None
+            }
+            Action::ClearSearch if self.overlay == Some(Overlay::Note) => {
+                self.note.clear();
+                None
+            }
             Action::ClearSearch if self.overlay == Some(Overlay::Filters) => {
                 self.filters.reset(&default_filters());
                 None
@@ -781,12 +1157,19 @@ impl Component for Explorer {
                     Ok(filters) => {
                         self.overlay = None;
                         self.focus = Pane::Results;
-                        let text = self.live.as_mut().map(|live| {
-                            live.settings.filters = filters;
-                            live.settings.text.clone()
+                        let settings = self.live.as_ref().map(|live| {
+                            let mut settings = live.settings.clone();
+                            if filters.artist_id != settings.filters.artist_id {
+                                settings.artist = None;
+                            }
+                            if filters.department_id != settings.filters.department_id {
+                                settings.department = None;
+                            }
+                            settings.filters = filters;
+                            settings
                         });
-                        if let Some(text) = text {
-                            self.search_live(text);
+                        if let Some(settings) = settings {
+                            self.run_live(settings);
                         }
                     }
                     Err(error) => self.filters.fail(error),
@@ -794,15 +1177,31 @@ impl Component for Explorer {
                 None
             }
             Action::CycleSort => {
-                let text = self.live.as_mut().map(|live| {
-                    live.settings.sort = live.settings.sort.next();
-                    live.settings.text.clone()
+                let settings = self.live.as_ref().map(|live| Query {
+                    sort: live.settings.sort.next(),
+                    ..live.settings.clone()
                 });
-                if let Some(text) = text {
-                    self.search_live(text);
+                if let Some(settings) = settings {
+                    self.run_live(settings);
                 } else {
                     self.echo = Some("s · sorting needs a live search, not --from-file".into());
                 }
+                None
+            }
+            Action::MoreByArtist => {
+                self.pivot(true);
+                None
+            }
+            Action::MoreFromDepartment => {
+                self.pivot(false);
+                None
+            }
+            Action::Surprise => self.surprise(),
+            Action::Back if self.overlay.is_none() => self.back(),
+            Action::ToggleSaved => self.toggle_saved(),
+            Action::SwitchSaved => self.switch_saved(),
+            Action::EditNote => {
+                self.edit_note();
                 None
             }
             Action::OpenInBrowser => self.link().map(Action::OpenUrl),
@@ -885,10 +1284,20 @@ impl Component for Explorer {
             Some(Overlay::Quit) => self.quit.draw(frame, area)?,
             Some(Overlay::Record) => self.full_record.draw(frame, area)?,
             Some(Overlay::Filters) => self.filters.draw(frame, area)?,
+            Some(Overlay::Note) => self.note.draw(frame, area)?,
             None => {}
         }
         Ok(())
     }
+}
+
+/// A seed for the surprises from the clock, never zero.
+fn clock_seed() -> u64 {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or_default();
+    nanos | 1
 }
 
 /// `n` with commas between thousands, such as `10,000`.
@@ -1266,6 +1675,93 @@ mod tests {
         assert_eq!(explorer.overlay(), None);
     }
 
+    #[test]
+    fn m_saves_and_the_saved_list_takes_notes() {
+        let mut explorer = explorer();
+        press(&mut explorer, char('n'));
+        press(&mut explorer, char('m'));
+        assert_eq!(explorer.echo.as_deref(), Some("saved · The Bedroom"));
+        assert!(render(&mut explorer, 100, 16).contains("* The Bedroom"));
+
+        let shown = press(&mut explorer, char('\''));
+        assert_eq!(explorer.view(), View::Saved);
+        assert!(matches!(shown, Some(Action::ShowArtwork(e)) if e.title() == "The Bedroom"));
+        press(&mut explorer, char('e'));
+        assert_eq!(explorer.overlay(), Some(Overlay::Note));
+        // Keys bound elsewhere, such as `q`, type into the note.
+        "quiet".chars().for_each(|c| {
+            press(&mut explorer, char(c));
+        });
+        press(&mut explorer, key(KeyCode::Backspace));
+        press(&mut explorer, key(KeyCode::Enter));
+        assert_eq!(explorer.overlay(), None);
+        assert_eq!(explorer.saved.note(28560), Some("quie"));
+        insta::assert_snapshot!(render(&mut explorer, 100, 20));
+
+        // Unsaving from the saved list takes it off.
+        assert_eq!(press(&mut explorer, char('m')), Some(Action::ClearImage));
+        assert_eq!(explorer.selected(), None);
+        assert_eq!(explorer.counts(), "Saved · 0 artworks");
+        press(&mut explorer, key(KeyCode::Backspace));
+        assert_eq!(explorer.view(), View::Results);
+        assert_eq!(selected_title(&explorer).as_deref(), Some("The Bedroom"));
+        assert!(!render(&mut explorer, 100, 16).contains("* The Bedroom"));
+    }
+
+    #[test]
+    fn e_on_an_unsaved_artwork_says_how_to_save_it() {
+        let mut explorer = explorer();
+        press(&mut explorer, char('e'));
+        assert_eq!(explorer.overlay(), None);
+        assert_eq!(
+            explorer.echo.as_deref(),
+            Some("only saved artworks take notes; save it with m")
+        );
+    }
+
+    #[test]
+    fn esc_leaves_a_note_unchanged() {
+        let mut explorer = explorer();
+        press(&mut explorer, char('m'));
+        press(&mut explorer, char('e'));
+        press(&mut explorer, char('x'));
+        press(&mut explorer, key(KeyCode::Esc));
+        assert_eq!(explorer.overlay(), None);
+        assert_eq!(explorer.saved.note(27992), None);
+    }
+
+    #[test]
+    fn file_mode_pivots_need_a_live_search_and_r_picks_a_row() {
+        let mut explorer = explorer();
+        press(&mut explorer, char('A'));
+        assert_eq!(
+            explorer.echo.as_deref(),
+            Some("more by artist needs a live search, not --from-file")
+        );
+        explorer.seed = 7;
+        let picks: std::collections::HashSet<u32> = (0..20)
+            .filter_map(|_| {
+                press(&mut explorer, char('R'));
+                explorer.selected().map(Entry::id)
+            })
+            .collect();
+        assert!(picks.len() > 1, "surprises move around the list: {picks:?}");
+    }
+
+    #[test]
+    fn from_file_reads_a_saved_list_or_an_artworks_file() {
+        let mut list = SavedList::in_memory();
+        let artworks = Entry::from_text(ARTWORKS_FIXTURE).unwrap();
+        assert_eq!(artworks.len(), 5);
+        list.toggle(&artworks[1]).unwrap();
+        let path = std::env::temp_dir().join(format!("acres-tui-from-file-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&path);
+        let mut on_disk = SavedList::open(path.join("saved.json")).unwrap();
+        on_disk.toggle(&artworks[1]).unwrap();
+        let text = std::fs::read_to_string(path.join("saved.json")).unwrap();
+        assert_eq!(Entry::from_text(&text).unwrap(), list.entries());
+    }
+
     mod live {
         use tokio::sync::mpsc::{self, UnboundedReceiver};
 
@@ -1278,6 +1774,10 @@ mod tests {
                     id,
                     title: format!("Artwork {id}"),
                     image_id: Some(format!("image-{id}")),
+                    artist_id: Some(35),
+                    artist_title: Some("Claude Monet".into()),
+                    department_id: Some("PC-3".into()),
+                    department_title: Some("Painting and Sculpture of Europe".into()),
                     ..Default::default()
                 },
                 config: acres::ApiConfig {
@@ -1536,7 +2036,7 @@ mod tests {
             assert!(
                 explorer
                     .counts()
-                    .starts_with("10,000 / 52,000 · narrow the search")
+                    .starts_with("1,000 / 52,000 · narrow the search")
             );
         }
 
@@ -1546,6 +2046,196 @@ mod tests {
             assert_eq!(thousands(999), "999");
             assert_eq!(thousands(1_000), "1,000");
             assert_eq!(thousands(1_234_567), "1,234,567");
+        }
+
+        /// A started explorer showing the Highlights `1..3`, with its requests drained.
+        fn showing_highlights() -> (Explorer, UnboundedReceiver<Action>) {
+            let (mut explorer, mut rx) = started();
+            loads(&mut rx);
+            deliver(&mut explorer, 1, Load::Highlights(vec![]), listing(1..3, 2));
+            (explorer, rx)
+        }
+
+        fn ids(explorer: &Explorer) -> Vec<u32> {
+            explorer.results.artworks().iter().map(Entry::id).collect()
+        }
+
+        #[test]
+        fn a_and_d_search_by_the_artist_and_department_and_name_them() {
+            let (mut explorer, mut rx) = showing_highlights();
+            press(&mut explorer, char('A'));
+            let artist = searched(&mut rx);
+            assert_eq!(artist.filters.artist_id, Some(35));
+            assert!(artist.filters.has_image, "the filters are kept");
+            assert_eq!(artist.text, "");
+            deliver(
+                &mut explorer,
+                2,
+                Load::Search {
+                    query: artist,
+                    page: 1,
+                },
+                listing(10..12, 2),
+            );
+            assert_eq!(explorer.counts(), "2 / 2 · by Claude Monet");
+
+            press(&mut explorer, char('D'));
+            let department = searched(&mut rx);
+            assert_eq!(department.filters.department_id.as_deref(), Some("PC-3"));
+            assert_eq!(
+                department.filters.artist_id,
+                Some(35),
+                "pivots narrow the list they start from"
+            );
+            assert_eq!(
+                department.pivots(),
+                ["by Claude Monet", "from Painting and Sculpture of Europe"]
+            );
+        }
+
+        #[test]
+        fn a_pivot_says_when_the_artwork_has_no_artist() {
+            let (mut explorer, mut rx) = started();
+            loads(&mut rx);
+            let mut nobody = entry(1);
+            nobody.summary.artist_id = None;
+            let listed = Ok(Listing {
+                entries: vec![nobody],
+                total: 1,
+                fallback: false,
+            });
+            deliver(&mut explorer, 1, Load::Highlights(vec![]), listed);
+            press(&mut explorer, char('A'));
+            assert!(loads(&mut rx).is_empty());
+            assert_eq!(
+                explorer.echo.as_deref(),
+                Some("this artwork has no artist on record")
+            );
+        }
+
+        #[test]
+        fn backspace_goes_back_through_earlier_lists_with_their_cursors() {
+            let (mut explorer, mut rx) = showing_highlights();
+            search(&mut explorer, "monet");
+            let monet = searched(&mut rx);
+            let page = |page| Load::Search {
+                query: monet.clone(),
+                page,
+            };
+            deliver(&mut explorer, 2, page(1), listing(10..15, 5));
+            press(&mut explorer, char('n'));
+            press(&mut explorer, char('n'));
+            press(&mut explorer, char('A'));
+            let artist = searched(&mut rx);
+            // A page still on its way for the pivot is dropped once we go back.
+            press(&mut explorer, key(KeyCode::Backspace));
+            assert_eq!(ids(&explorer), [10, 11, 12, 13, 14]);
+            assert_eq!(explorer.selected().map(Entry::id), Some(12));
+            assert_eq!(explorer.search.query(), "monet");
+            assert_eq!(
+                deliver(
+                    &mut explorer,
+                    3,
+                    Load::Search {
+                        query: artist,
+                        page: 1
+                    },
+                    listing(20..22, 2)
+                ),
+                None
+            );
+            assert_eq!(ids(&explorer), [10, 11, 12, 13, 14]);
+
+            press(&mut explorer, key(KeyCode::Backspace));
+            assert_eq!(ids(&explorer), [1, 2]);
+            assert_eq!(explorer.counts(), "Highlights · 2 artworks");
+            press(&mut explorer, key(KeyCode::Backspace));
+            assert_eq!(
+                explorer.echo.as_deref(),
+                Some("backspace · no earlier list")
+            );
+        }
+
+        #[test]
+        fn a_search_typed_while_one_loads_is_remembered_once() {
+            let (mut explorer, mut rx) = showing_highlights();
+            search(&mut explorer, "monet");
+            search(&mut explorer, "seurat");
+            let seurat = searched_last(&mut rx);
+            deliver(
+                &mut explorer,
+                3,
+                Load::Search {
+                    query: seurat,
+                    page: 1,
+                },
+                listing(30..31, 1),
+            );
+            assert_eq!(explorer.history.len(), 1, "only the Highlights");
+        }
+
+        /// The query of the last search asked for.
+        fn searched_last(rx: &mut UnboundedReceiver<Action>) -> Query {
+            match loads(rx).pop() {
+                Some((_, Load::Search { query, page: 1 })) => query,
+                other => panic!("expected a search, got {other:?}"),
+            }
+        }
+
+        #[test]
+        fn r_asks_for_a_surprise_and_another_replaces_it() {
+            let (mut explorer, mut rx) = showing_highlights();
+            explorer.seed = 42;
+            press(&mut explorer, char('R'));
+            let (generation, query, seed) = match loads(&mut rx).as_slice() {
+                [(generation, Load::Surprise { query, seed })] => {
+                    (*generation, query.clone(), *seed)
+                }
+                other => panic!("expected a surprise, got {other:?}"),
+            };
+            assert!(query.filters.has_image);
+            let surprise = Load::Surprise {
+                query: query.clone(),
+                seed,
+            };
+            let shown = deliver(&mut explorer, generation, surprise, listing(77..78, 1));
+            assert!(matches!(shown, Some(Action::ShowArtwork(e)) if e.id() == 77));
+            assert_eq!(explorer.counts(), "Surprise");
+            // No next page for a surprise.
+            assert!(loads(&mut rx).is_empty());
+
+            press(&mut explorer, char('R'));
+            let again = loads(&mut rx);
+            assert!(
+                matches!(again.as_slice(), [(_, Load::Surprise { seed: s, .. })] if *s != seed),
+                "a new seed: {again:?}"
+            );
+            assert_eq!(explorer.history.len(), 1, "surprises do not pile up");
+            press(&mut explorer, key(KeyCode::Backspace));
+            assert_eq!(ids(&explorer), [1, 2]);
+        }
+
+        #[test]
+        fn the_saved_list_hides_the_results_while_they_load() {
+            let (mut explorer, mut rx) = showing_highlights();
+            press(&mut explorer, char('m'));
+            search(&mut explorer, "monet");
+            let monet = searched(&mut rx);
+            press(&mut explorer, char('\''));
+            assert_eq!(explorer.view(), View::Saved);
+            deliver(
+                &mut explorer,
+                2,
+                Load::Search {
+                    query: monet,
+                    page: 1,
+                },
+                listing(10..12, 2),
+            );
+            assert_eq!(ids(&explorer), [1], "the saved list still shows");
+            assert_eq!(explorer.counts(), "Saved · 1 artwork");
+            press(&mut explorer, char('\''));
+            assert_eq!(ids(&explorer), [10, 11]);
         }
     }
 }

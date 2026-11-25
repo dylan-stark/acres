@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use color_eyre::Result;
 use ratatui::{
     Frame,
@@ -10,7 +12,9 @@ use super::{Component, pane_block};
 use crate::entry::Entry;
 
 /// The results pane: the artworks loaded, narrowed by the last search, with one selected.
-#[derive(Default)]
+///
+/// Saved artworks are marked with `*`. The same pane lists the saved list, titled Saved.
+#[derive(Default, Clone)]
 pub struct Results {
     artworks: Vec<Entry>,
     /// Indexes into `artworks` that match the last search, in order.
@@ -20,6 +24,10 @@ pub struct Results {
     rows: u16,
     /// Where the last draw put the list, for mapping clicks to rows.
     area: Rect,
+    /// Ids of saved artworks, marked in the list.
+    marked: HashSet<u32>,
+    /// Whether this lists the saved artworks, which titles the pane Saved.
+    pub saved_view: bool,
     pub focused: bool,
 }
 
@@ -54,6 +62,11 @@ impl Results {
     pub fn rows_below(&self) -> usize {
         let at = self.state.selected().unwrap_or(0);
         self.shown.len().saturating_sub(at + 1)
+    }
+
+    /// Every artwork loaded, shown or not.
+    pub fn artworks(&self) -> &[Entry] {
+        &self.artworks
     }
 
     /// The selected artwork.
@@ -121,6 +134,25 @@ impl Results {
         self.changed(before)
     }
 
+    /// Marks these artworks as saved.
+    pub fn mark(&mut self, saved: impl IntoIterator<Item = u32>) {
+        self.marked = saved.into_iter().collect();
+    }
+
+    /// Selects the artwork `id` if it is listed, else the row where the selection was, so
+    /// removing a row moves the selection to the next one. Returns the artwork now selected.
+    pub fn reselect(&mut self, id: Option<u32>, row: usize) -> Option<Entry> {
+        let found = id.and_then(|id| self.shown.iter().position(|&i| self.artworks[i].id() == id));
+        let at = found.or_else(|| (!self.shown.is_empty()).then(|| row.min(self.shown.len() - 1)));
+        self.state.select(at);
+        self.selected().cloned()
+    }
+
+    /// The selected row, from 0.
+    pub fn selected_row(&self) -> usize {
+        self.state.selected().unwrap_or(0)
+    }
+
     fn changed(&self, before: Option<Entry>) -> Option<Entry> {
         let after = self.selected()?;
         (before.as_ref() != Some(after)).then(|| after.clone())
@@ -129,13 +161,21 @@ impl Results {
 
 impl Component for Results {
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
-        let block = pane_block(2, "Results", self.focused);
+        let name = if self.saved_view { "Saved" } else { "Results" };
+        let block = pane_block(2, name, self.focused);
         self.area = block.inner(area);
         self.rows = self.area.height;
         let items: Vec<ListItem> = self
             .shown
             .iter()
-            .map(|&i| ListItem::new(self.artworks[i].title()))
+            .map(|&i| {
+                let artwork = &self.artworks[i];
+                if !self.saved_view && self.marked.contains(&artwork.id()) {
+                    ListItem::new(format!("* {}", artwork.title()))
+                } else {
+                    ListItem::new(artwork.title())
+                }
+            })
             .collect();
         let highlight = Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD);
         let list = List::new(items)

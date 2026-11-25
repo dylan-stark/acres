@@ -19,6 +19,13 @@
       "<y>": "CopyLink", // Copy the link to the artwork's page
       "<f>": "OpenFilters", // Filter the search: image, public domain, on view, department, type, years
       "<s>": "CycleSort", // Cycle the sort: relevance, oldest, newest, title
+      "<A>": "MoreByArtist", // List more by the selected artwork's artist
+      "<D>": "MoreFromDepartment", // List more from the selected artwork's department
+      "<R>": "Surprise", // Show a random artwork that matches the filters
+      "backspace": "Back", // Back to the previous list, with its cursor
+      "<m>": "ToggleSaved", // Save or unsave the selected artwork
+      "<'>": "SwitchSaved", // Switch between the results and the saved list
+      "<e>": "EditNote", // Edit the note on a saved artwork
       "<z>": "ToggleZen", // Zen: art only, full screen
       "<b>": "CycleArtMode", // Cycle half blocks, quadrant blocks and ASCII
       "<r>": "PickRamp", // Pick a ramp (ASCII mode)
@@ -69,12 +76,12 @@
       "up": "MoveUp",
       "<g>": "Top",
       "<G>": "Bottom",
-      "enter": "Select", // Choose a ramp, apply the filters, or quit from the quit prompt
+      "enter": "Select", // Choose a ramp, apply the filters, save a note, or quit from the quit prompt
       "<h>": "PreviousOption", // Change the highlighted filter
       "left": "PreviousOption",
       "<l>": "NextOption",
       "right": "NextOption",
-      "<Ctrl-u>": "ClearSearch", // Reset the filters
+      "<Ctrl-u>": "ClearSearch", // Reset the filters, or clear the note
     },
   }
 }

@@ -40,6 +40,12 @@ impl Search {
         self.recalled = None;
     }
 
+    /// Shows `query` in the bar, as when going back to an earlier list.
+    pub fn set(&mut self, query: &str) {
+        self.query = query.to_string();
+        self.recalled = None;
+    }
+
     /// Records the query in history and returns it.
     pub fn submit(&mut self) -> String {
         let query = self.query.trim().to_string();

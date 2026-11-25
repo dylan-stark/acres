@@ -6,10 +6,6 @@ expression: "render(&mut help, 60, 50)"
 
 
 
-
-
-
-
   ┌ Keys ────────────────────────────────────────────────┐
   │Results                                               │
   │  enter    show the full image                        │
@@ -35,6 +31,13 @@ expression: "render(&mut help, 60, 50)"
   │  y          copy its link                            │
   │  f          filters                                  │
   │  s          cycle sort                               │
+  │  A          more by this artist                      │
+  │  D          more from this department                │
+  │  R          surprise me                              │
+  │  backspace  back to the previous list                │
+  │  m          save or unsave                           │
+  │  '          switch results and saved                 │
+  │  e          edit its note                            │
   │  z          zen: art only                            │
   │  b          cycle art mode                           │
   │  r          pick a ramp                              │
