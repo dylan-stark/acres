@@ -141,14 +141,16 @@ New benches, recorded on both machines in this ADR once implemented (Ryzen numbe
 
 | Bench | What it measures | M1 Air (target) | Ryzen 9700X (dev) |
 | --- | --- | --- | --- |
-| `tui/frame/explorer/{ascii,half,quadrant}` | Whole `terminal.draw` of the three-pane screen into a `TestBackend` at 200x60, 50-row list, record and art | to measure | to measure |
-| `tui/frame/zen/{ascii,half,quadrant}` | Same, art only at 200x60 | to measure | to measure |
-| `tui/frame/help` | Explorer in ASCII with the help overlay open | to measure | to measure |
+| `tui/frame/explorer/{half,quadrant,ascii}` | Whole `terminal.draw` of the three-pane screen into a `TestBackend`, alternating 200x60 and 199x60 so the art re-renders every frame; the five fixture artworks, record and art | 0.37 / 0.37 / 0.37 ms | 0.22 / 0.22 / 0.21 ms |
+| `tui/frame/zen/{half,quadrant,ascii}` | Same, art only | 0.42 / 0.42 / 0.42 ms | 0.27 / 0.27 / 0.22 ms |
+| `tui/frame/help/ascii` | Explorer in ASCII with the help overlay open | 0.40 ms | 0.23 ms |
 | `charaoke/tui_proxy/drag` (existing, ADR 0014 run) | 120 to 200 column drag, ASCII | 0.93 ms | 0.58 ms |
 | `charaoke/tui_proxy/drag_half` (existing) | Same drag, half blocks | 1.03 ms | 0.67 ms |
 | `charaoke/tui_proxy/drag_quadrant` (existing) | Same drag, quadrant blocks | 1.43 ms | 1.01 ms |
 
 The frame benches live in `acres-tui/benches`, since only the TUI can draw its own screen. The bar for merging each step: `tui/frame/explorer` and `tui/frame/zen` under 8 ms on the Air in every mode, and `make bench-compare` against `main` shows no regression in `charaoke/*`.
+
+Step 1 measured the shell on the file input, with times per mode in the order listed. The worst case, zen in ASCII on the Air, is 0.42 ms, about a twentieth of the budget, so later steps have plenty of room.
 
 ## Consequences
 
