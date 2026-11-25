@@ -6,14 +6,13 @@ expression: "render(&mut explorer, 100, 40)"
 │/ to search titles                                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ┌[2] Results────────────┐┌[3] Art─────────────────────────────────────────┐┌[4] Record─────────────┐
-│> A Sunday on La Grande││                                                ││A Sunday on La Grande  │
-│  The Bedroom        ┌ Keys ────────────────────────────────────────────────┐tte — 1884           │
-│  Water Lilies       │Results                                               │                     │
-│  The Great Wave     │  enter    show the full image                        │     27992           │
-│  Paris Street; Rainy│  j, down  move down                                  │age                  │
-│                     │  k, up    move up                                    │484387-2509-5e8e-2c43│
-│                     │  g        top                                        │2f9981972eb          │
-│                     │  G        bottom                                     │                     │
+│> A Sunday on La Gran┌ Keys ────────────────────────────────────────────────┐Sunday on La Grande  │
+│  The Bedroom        │Results                                               │tte — 1884           │
+│  Water Lilies       │  enter    show the full image                        │                     │
+│  The Great Wave     │  j, down  move down                                  │     27992           │
+│  Paris Street; Rainy│  k, up    move up                                    │age                  │
+│                     │  g        top                                        │484387-2509-5e8e-2c43│
+│                     │  G        bottom                                     │2f9981972eb          │
 │                     │  ctrl-d   half a page down                           │                     │
 │                     │  ctrl-u   half a page up                             │                     │
 │                     │                                                      │                     │
@@ -28,6 +27,8 @@ expression: "render(&mut explorer, 100, 40)"
 │                     │  n          next artwork                             │                     │
 │                     │  p          previous artwork                         │                     │
 │                     │  space      show the full image                      │                     │
+│                     │  o          open on artic.edu                        │                     │
+│                     │  y          copy its link                            │                     │
 │                     │  z          zen: art only                            │                     │
 │                     │  b          cycle art mode                           │                     │
 │                     │  r          pick a ramp                              │                     │
@@ -38,7 +39,6 @@ expression: "render(&mut explorer, 100, 40)"
 │                     │  ctrl-z     suspend                                  │                     │
 │                     │  esc        close                                    │                     │
 │                     └ ? or esc to close ───────────────────────────────────┘                     │
-│                       ││                                                ││                       │
 │                       ││                                                ││                       │
 └───────────────────────┘└────────────────────────────────────────────────┘└───────────────────────┘
  5 artworks  ? help  j move down  esc close                                          ? · toggle help

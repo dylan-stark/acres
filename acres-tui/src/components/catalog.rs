@@ -71,6 +71,8 @@ pub struct Fetcher {
     /// The generation of the request in flight, if any.
     generation: u64,
     pending: Option<JoinHandle<()>>,
+    /// The full record being fetched. Asking for another aborts it.
+    record: Option<JoinHandle<()>>,
     /// What the status bar was last told about the rate limit.
     rate_limited: bool,
 }
@@ -82,6 +84,7 @@ impl Fetcher {
             action_tx,
             generation: 0,
             pending: None,
+            record: None,
             rate_limited: false,
         }
     }
@@ -104,6 +107,35 @@ impl Fetcher {
                 load,
                 result,
             }));
+        }));
+    }
+}
+
+impl Fetcher {
+    /// Fetches the full record of artwork `id`, replacing any record still on its way.
+    fn fetch_record(&mut self, id: u32) {
+        if let Some(previous) = self.record.take() {
+            previous.abort();
+        }
+        let catalog = self.catalog.clone();
+        let tx = self.action_tx.clone();
+        self.record = Some(tokio::spawn(async move {
+            let result = match catalog.artwork(id).await {
+                Ok(fetched) => {
+                    let mut timing = Timing::new(format!("record {id}"));
+                    timing = if fetched.from_cache {
+                        timing.stage("hit", Duration::ZERO)
+                    } else {
+                        timing
+                            .stage("wait", fetched.wait)
+                            .stage("fetch", fetched.fetch)
+                    };
+                    let _ = tx.send(Action::Timing(timing));
+                    Ok(fetched.value.data)
+                }
+                Err(e) => Err(e.to_string()),
+            };
+            let _ = tx.send(Action::RecordLoaded { id, result });
         }));
     }
 }
@@ -244,6 +276,7 @@ impl Component for Fetcher {
     fn update(&mut self, action: Action) -> eyre::Result<Option<Action>> {
         match action {
             Action::Load { generation, load } => self.start(generation, load),
+            Action::FetchRecord(id) => self.fetch_record(id),
             Action::Tick => {
                 let limited = self.catalog.is_rate_limited();
                 if limited != self.rate_limited {
@@ -416,6 +449,34 @@ mod tests {
         )
         .await;
         assert!(loaded.result.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_full_record_comes_back_for_its_artwork() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/artworks/27992"))
+            .and(query_param_contains("fields", "description"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "data": {"id": 27992, "title": "A Sunday", "dimensions": "207.5 cm"},
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut fetcher = Fetcher::new(tx, catalog(&server));
+        fetcher.update(Action::FetchRecord(27992)).unwrap();
+        loop {
+            match rx.recv().await.expect("a result") {
+                Action::RecordLoaded { id, result } => {
+                    assert_eq!(id, 27992);
+                    assert_eq!(result.unwrap().dimensions.as_deref(), Some("207.5 cm"));
+                    break;
+                }
+                Action::Timing(timing) => assert_eq!(timing.label, "record 27992"),
+                other => panic!("unexpected {other:?}"),
+            }
+        }
     }
 
     #[tokio::test]

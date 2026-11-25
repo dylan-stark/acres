@@ -1,6 +1,6 @@
 {
   // A key is looked up in the focused pane's context first (List, Art, Record, Search, or
-  // Overlay while help, ramps or the quit prompt is open), then in Global. The search bar only
+  // Overlay while an overlay is open), then in Global. The search bar only
   // falls back to Global for ctrl keys, so every other key types itself there.
   "keybindings": {
     "Global": {
@@ -14,7 +14,9 @@
       "shift-tab": "FocusPrevious", // Focus the previous pane
       "<n>": "NextArtwork", // Select the next artwork, from any pane
       "<p>": "PreviousArtwork", // Select the previous artwork, from any pane
-      "<space>": "ShowFullImage", // Fetch and show the full image, not the thumbnail
+      "<space>": "ShowFullImage", // Fetch and show the full image, not the placeholder
+      "<o>": "OpenInBrowser", // Open the artwork's page on artic.edu
+      "<y>": "CopyLink", // Copy the link to the artwork's page
       "<z>": "ToggleZen", // Zen: art only, full screen
       "<b>": "CycleArtMode", // Cycle half blocks, quadrant blocks and ASCII
       "<r>": "PickRamp", // Pick a ramp (ASCII mode)
@@ -40,6 +42,8 @@
       "enter": "ShowFullImage", // Fetch and show the full image
     },
     "Record": {
+      "<d>": "ToggleFullRecord", // Expand the wall label to the full record, or collapse it
+      "enter": "OpenRecord", // Open the full record in a large overlay
       "<j>": "MoveDown", // Scroll the record
       "down": "MoveDown",
       "<k>": "MoveUp",

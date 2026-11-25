@@ -123,6 +123,8 @@ impl App {
                 Action::Suspend => self.should_suspend = true,
                 Action::Resume => self.should_suspend = false,
                 Action::ClearScreen => tui.terminal.clear()?,
+                Action::OpenUrl(ref url) => open_url(url),
+                Action::CopyText(ref text) => copy_text(text),
                 Action::Resize(w, h) => self.handle_resize(tui, w, h)?,
                 Action::Render => self.render(tui)?,
                 _ => {}
@@ -155,5 +157,58 @@ impl App {
         })?;
         self.action_tx.send(Action::FrameTime(start.elapsed()))?;
         Ok(())
+    }
+}
+
+/// Opens `url` with the platform's opener, in the background, logging a failure.
+fn open_url(url: &str) {
+    let mut command = if cfg!(target_os = "macos") {
+        std::process::Command::new("open")
+    } else if cfg!(windows) {
+        let mut command = std::process::Command::new("cmd");
+        command.args(["/C", "start", ""]);
+        command
+    } else {
+        std::process::Command::new("xdg-open")
+    };
+    let spawned = command
+        .arg(url)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn();
+    if let Err(e) = spawned {
+        tracing::warn!("could not open {url}: {e}");
+    }
+}
+
+/// Puts `text` on the clipboard with an OSC 52 escape, which most terminals support and which
+/// works over SSH too, with no clipboard library.
+fn copy_text(text: &str) {
+    use std::io::Write;
+    let sequence = osc52(text);
+    let mut stdout = std::io::stdout();
+    if let Err(e) = stdout
+        .write_all(sequence.as_bytes())
+        .and_then(|()| stdout.flush())
+    {
+        tracing::warn!("could not copy: {e}");
+    }
+}
+
+/// The OSC 52 sequence that sets the clipboard to `text`.
+fn osc52(text: &str) -> String {
+    use base64::Engine;
+    let encoded = base64::engine::general_purpose::STANDARD.encode(text);
+    format!("\x1b]52;c;{encoded}\x07")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn osc52_sets_the_clipboard_to_base64_text() {
+        assert_eq!(osc52("hi"), "\x1b]52;c;aGk=\x07");
     }
 }

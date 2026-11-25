@@ -205,3 +205,17 @@ Steps 2 to 5 build on ADR 0016's `Catalog`. Bench results for both machines are 
 - **Placeholder first, full image on request.** After the debounce, the art shows the record's `thumbnail.lqip`, a GIF about 8x5 pixels that comes inline with every list, scaled up smoothly into a blur of the artwork's colors. Browsing so downloads no images and spends nothing from the rate limit. `enter` or `space` fetches the 843-pixel image, once per artwork. We tried a 200-pixel thumbnail fetch first, but it still costs a request per artwork and looks little different from the full image. This brings forward the placeholder planned for step 3, without its config switch, since it is now the only preview.
 - **Quit asks first.** `q` opens a small prompt, and `q` again or `enter` quits, so a stray `q` never ends a session. `ctrl-c` quits at once.
 - **The log is a drawer.** It slides over the left of the art the way the timing HUD slides over the right, instead of narrowing the pane and re-rendering the art.
+
+## Notes from step 3
+
+- **The wall label comes with the list.** `ArtworkSummary` gained `medium_display`, `credit_line` and `main_reference_number`, so every page of results carries the whole label and moving through the list costs no record requests. Only `d` and `enter` fetch the full record, once per artwork, and `d` collapses again when the selection moves, so browsing with the pane expanded never fetches a record per row.
+- **Decode off the loop.** The image fetcher decodes on a blocking thread and sends RGB pixels, so the app loop only loads them into the converter (about 0.04 ms). It keeps the last 16 full images decoded rather than 16 `Converter`s: loading is cheap, and one converter keeps the ramp and mode in one place.
+- **Copying the link** uses an OSC 52 escape, which most terminals support and which works over SSH, instead of a clipboard library.
+- **Frame benches after step 3**, unchanged from step 1 within a few percent, since drawing did not change:
+
+  | Bench | Air | Ryzen |
+  | --- | --- | --- |
+  | explorer (half / quadrant / ASCII) | 0.37 / 0.39 / 0.37 ms | 0.22 / 0.22 / 0.20 ms |
+  | zen (half / quadrant / ASCII) | 0.42 / 0.42 / 0.42 ms | 0.27 / 0.27 / 0.22 ms |
+  | help | 0.40 ms | 0.23 ms |
+

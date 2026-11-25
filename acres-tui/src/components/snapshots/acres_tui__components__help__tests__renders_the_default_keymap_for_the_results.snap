@@ -11,7 +11,6 @@ expression: "render(&mut help, 60, 50)"
 
 
 
-
   ┌ Keys ────────────────────────────────────────────────┐
   │Results                                               │
   │  enter    show the full image                        │
@@ -33,6 +32,8 @@ expression: "render(&mut help, 60, 50)"
   │  n          next artwork                             │
   │  p          previous artwork                         │
   │  space      show the full image                      │
+  │  o          open on artic.edu                        │
+  │  y          copy its link                            │
   │  z          zen: art only                            │
   │  b          cycle art mode                           │
   │  r          pick a ramp                              │
