@@ -4,11 +4,12 @@
 //! frame, the worst case and the one the 8 ms budget is about. The list holds the five fixture
 //! artworks, and the art is La Grande Jatte (843x565).
 
-use std::time::Duration;
-
 use acres_tui::{
-    action::Action,
-    components::{Component, home::Home},
+    action::{Action, Timing},
+    components::{
+        Component,
+        home::{Decoded, Home},
+    },
     config::Config,
     entry::Entry,
     explorer::{Explorer, Source},
@@ -32,9 +33,9 @@ fn explorer(cycles: usize, keys: &[Action]) -> Explorer {
     explorer
         .update(Action::UpdateImage {
             id: 27992,
-            image: IMAGE.into(),
-            fetch: Duration::ZERO,
+            image: Decoded::decode(IMAGE).expect("fixture decodes"),
             full: true,
+            timing: Timing::new("image 27992"),
         })
         .unwrap();
     for _ in 0..cycles {

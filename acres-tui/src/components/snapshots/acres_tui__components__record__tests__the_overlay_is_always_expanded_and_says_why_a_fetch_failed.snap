@@ -1,0 +1,24 @@
+---
+source: acres-tui/src/components/record.rs
+expression: "render(&mut overlay, 60, 22)"
+---
+
+
+    ┌ Full record ─────────────────────────────────────┐
+    │Georges Seurat                                    │
+    │French, 1859–1891                                 │
+    │                                                  │
+    │A Sunday on La Grande Jatte — 1884                │
+    │1884/86                                           │
+    │                                                  │
+    │Oil on canvas                                     │
+    │                                                  │
+    │Helen Birch Bartlett Memorial Collection          │
+    │1926.224                                          │
+    │                                                  │
+    │───                                               │
+    │                                                  │
+    │Could not load the full record: offline           │
+    │                                                  │
+    │                                                  │
+    └──────────────────────────────────────────────────┘

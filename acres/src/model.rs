@@ -85,7 +85,7 @@ pub struct Thumbnail {
     pub alt_text: Option<String>,
 }
 
-/// What a results list shows for one artwork.
+/// What a results list shows for one artwork: enough for a gallery wall label.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtworkSummary {
     /// The artwork's ID.
@@ -105,6 +105,15 @@ pub struct ArtworkSummary {
     /// A tiny preview of the image.
     #[serde(default)]
     pub thumbnail: Option<Thumbnail>,
+    /// Medium, such as `Oil on canvas`.
+    #[serde(default)]
+    pub medium_display: Option<String>,
+    /// How it came to the museum.
+    #[serde(default)]
+    pub credit_line: Option<String>,
+    /// The accession number, such as `1933.1157`.
+    #[serde(default)]
+    pub main_reference_number: Option<String>,
 }
 
 impl ArtworkSummary {
@@ -116,6 +125,9 @@ impl ArtworkSummary {
         "date_display",
         "image_id",
         "thumbnail",
+        "medium_display",
+        "credit_line",
+        "main_reference_number",
     ];
 }
 
@@ -127,9 +139,6 @@ pub struct Artwork {
     /// The fields shared with a results list.
     #[serde(flatten)]
     pub summary: ArtworkSummary,
-    /// Medium, such as `Oil on canvas`.
-    #[serde(default)]
-    pub medium_display: Option<String>,
     /// Dimensions as written on a label.
     #[serde(default)]
     pub dimensions: Option<String>,
@@ -145,12 +154,6 @@ pub struct Artwork {
     /// The artist's ID, for finding more by the same artist.
     #[serde(default)]
     pub artist_id: Option<u32>,
-    /// How it came to the museum.
-    #[serde(default)]
-    pub credit_line: Option<String>,
-    /// The accession number, such as `1933.1157`.
-    #[serde(default)]
-    pub main_reference_number: Option<String>,
     /// Whether it is in the public domain.
     #[serde(default)]
     pub is_public_domain: bool,
@@ -175,13 +178,13 @@ impl Artwork {
         "image_id",
         "thumbnail",
         "medium_display",
+        "credit_line",
+        "main_reference_number",
         "dimensions",
         "place_of_origin",
         "department_title",
         "department_id",
         "artist_id",
-        "credit_line",
-        "main_reference_number",
         "is_public_domain",
         "is_on_view",
         "gallery_title",
@@ -203,7 +206,7 @@ mod tests {
         let artwork: Artwork = serde_json::from_str(r#"{"id": 4}"#).unwrap();
         assert_eq!(artwork.summary.id, 4);
         assert_eq!(artwork.summary.title, "");
-        assert_eq!(artwork.medium_display, None);
+        assert_eq!(artwork.summary.medium_display, None);
         assert!(!artwork.is_on_view);
     }
 
@@ -232,7 +235,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artwork.summary.artist_display.as_deref(), Some("A"));
-        assert_eq!(artwork.medium_display.as_deref(), Some("Oil on canvas"));
+        assert_eq!(
+            artwork.summary.medium_display.as_deref(),
+            Some("Oil on canvas")
+        );
         assert!(artwork.is_on_view);
         assert_eq!(artwork.artist_id, Some(35));
     }

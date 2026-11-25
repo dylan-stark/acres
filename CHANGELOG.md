@@ -41,8 +41,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - The weekly canary workflow checks that the Highlights ids are still public domain with images.
 - `acres-tui` asks before quitting: `q` opens a prompt, and `q` or `enter` confirms. `ctrl-c` still quits at once.
 
+- The `acres-tui` record pane is a wall label (ADR 0013, step 3): artist, title and date, medium, credit line and reference number, all from the results list. `d` expands it in place to the full record (dimensions, place of origin, department, gallery and the description), fetched when asked for, and `enter` opens the full record in a large overlay that follows `n`/`p`. `o` opens the artwork on artic.edu and `y` copies its link (through OSC 52, so it works over SSH).
+- `acres-tui` decodes images on a blocking thread, off the app loop, and keeps the last 16 full images decoded, so going back to one shows it at once with no fetch.
+
 ### Changed
 
+- `acres::artworks::ArtworkSummary` carries `medium_display`, `credit_line` and `main_reference_number`, moved from `Artwork` (which still has them through `summary`), so a results list has everything a wall label needs.
 - `acres-tui` previews artworks with the `lqip` placeholder that comes with each search result, a few pixels scaled up into a soft blur, so browsing downloads no images. The full image is fetched only on `enter` or `space`. `enter` in the results no longer focuses the art. A saved file has no placeholders, so its art is blank until fetched.
 - The `acres-tui` log (`L`) slides out over the left of the art like the timing HUD, instead of squeezing the art aside.
 - `acres-tui` reads a file of artworks with `--from-file <FILE>` (or `-` for stdin) instead of a positional argument, and searches the collection when no file is given. The record pane shows the artist and date when the list has them.

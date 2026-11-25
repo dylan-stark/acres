@@ -109,6 +109,8 @@ pub enum Overlay {
     Ramps,
     /// Asks before quitting.
     Quit,
+    /// The full record of the selected artwork.
+    Record,
 }
 
 /// Where the last draw put each pane, for mapping mouse events.
@@ -146,6 +148,7 @@ pub struct Explorer {
     results: Results,
     art: Home,
     record: Record,
+    full_record: Record,
     hud: Hud,
     logs: Logs,
     ramps: Ramps,
@@ -189,6 +192,7 @@ impl Explorer {
             results,
             art,
             record,
+            full_record: Record::overlay(),
             hud: Hud::new(),
             logs: Logs::new(),
             ramps: Ramps::new(),
@@ -285,6 +289,7 @@ impl Explorer {
             (Some(Overlay::Ramps), _) => &[Action::Select, Action::Cancel],
             // The prompt names its own keys.
             (Some(Overlay::Quit), _) => &[],
+            (Some(Overlay::Record), _) => &[Action::MoveDown, Action::NextArtwork, Action::Cancel],
             (None, Pane::Search) => &[Action::RunSearch, Action::EarlierQuery, Action::Cancel],
             (None, Pane::Results) => {
                 &[Action::MoveDown, Action::ShowFullImage, Action::FocusSearch]
@@ -294,7 +299,11 @@ impl Explorer {
                 Action::CycleArtMode,
                 Action::ToggleZen,
             ],
-            (None, Pane::Record) => &[Action::MoveDown, Action::NextArtwork, Action::FocusSearch],
+            (None, Pane::Record) => &[
+                Action::ToggleFullRecord,
+                Action::OpenRecord,
+                Action::MoveDown,
+            ],
         };
         std::iter::once(&Action::ToggleHelp)
             .chain(actions)
@@ -325,7 +334,24 @@ impl Explorer {
         self.load_more();
         let artwork = artwork?;
         self.record.show(Some(artwork.clone()));
+        if self.overlay == Some(Overlay::Record) {
+            self.full_record.show(Some(artwork.clone()));
+            self.fetch_full_record();
+        }
         Some(Action::ShowArtwork(artwork))
+    }
+
+    /// Asks for the overlay's full record, if it still needs one.
+    fn fetch_full_record(&mut self) {
+        if let Some(id) = self.full_record.wants_full() {
+            self.send(Action::FetchRecord(id));
+        }
+    }
+
+    /// The selected artwork's page on artic.edu.
+    fn link(&self) -> Option<String> {
+        let id = self.results.selected()?.id();
+        Some(format!("https://www.artic.edu/artworks/{id}"))
     }
 
     fn send(&self, action: Action) {
@@ -452,6 +478,7 @@ impl Explorer {
             (Some(Overlay::Help), _) => self.help.scroll(delta),
             (Some(Overlay::Ramps), _) => self.ramps.step(delta),
             (Some(Overlay::Quit), _) => {}
+            (Some(Overlay::Record), _) => self.full_record.scroll(delta),
             (None, Pane::Results) => {
                 let moved = self.results.step(delta);
                 return self.preview(moved);
@@ -463,6 +490,9 @@ impl Explorer {
     }
 
     fn half_page(&self) -> isize {
+        if self.overlay == Some(Overlay::Record) {
+            return self.full_record.half_page();
+        }
         match self.focus {
             Pane::Record => self.record.half_page(),
             _ => self.results.half_page(),
@@ -529,6 +559,7 @@ impl Component for Explorer {
                 Overlay::Help => self.help.area,
                 Overlay::Ramps => self.ramps.area,
                 Overlay::Quit => self.quit.area,
+                Overlay::Record => self.full_record.area,
             };
             if delta == 0 && !area.contains(at) {
                 self.overlay = None;
@@ -655,6 +686,19 @@ impl Component for Explorer {
                 }
             }
             Action::Loaded(loaded) => self.loaded(loaded.clone()),
+            Action::ToggleFullRecord => self.record.toggle_expanded().map(Action::FetchRecord),
+            Action::OpenRecord => {
+                self.full_record.show(self.results.selected().cloned());
+                self.overlay = Some(Overlay::Record);
+                self.full_record.wants_full().map(Action::FetchRecord)
+            }
+            Action::RecordLoaded { id, result } => {
+                self.record.loaded(*id, result);
+                self.full_record.loaded(*id, result);
+                None
+            }
+            Action::OpenInBrowser => self.link().map(Action::OpenUrl),
+            Action::CopyLink => self.link().map(Action::CopyText),
             Action::RateLimited(limited) => {
                 if let Some(live) = &mut self.live {
                     live.rate_limited = *limited;
@@ -731,6 +775,7 @@ impl Component for Explorer {
             Some(Overlay::Help) => self.help.draw(frame, area)?,
             Some(Overlay::Ramps) => self.ramps.draw(frame, area)?,
             Some(Overlay::Quit) => self.quit.draw(frame, area)?,
+            Some(Overlay::Record) => self.full_record.draw(frame, area)?,
             None => {}
         }
         Ok(())
@@ -856,6 +901,61 @@ mod tests {
         assert!(matches!(next, Some(Action::ShowArtwork(a)) if a.id() == 24645));
         assert_eq!(explorer.focus(), Pane::Results);
         assert_eq!(explorer.results.counts(), (1, 5));
+    }
+
+    #[test]
+    fn d_expands_the_record_and_asks_for_the_full_record() {
+        let mut explorer = explorer();
+        press(&mut explorer, char('4'));
+        assert_eq!(
+            press(&mut explorer, char('d')),
+            Some(Action::FetchRecord(27992))
+        );
+        assert_eq!(press(&mut explorer, char('d')), None, "collapsing");
+    }
+
+    #[test]
+    fn enter_in_the_record_opens_the_full_record_and_follows_the_selection() {
+        let mut explorer = explorer();
+        press(&mut explorer, char('4'));
+        assert_eq!(
+            press(&mut explorer, key(KeyCode::Enter)),
+            Some(Action::FetchRecord(27992))
+        );
+        assert_eq!(explorer.overlay(), Some(Overlay::Record));
+        let full = acres::artworks::Artwork {
+            summary: explorer.selected().unwrap().summary.clone(),
+            dimensions: Some("207.5 × 308.1 cm".into()),
+            ..Default::default()
+        };
+        explorer
+            .update(Action::RecordLoaded {
+                id: 27992,
+                result: Ok(full),
+            })
+            .unwrap();
+        insta::assert_snapshot!(render(&mut explorer, 100, 24));
+        // `n` moves on under the overlay, which fetches the next record.
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        explorer.action_tx = Some(tx);
+        press(&mut explorer, char('n'));
+        assert_eq!(rx.try_recv().ok(), Some(Action::FetchRecord(28560)));
+        press(&mut explorer, key(KeyCode::Esc));
+        assert_eq!(explorer.overlay(), None);
+    }
+
+    #[test]
+    fn o_and_y_hand_the_artwork_link_to_the_app() {
+        let mut explorer = explorer();
+        let link = "https://www.artic.edu/artworks/27992".to_string();
+        assert_eq!(
+            press(&mut explorer, char('o')),
+            Some(Action::OpenUrl(link.clone()))
+        );
+        assert_eq!(
+            press(&mut explorer, char('y')),
+            Some(Action::CopyText(link))
+        );
     }
 
     #[test]

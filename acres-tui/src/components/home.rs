@@ -1,4 +1,4 @@
-use std::{num::NonZeroU32, time::Instant};
+use std::{fmt, num::NonZeroU32, sync::Arc, time::Instant};
 
 use charaoke::{
     BlockMode, Blocks, Cells, ColorDepth, Converter, Grid, PixelFormat, QUADRANTS, Ramp, ansi256,
@@ -9,6 +9,61 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use super::{Component, ramps::DEFAULT_RAMP};
 use crate::action::{Action, Timing};
+
+/// An image decoded to RGB, ready to load into the art view.
+///
+/// Decoding takes milliseconds for a full image, so it runs on a blocking thread before the
+/// image reaches the app loop (ADR 0013). The pixels are shared, so the image fetcher can keep
+/// recent images to show again without decoding them twice.
+#[derive(Clone, PartialEq, Eq)]
+pub struct Decoded {
+    width: NonZeroU32,
+    height: NonZeroU32,
+    pixels: Arc<[u8]>,
+}
+
+impl fmt::Debug for Decoded {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Decoded({}x{})", self.width, self.height)
+    }
+}
+
+impl Decoded {
+    /// Decodes a JPEG, PNG or GIF, scaling a tiny one such as an `lqip` placeholder up smoothly.
+    pub fn decode(bytes: &[u8]) -> Result<Self> {
+        let mut image = image::load_from_memory(bytes)?.into_rgb8();
+        if (1..MIN_WIDTH).contains(&image.width()) {
+            let height = (u64::from(image.height()) * u64::from(UPSCALED_WIDTH)
+                / u64::from(image.width()))
+            .max(1);
+            image = image::imageops::resize(
+                &image,
+                UPSCALED_WIDTH,
+                u32::try_from(height).unwrap_or(u32::MAX),
+                image::imageops::FilterType::Triangle,
+            );
+        }
+        let (Some(width), Some(height)) = (
+            NonZeroU32::new(image.width()),
+            NonZeroU32::new(image.height()),
+        ) else {
+            eyre::bail!("the image is empty");
+        };
+        Ok(Self {
+            width,
+            height,
+            pixels: image.into_raw().into(),
+        })
+    }
+
+    pub fn width(&self) -> u32 {
+        self.width.get()
+    }
+
+    pub fn height(&self) -> u32 {
+        self.height.get()
+    }
+}
 
 /// Images narrower than this, such as the few-pixel `lqip` placeholders, are scaled up smoothly
 /// before loading, so they read as soft color instead of a few hard blocks.
@@ -70,37 +125,15 @@ impl Home {
         self.send(Action::Log(message));
     }
 
-    /// Decodes and loads a fetched image, reporting each stage's time.
-    fn set_image(&mut self, id: u32, image: &[u8], timing: Timing) -> Result<()> {
-        let start = Instant::now();
-        let mut image = image::load_from_memory(image)?.into_rgb8();
-        if (1..MIN_WIDTH).contains(&image.width()) {
-            let height = (u64::from(image.height()) * u64::from(UPSCALED_WIDTH)
-                / u64::from(image.width()))
-            .max(1);
-            image = image::imageops::resize(
-                &image,
-                UPSCALED_WIDTH,
-                u32::try_from(height).unwrap_or(u32::MAX),
-                image::imageops::FilterType::Triangle,
-            );
-        }
-        let decode = start.elapsed();
-        let (Some(w), Some(h)) = (
-            NonZeroU32::new(image.width()),
-            NonZeroU32::new(image.height()),
-        ) else {
-            eyre::bail!("image {id} is empty");
-        };
+    /// Loads a decoded image, adding the load time to `timing` for the HUD.
+    fn set_image(&mut self, image: &Decoded, timing: Timing) -> Result<()> {
         let start = Instant::now();
         self.converter
-            .set_image(image.as_raw(), w, h, PixelFormat::Rgb8)?;
+            .set_image(&image.pixels, image.width, image.height, PixelFormat::Rgb8)?;
         let load = start.elapsed();
-        self.image_size = Some((w, h));
+        self.image_size = Some((image.width, image.height));
         self.rendered_for = None;
-        self.send(Action::Timing(
-            timing.stage("decode", decode).stage("load", load),
-        ));
+        self.send(Action::Timing(timing.stage("load", load)));
         Ok(())
     }
 
@@ -254,14 +287,9 @@ impl Component for Home {
         match action {
             Action::Tick | Action::Render | Action::FrameTime(_) | Action::Timing(_) => {}
             Action::UpdateImage {
-                id,
-                image,
-                fetch,
-                full,
+                id, image, timing, ..
             } => {
-                let label = if full { "image" } else { "placeholder" };
-                let timing = Timing::new(format!("{label} {id}")).stage("fetch", fetch);
-                if let Err(err) = self.set_image(id, &image, timing) {
+                if let Err(err) = self.set_image(&image, timing) {
                     self.log(format!("failed to load image {id}: {err}"));
                 }
             }
@@ -363,9 +391,9 @@ mod tests {
         home.mode = mode;
         home.update(Action::UpdateImage {
             id: 1,
-            image: IMAGE.into(),
-            fetch: Duration::ZERO,
+            image: Decoded::decode(IMAGE).unwrap(),
             full: true,
+            timing: Timing::new("image 1").stage("fetch", Duration::ZERO),
         })
         .unwrap();
         home
@@ -383,9 +411,9 @@ mod tests {
         let mut home = Home::with_depth(ColorDepth::TrueColor);
         home.update(Action::UpdateImage {
             id: 27992,
-            image: gif.into(),
-            fetch: Duration::ZERO,
+            image: Decoded::decode(&gif).unwrap(),
             full: false,
+            timing: Timing::new("image 27992").stage("fetch", Duration::ZERO),
         })
         .unwrap();
         let (w, _) = home.image_size.unwrap();
@@ -428,9 +456,9 @@ mod tests {
         home.register_action_handler(tx).unwrap();
         home.update(Action::UpdateImage {
             id: 7,
-            image: IMAGE.into(),
-            fetch: Duration::from_millis(5),
+            image: Decoded::decode(IMAGE).unwrap(),
             full: true,
+            timing: Timing::new("image 7").stage("fetch", Duration::ZERO),
         })
         .unwrap();
         let Ok(Action::Timing(image)) = rx.try_recv() else {
@@ -438,7 +466,7 @@ mod tests {
         };
         assert_eq!(image.label, "image 7");
         let stages: Vec<&str> = image.stages.iter().map(|(s, _)| s.as_str()).collect();
-        assert_eq!(stages, ["fetch", "decode", "load"]);
+        assert_eq!(stages, ["fetch", "load"]);
 
         render(&mut home, 40, 12);
         let Ok(Action::Timing(resize)) = rx.try_recv() else {

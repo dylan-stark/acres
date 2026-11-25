@@ -1,0 +1,38 @@
+---
+source: acres-tui/src/components/record.rs
+expression: "render(&mut record, 44, 34)"
+---
+┌[4] Record────────────────────────────────┐
+│Georges Seurat                            │
+│French, 1859–1891                         │
+│                                          │
+│A Sunday on La Grande Jatte — 1884        │
+│1884/86                                   │
+│                                          │
+│Oil on canvas                             │
+│                                          │
+│Helen Birch Bartlett Memorial Collection  │
+│1926.224                                  │
+│                                          │
+│───                                       │
+│                                          │
+│Dimensions                                │
+│207.5 × 308.1 cm (81 3/4 × 121 1/4 in.)   │
+│Made in                                   │
+│France                                    │
+│Department                                │
+│Painting and Sculpture of Europe          │
+│On view                                   │
+│Gallery 240                               │
+│                                          │
+│In Ferris Bueller’s Day Off, Cameron      │
+│studies it.                               │
+│                                          │
+│Up close, it dissolves into dots.         │
+│                                          │
+│Description: CC BY 4.0, Art Institute of  │
+│Chicago                                   │
+│                                          │
+│                                          │
+│                                          │
+└──────────────────────────────────────────┘

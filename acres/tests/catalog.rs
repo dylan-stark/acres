@@ -132,7 +132,10 @@ async fn artwork_asks_for_its_fields() {
 
     let artwork = catalog(&base).artwork(4).await.unwrap().value.data;
     assert_eq!(artwork.summary.title, "Priest and Boy");
-    assert_eq!(artwork.medium_display.as_deref(), Some("Oil on canvas"));
+    assert_eq!(
+        artwork.summary.medium_display.as_deref(),
+        Some("Oil on canvas")
+    );
 }
 
 #[tokio::test]
