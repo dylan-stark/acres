@@ -1,6 +1,7 @@
 //! What the explorer lists: one artwork, and the IIIF server its image is on.
 
 use acres::artworks::ArtworkSummary;
+use base64::Engine;
 
 /// The built-in Highlights, the start screen's well-known public-domain works (ADR 0013).
 ///
@@ -36,6 +37,15 @@ impl Entry {
         format!("{}/{image_id}", self.iiif_url.trim_end_matches('/'))
             .parse()
             .ok()
+    }
+
+    /// The record's `lqip` placeholder, a GIF a few pixels across, decoded from its data URI.
+    ///
+    /// It comes with the list, so showing it costs no request. A saved `Artworks` file has none.
+    pub fn placeholder(&self) -> Option<Vec<u8>> {
+        let uri = self.summary.thumbnail.as_ref()?.lqip.as_deref()?;
+        let (_, data) = uri.split_once(";base64,")?;
+        base64::engine::general_purpose::STANDARD.decode(data).ok()
     }
 
     /// The artworks with images in a saved `Artworks` file, as `acres-cli artworks` writes it.
@@ -100,5 +110,25 @@ mod tests {
             ..entry
         };
         assert_eq!(no_image.base_uri(), None);
+    }
+
+    #[test]
+    fn placeholder_decodes_the_lqip_data_uri() {
+        let with = |lqip: &str| Entry {
+            summary: ArtworkSummary {
+                thumbnail: Some(acres::artworks::Thumbnail {
+                    lqip: Some(lqip.into()),
+                    ..Default::default()
+                }),
+                ..ArtworkSummary::default()
+            },
+            ..Entry::default()
+        };
+        assert_eq!(
+            with("data:image/gif;base64,R0lGODlh").placeholder(),
+            Some(b"GIF89a".to_vec())
+        );
+        assert_eq!(with("not a data uri").placeholder(), None);
+        assert_eq!(Entry::default().placeholder(), None);
     }
 }

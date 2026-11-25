@@ -43,7 +43,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Changed
 
-- `acres-tui` previews artworks with a 200-pixel thumbnail, about a fifteenth of the download, and fetches the full 843-pixel image only on `enter` or `space`. `enter` in the results no longer focuses the art.
+- `acres-tui` previews artworks with the `lqip` placeholder that comes with each search result, a few pixels scaled up into a soft blur, so browsing downloads no images. The full image is fetched only on `enter` or `space`. `enter` in the results no longer focuses the art. A saved file has no placeholders, so its art is blank until fetched.
 - The `acres-tui` log (`L`) slides out over the left of the art like the timing HUD, instead of squeezing the art aside.
 - `acres-tui` reads a file of artworks with `--from-file <FILE>` (or `-` for stdin) instead of a positional argument, and searches the collection when no file is given. The record pane shows the artist and date when the list has them.
 - `acres-tui` keys are bound per focus context (`Global`, `List`, `Art`, `Record`, `Search`, `Overlay`) instead of per mode. `esc` no longer opens the list, `a` (ramps) is now `r`, `l` (logs) is now `L`, and `ctrl-d` pages instead of quitting. Single-character keys keep their case, so `G` and `g` are different keys.

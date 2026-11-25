@@ -34,7 +34,7 @@ The TUI opens on an explorer: a search bar along the top, then the results, the 
 Each pane is numbered in its top border, and `1` to `4` (or `tab` and `shift-tab`) move focus between them.
 Hit `?` for every key, listed for the focused pane first, and `esc` to close it.
 
-- `j` and `k` (or the arrows) move through the results, and the art and record follow, a moment after the cursor stops. `n` and `p` do the same from any pane. The art starts as a small thumbnail, which downloads quickly. `enter` or `space` fetches the full image.
+- `j` and `k` (or the arrows) move through the results, and the art and record follow, a moment after the cursor stops. `n` and `p` do the same from any pane. While you browse, the art is a soft blur of the artwork's colors, a tiny placeholder that comes with the search results and costs no download. `enter` or `space` fetches the full image.
 - `/` opens the search bar, and `enter` searches the collection for what you typed (an empty search goes back to Highlights). More results load as you near the end of the list. With `--from-file`, the search narrows the list to titles containing what you typed instead. `up` and `down` recall earlier searches.
 - `b` cycles the art from half blocks to quadrant blocks to ASCII, and `r` picks a different ramp, the characters ASCII mode draws with.
 - `z` shows the art alone, full screen, until `esc` or `z` again.

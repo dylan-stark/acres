@@ -91,8 +91,8 @@ pub enum Action {
     Error(String),
     /// Draws with the named ramp preset.
     SetRamp(String),
-    /// A fetched image for artwork `id`, and how long the fetch took. `full` is false for the
-    /// thumbnail fetched while browsing.
+    /// An image for artwork `id`, and how long the fetch took. `full` is false for the `lqip`
+    /// placeholder shown while browsing, which came with the list.
     #[strum(to_string = "UpdateImage(id: {id}, full: {full})")]
     UpdateImage {
         id: u32,
@@ -106,7 +106,9 @@ pub enum Action {
     /// How long the last whole `terminal.draw` took.
     #[strum(to_string = "FrameTime([...])")]
     FrameTime(Duration),
-    /// Shows this artwork: fetches its thumbnail after a short debounce.
+    /// Empties the art pane, for an artwork with no placeholder.
+    ClearImage,
+    /// Shows this artwork: its placeholder replaces the art after a short debounce.
     #[strum(to_string = "ShowArtwork")]
     #[serde(skip)]
     ShowArtwork(Entry),

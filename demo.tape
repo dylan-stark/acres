@@ -12,13 +12,12 @@ Sleep 500ms
 Enter
 Sleep 3s
 
-# Move through the results: a thumbnail and the record follow the cursor.
-Type "j"
+# Show the full image, then move through the results and show the next one. (A saved file has
+# no placeholders, so the art clears until space fetches the image.)
+Space
 Sleep 2s
 Type "j"
-Sleep 2s
-
-# Fetch the full image.
+Sleep 1s
 Space
 Sleep 2s
 
