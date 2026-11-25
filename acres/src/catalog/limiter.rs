@@ -289,15 +289,19 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn reports_starved_only_while_waiting_for_a_token() {
         let limiter = Arc::new(Limiter::new(60, 1));
-        let first = limiter.acquire(Lane::Metadata).await;
+        let _first = limiter.acquire(Lane::Metadata).await;
         assert!(!limiter.is_starved());
         let waiter = tokio::spawn({
             let limiter = Arc::clone(&limiter);
             async move { limiter.acquire(Lane::Metadata).await }
         });
+        // Make sure waiter runs ahead enough to put the limiter in starved state, without advancing
+        // the clock.
         settle().await;
         assert!(limiter.is_starved(), "the bucket is empty");
-        drop(first);
+        assert!(!waiter.is_finished(), "still waiting for a token");
+        // Advance the paused clock forward 1 sec to refill the bucket and let the waiter complete.
+        tokio::time::advance(Duration::from_secs(1)).await;
         waiter.await.unwrap();
         assert!(!limiter.is_starved(), "served");
     }
