@@ -209,32 +209,13 @@ impl Fetcher {
     }
 }
 
-/// A department or artwork type, as the API lists them.
-#[derive(Deserialize)]
-struct Facet<Id> {
-    id: Id,
-    title: String,
-}
-
 /// The departments and artwork types, to choose from in the filters.
 async fn facets(catalog: &Catalog) -> eyre::Result<Facets> {
-    async fn list<Id: serde::de::DeserializeOwned>(
-        catalog: &Catalog,
-        resource: &str,
-    ) -> eyre::Result<Vec<(Id, String)>> {
-        let endpoint = format!(
-            "{}/{resource}?limit=100&fields=id,title",
-            catalog.base_uri()
-        );
-        // They change rarely, so they keep as long as records do.
-        let fetched = catalog.raw(&endpoint, Resource::Record).await?;
-        let page: Page<Facet<Id>> = serde_json::from_slice(&fetched.value)
-            .map_err(|e| eyre::eyre!("could not read {endpoint}: {e}"))?;
-        Ok(page.data.into_iter().map(|f| (f.id, f.title)).collect())
-    }
+    let departments = catalog.departments().await?.value.data;
+    let types = catalog.artwork_types().await?.value.data;
     Ok(Facets {
-        departments: list(catalog, "departments").await?,
-        types: list(catalog, "artwork-types").await?,
+        departments: departments.into_iter().map(|d| (d.id, d.title)).collect(),
+        types: types.into_iter().map(|t| (t.id, t.title)).collect(),
     })
 }
 
@@ -377,7 +358,7 @@ async fn highlights(
         .limit(Some(u32::try_from(ids.len()).unwrap_or(u32::MAX)))
         .build()?;
     let page: Page<Highlight> = timed(catalog, &request, "highlights", tx).await?;
-    let iiif_url = page.config.iiif_url;
+    let config = page.config;
     let mut found: Vec<Highlight> = page
         .data
         .into_iter()
@@ -389,7 +370,7 @@ async fn highlights(
         .into_iter()
         .map(|h| Entry {
             summary: h.summary,
-            iiif_url: iiif_url.clone(),
+            config: config.clone(),
         })
         .collect();
     Ok(Listing {
@@ -527,7 +508,10 @@ mod tests {
         assert_eq!(titles(&loaded), ["Three", "One"]);
         let listing = loaded.result.unwrap();
         assert!(!listing.fallback);
-        assert_eq!(listing.entries[0].iiif_url, "https://iiif.example/iiif/2");
+        assert_eq!(
+            listing.entries[0].config.iiif_url,
+            "https://iiif.example/iiif/2"
+        );
     }
 
     #[tokio::test]

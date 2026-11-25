@@ -309,7 +309,7 @@ mod tests {
                 main_reference_number: Some("1926.224".into()),
                 ..Default::default()
             },
-            iiif_url: String::new(),
+            config: Default::default(),
         }
     }
 

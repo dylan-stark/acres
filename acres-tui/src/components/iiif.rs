@@ -248,7 +248,10 @@ mod tests {
                 }),
                 ..Default::default()
             },
-            iiif_url: format!("{}/iiif", server.uri()),
+            config: acres::ApiConfig {
+                iiif_url: format!("{}/iiif", server.uri()),
+                ..Default::default()
+            },
         }
     }
 

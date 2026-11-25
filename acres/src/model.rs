@@ -71,6 +71,78 @@ pub struct ApiConfig {
     pub website_url: String,
 }
 
+/// The museum's website, for a config that names none, such as one read from an old file.
+pub const DEFAULT_WEBSITE_URL: &str = "https://www.artic.edu";
+
+impl ApiConfig {
+    /// The IIIF base URI of the image `image_id` on this response's image server.
+    ///
+    /// ```
+    /// use acres::ApiConfig;
+    ///
+    /// let config = ApiConfig {
+    ///     iiif_url: "https://www.artic.edu/iiif/2".into(),
+    ///     ..ApiConfig::default()
+    /// };
+    /// assert_eq!(
+    ///     config.image_base_uri("abc").unwrap().to_string(),
+    ///     "https://www.artic.edu/iiif/2/abc"
+    /// );
+    /// ```
+    pub fn image_base_uri(&self, image_id: &str) -> Result<iiif::BaseUri, crate::Error> {
+        format!("{}/{image_id}", self.iiif_url.trim_end_matches('/'))
+            .parse::<iiif::BaseUri>()
+            .map_err(|e| crate::RequestError::Iiif(e.into()).into())
+    }
+
+    /// The artwork's page on the museum's website, falling back to [`DEFAULT_WEBSITE_URL`].
+    ///
+    /// ```
+    /// use acres::ApiConfig;
+    ///
+    /// let config = ApiConfig::default();
+    /// assert_eq!(config.artwork_url(27992), "https://www.artic.edu/artworks/27992");
+    /// ```
+    pub fn artwork_url(&self, id: u32) -> String {
+        let website = match self.website_url.trim_end_matches('/') {
+            "" => DEFAULT_WEBSITE_URL,
+            url => url,
+        };
+        format!("{website}/artworks/{id}")
+    }
+}
+
+/// A museum department, as `GET /departments` lists them.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Department {
+    /// The department's ID, such as `PC-3` (European Painting and Sculpture). Filter on it with
+    /// `department_id`.
+    pub id: String,
+    /// Its name.
+    #[serde(default)]
+    pub title: String,
+}
+
+impl Department {
+    /// The `fields` to request so the API returns exactly this type.
+    pub const FIELDS: &'static [&'static str] = &["id", "title"];
+}
+
+/// A kind of artwork, such as Painting or Print, as `GET /artwork-types` lists them.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArtworkType {
+    /// The type's ID. Filter on it with `artwork_type_id`.
+    pub id: u32,
+    /// Its name.
+    #[serde(default)]
+    pub title: String,
+}
+
+impl ArtworkType {
+    /// The `fields` to request so the API returns exactly this type.
+    pub const FIELDS: &'static [&'static str] = &["id", "title"];
+}
+
 /// A tiny preview of an artwork's image.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]

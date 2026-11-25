@@ -20,7 +20,7 @@ use limiter::Limiter;
 use shared::SharedBucket;
 
 use crate::{
-    Error, Item, Page, ParseError, RequestError, ResponseError,
+    ArtworkType, Department, Error, Item, Page, ParseError, RequestError, ResponseError,
     artworks::{
         Artwork, ArtworkSummary,
         request::{artworks, search},
@@ -30,6 +30,10 @@ use crate::{
 
 /// The file in the state directory that holds the shared rate limit.
 const RATE_LIMIT_FILE: &str = "rate-limit";
+
+/// The page size for [`Catalog::departments`] and [`Catalog::artwork_types`]: the API's largest,
+/// well above the 16 departments and 45 types it has.
+pub const FACETS_LIMIT: u32 = 100;
 
 /// What kind of resource a request fetches, which sets its queue and how long it stays cached.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -188,6 +192,35 @@ impl Catalog {
             Artwork::FIELDS.join(",")
         );
         self.get(endpoint, Resource::Record).await
+    }
+
+    /// Lists the museum's departments, to filter by.
+    ///
+    /// They change rarely, so they are cached as long as a [`Resource::Record`]. There are fewer
+    /// than [`FACETS_LIMIT`], so one page holds them all.
+    pub async fn departments(&self) -> Result<Fetched<Page<Department>>, Error> {
+        self.get(
+            self.facets("departments", Department::FIELDS),
+            Resource::Record,
+        )
+        .await
+    }
+
+    /// Lists the artwork types, to filter by. Cached like [`Catalog::departments`].
+    pub async fn artwork_types(&self) -> Result<Fetched<Page<ArtworkType>>, Error> {
+        self.get(
+            self.facets("artwork-types", ArtworkType::FIELDS),
+            Resource::Record,
+        )
+        .await
+    }
+
+    fn facets(&self, resource: &str, fields: &[&str]) -> String {
+        format!(
+            "{}/{resource}?limit={FACETS_LIMIT}&fields={}",
+            self.inner.base_uri,
+            fields.join(",")
+        )
     }
 
     /// Fetches an image.

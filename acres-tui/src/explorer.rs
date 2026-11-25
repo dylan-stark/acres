@@ -361,8 +361,7 @@ impl Explorer {
 
     /// The selected artwork's page on artic.edu.
     fn link(&self) -> Option<String> {
-        let id = self.results.selected()?.id();
-        Some(format!("https://www.artic.edu/artworks/{id}"))
+        Some(self.results.selected()?.link())
     }
 
     fn send(&self, action: Action) {
@@ -1281,7 +1280,10 @@ mod tests {
                     image_id: Some(format!("image-{id}")),
                     ..Default::default()
                 },
-                iiif_url: "https://iiif.example/iiif/2".into(),
+                config: acres::ApiConfig {
+                    iiif_url: "https://iiif.example/iiif/2".into(),
+                    ..Default::default()
+                },
             }
         }
 

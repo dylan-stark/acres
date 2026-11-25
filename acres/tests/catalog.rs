@@ -376,3 +376,36 @@ async fn catalogs_on_one_rate_limit_file_share_the_rate_limit() {
         Error::Response(ResponseError::Expired { .. })
     ));
 }
+
+#[tokio::test]
+async fn departments_and_artwork_types_list_in_one_page() {
+    let (server, base) = server().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/departments"))
+        .and(query_param("limit", acres::FACETS_LIMIT.to_string()))
+        .and(query_param("fields", "id,title"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(
+            r#"{"data": [{"id": "PC-3", "title": "European Painting and Sculpture"}]}"#,
+        ))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/artwork-types"))
+        .and(query_param("limit", acres::FACETS_LIMIT.to_string()))
+        .and(query_param("fields", "id,title"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_string(r#"{"data": [{"id": 1, "title": "Painting"}]}"#),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let catalog = catalog(&base);
+    let departments = catalog.departments().await.unwrap().value.data;
+    assert_eq!(departments[0].id, "PC-3");
+    assert_eq!(departments[0].title, "European Painting and Sculpture");
+    let types = catalog.artwork_types().await.unwrap().value.data;
+    assert_eq!((types[0].id, types[0].title.as_str()), (1, "Painting"));
+}

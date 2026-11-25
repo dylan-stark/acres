@@ -42,6 +42,6 @@
   },
   "config": {
     "iiif_url": "http://127.0.0.1:8099/iiif",
-    "website_url": "http://127.0.0.1:8099"
+    "website_url": "https://www.artic.edu"
   }
 }

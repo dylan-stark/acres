@@ -46,6 +46,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 - `acres-tui` filters and sorts searches (ADR 0013, step 4). `f` opens a filter overlay for image, public domain, on view, department, artwork type and years, with the departments and types listed from the API. `s` cycles relevance, oldest, newest and title. Filters apply with no search text too, and the status bar counts the filters set and names the sort.
 - `acres::artworks::search::Filters::words`, which keeps only artworks whose title or artist contains every word, for sorted searches where `q`'s loose matches would come first.
+- `acres::Catalog::departments` and `Catalog::artwork_types` list the filter choices as typed `Department` and `ArtworkType` pages, and `ApiConfig::image_base_uri` and `ApiConfig::artwork_url` build an image's IIIF base URI and an artwork's website link from a response's config. `acres-tui` uses them instead of building these URLs itself.
 
 ### Changed
 
