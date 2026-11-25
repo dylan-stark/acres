@@ -89,6 +89,7 @@ dependencies = [
  "tracing-error",
  "tracing-subscriber",
  "vergen-gix",
+ "wiremock",
 ]
 
 [[package]]

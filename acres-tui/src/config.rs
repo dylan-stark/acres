@@ -53,6 +53,9 @@ pub struct AppConfig {
     /// Echoes the last key and what it did in the status bar.
     #[serde(default = "yes")]
     pub show_keys: bool,
+    /// Artwork ids for the start screen, in order, replacing the built-in Highlights.
+    #[serde(default)]
+    pub highlights: Option<Vec<u32>>,
 }
 
 fn yes() -> bool {
@@ -66,6 +69,7 @@ impl Default for AppConfig {
             config_dir: PathBuf::new(),
             mouse: true,
             show_keys: true,
+            highlights: None,
         }
     }
 }

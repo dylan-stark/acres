@@ -151,6 +151,11 @@ impl Catalog {
         self.max_wait
     }
 
+    /// Whether a request is waiting on the rate limit right now, for a status line.
+    pub fn is_rate_limited(&self) -> bool {
+        self.inner.limiter.is_starved()
+    }
+
     /// A handle to the same catalog whose requests wait at most `max_wait`.
     pub fn with_max_wait(&self, max_wait: Duration) -> Catalog {
         Catalog {

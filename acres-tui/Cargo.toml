@@ -43,6 +43,7 @@ vergen-gix = { version = "1.0.9", features = ["build", "cargo"] }
 [dev-dependencies]
 criterion = "0.8.2"
 insta = "1.43.2"
+wiremock = "0.6.5"
 
 [[bench]]
 name = "frame"

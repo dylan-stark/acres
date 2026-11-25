@@ -7,7 +7,7 @@ Set Width 1200
 Set Height 600
 
 # Start up TUI on the offline fixture (`make demo` serves its images locally).
-Type "acres-tui acres-tui/tests/fixtures/artworks.json"
+Type "acres-tui --from-file acres-tui/tests/fixtures/artworks.json"
 Sleep 500ms
 Enter
 Sleep 3s

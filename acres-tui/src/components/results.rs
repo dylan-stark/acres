@@ -1,4 +1,3 @@
-use acres::artworks::ArtworkInfo;
 use color_eyre::Result;
 use ratatui::{
     Frame,
@@ -8,11 +7,12 @@ use ratatui::{
 };
 
 use super::{Component, pane_block};
+use crate::entry::Entry;
 
 /// The results pane: the artworks loaded, narrowed by the last search, with one selected.
 #[derive(Default)]
 pub struct Results {
-    artworks: Vec<ArtworkInfo>,
+    artworks: Vec<Entry>,
     /// Indexes into `artworks` that match the last search, in order.
     shown: Vec<usize>,
     state: ListState,
@@ -24,22 +24,40 @@ pub struct Results {
 }
 
 impl Results {
-    /// Lists every artwork with an image, the first selected.
-    pub fn new(artworks: acres::artworks::Artworks) -> Self {
-        let artworks: Vec<ArtworkInfo> = artworks.into();
-        let mut results = Self {
-            shown: (0..artworks.len()).collect(),
-            artworks,
-            ..Self::default()
-        };
-        results
-            .state
-            .select((!results.shown.is_empty()).then_some(0));
+    /// Lists `artworks`, the first selected.
+    pub fn new(artworks: Vec<Entry>) -> Self {
+        let mut results = Self::default();
+        results.replace(artworks);
         results
     }
 
+    /// Lists `artworks` instead, from the top, and returns the one now selected.
+    pub fn replace(&mut self, artworks: Vec<Entry>) -> Option<Entry> {
+        self.shown = (0..artworks.len()).collect();
+        self.artworks = artworks;
+        self.state = ListState::default();
+        self.state.select((!self.shown.is_empty()).then_some(0));
+        self.selected().cloned()
+    }
+
+    /// Adds the next page of `artworks` below the rest, keeping the selection.
+    pub fn append(&mut self, artworks: Vec<Entry>) {
+        let start = self.artworks.len();
+        self.artworks.extend(artworks);
+        self.shown.extend(start..self.artworks.len());
+        if self.state.selected().is_none() && !self.shown.is_empty() {
+            self.state.select(Some(0));
+        }
+    }
+
+    /// How many rows are below the selected one.
+    pub fn rows_below(&self) -> usize {
+        let at = self.state.selected().unwrap_or(0);
+        self.shown.len().saturating_sub(at + 1)
+    }
+
     /// The selected artwork.
-    pub fn selected(&self) -> Option<&ArtworkInfo> {
+    pub fn selected(&self) -> Option<&Entry> {
         let i = *self.shown.get(self.state.selected()?)?;
         self.artworks.get(i)
     }
@@ -52,11 +70,11 @@ impl Results {
     /// Keeps only artworks whose title contains `query`, ignoring case. An empty query shows all.
     ///
     /// Returns the newly selected artwork when the selection changed.
-    pub fn filter(&mut self, query: &str) -> Option<ArtworkInfo> {
+    pub fn filter(&mut self, query: &str) -> Option<Entry> {
         let before = self.selected().cloned();
         let query = query.to_lowercase();
         self.shown = (0..self.artworks.len())
-            .filter(|&i| self.artworks[i].data.title.to_lowercase().contains(&query))
+            .filter(|&i| self.artworks[i].title().to_lowercase().contains(&query))
             .collect();
         self.state = ListState::default();
         self.state.select((!self.shown.is_empty()).then_some(0));
@@ -64,7 +82,7 @@ impl Results {
     }
 
     /// Moves the selection by `delta` rows, stopping at either end.
-    pub fn step(&mut self, delta: isize) -> Option<ArtworkInfo> {
+    pub fn step(&mut self, delta: isize) -> Option<Entry> {
         let last = self.shown.len().checked_sub(1)?;
         let before = self.selected().cloned();
         let at = self.state.selected().unwrap_or(0);
@@ -74,12 +92,12 @@ impl Results {
     }
 
     /// Selects the first row.
-    pub fn top(&mut self) -> Option<ArtworkInfo> {
+    pub fn top(&mut self) -> Option<Entry> {
         self.step(isize::MIN)
     }
 
     /// Selects the last row.
-    pub fn bottom(&mut self) -> Option<ArtworkInfo> {
+    pub fn bottom(&mut self) -> Option<Entry> {
         self.step(isize::MAX)
     }
 
@@ -89,7 +107,7 @@ impl Results {
     }
 
     /// Selects the row at screen position `(column, row)`, if one is there.
-    pub fn click(&mut self, column: u16, row: u16) -> Option<ArtworkInfo> {
+    pub fn click(&mut self, column: u16, row: u16) -> Option<Entry> {
         let inner = self.area;
         if !inner.contains((column, row).into()) {
             return None;
@@ -103,7 +121,7 @@ impl Results {
         self.changed(before)
     }
 
-    fn changed(&self, before: Option<ArtworkInfo>) -> Option<ArtworkInfo> {
+    fn changed(&self, before: Option<Entry>) -> Option<Entry> {
         let after = self.selected()?;
         (before.as_ref() != Some(after)).then(|| after.clone())
     }
@@ -117,7 +135,7 @@ impl Component for Results {
         let items: Vec<ListItem> = self
             .shown
             .iter()
-            .map(|&i| ListItem::new(self.artworks[i].data.title.as_str()))
+            .map(|&i| ListItem::new(self.artworks[i].title()))
             .collect();
         let highlight = Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD);
         let list = List::new(items)
@@ -136,11 +154,13 @@ mod tests {
     use crate::components::test_support::{ARTWORKS_FIXTURE, render};
 
     fn results() -> Results {
-        Results::new(serde_json::from_str(ARTWORKS_FIXTURE).expect("fixture parses"))
+        Results::new(Entry::from_file(
+            serde_json::from_str(ARTWORKS_FIXTURE).expect("fixture parses"),
+        ))
     }
 
-    fn title(artwork: Option<ArtworkInfo>) -> Option<String> {
-        artwork.map(|a| a.data.title)
+    fn title(artwork: Option<Entry>) -> Option<String> {
+        artwork.map(|a| a.title().to_string())
     }
 
     #[test]
@@ -154,7 +174,7 @@ mod tests {
     fn steps_report_only_changes_and_stop_at_the_ends() {
         let mut results = results();
         assert_eq!(title(results.step(1)), Some("The Bedroom".into()));
-        assert_eq!(results.top().map(|a| a.data.id), Some(27992));
+        assert_eq!(results.top().map(|a| a.id()), Some(27992));
         assert_eq!(results.step(-1), None, "already at the top");
         let last = results.bottom().expect("moved");
         assert_eq!(results.step(1), None, "already at the bottom");
@@ -171,6 +191,25 @@ mod tests {
         assert_eq!(results.step(1), None);
         results.filter("");
         assert_eq!(results.counts(), (5, 5));
+    }
+
+    #[test]
+    fn append_adds_a_page_below_and_keeps_the_selection() {
+        let mut results = results();
+        results.step(1);
+        let more = results.artworks.clone();
+        results.append(more);
+        assert_eq!(results.counts(), (10, 10));
+        assert_eq!(
+            title(results.selected().cloned()),
+            Some("The Bedroom".into())
+        );
+        assert_eq!(results.rows_below(), 8);
+        assert_eq!(
+            title(results.replace(Vec::new())),
+            None,
+            "replacing with nothing selects nothing"
+        );
     }
 
     #[test]

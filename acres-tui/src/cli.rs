@@ -7,11 +7,16 @@ use crate::config::{get_config_dir, get_data_dir};
 #[derive(Parser, Debug)]
 #[command(author, version = version(), about)]
 pub struct Cli {
-    /// Artworks retrieved from listing artworks in the collection.
+    /// Explore a saved `Artworks` JSON, such as `acres-cli artworks` writes, instead of the live
+    /// collection. Searching then narrows it by title.
     ///
     /// Use `-` to pipe in from stdin.
-    #[arg(value_name = "FILE or STDIN")]
-    pub artworks: FileOrStdin<Artworks>,
+    #[arg(long, value_name = "FILE or -")]
+    pub from_file: Option<FileOrStdin<Artworks>>,
+
+    /// Answer only from the cache, without touching the network (or set `ACRES_OFFLINE=true`).
+    #[arg(long)]
+    pub offline: bool,
 
     /// Tick rate, i.e. number of ticks per second.
     #[arg(short, long, value_name = "FLOAT", default_value_t = 4.0)]

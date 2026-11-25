@@ -11,7 +11,7 @@ use ratatui::{
 
 use super::{ACCENT, Component, centered};
 use crate::{
-    action::Action,
+    action::{Action, ActionDiscriminants},
     config::{Context, KeyBindings, key_event_to_string},
 };
 
@@ -76,16 +76,19 @@ impl Help {
 
 /// Each action bound in `context`, in help order, with every key that does it.
 fn entries(keybindings: &KeyBindings, context: Context) -> Vec<(String, &'static str)> {
-    let mut by_action: BTreeMap<&Action, Vec<String>> = BTreeMap::new();
+    let mut by_action: BTreeMap<ActionDiscriminants, (&Action, Vec<String>)> = BTreeMap::new();
     for (keys, action) in keybindings.get(&context).into_iter().flatten() {
         if action.description().is_none() {
             continue;
         }
         let keys: Vec<String> = keys.iter().map(key_event_to_string).collect();
-        by_action.entry(action).or_default().push(keys.join(" "));
+        let entry = by_action
+            .entry(ActionDiscriminants::from(action))
+            .or_insert((action, Vec::new()));
+        entry.1.push(keys.join(" "));
     }
     by_action
-        .into_iter()
+        .into_values()
         .map(|(action, mut keys)| {
             // Single characters first, then named keys, each alphabetically.
             keys.sort_by_key(|key| (key.chars().count() > 1, key.clone()));

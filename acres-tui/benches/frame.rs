@@ -7,8 +7,11 @@
 use std::time::Duration;
 
 use acres_tui::{
-    action::Action, components::Component, components::home::Home, config::Config,
-    explorer::Explorer,
+    action::Action,
+    components::{Component, home::Home},
+    config::Config,
+    entry::Entry,
+    explorer::{Explorer, Source},
 };
 use charaoke::ColorDepth;
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -22,9 +25,10 @@ const IMAGE: &[u8] = include_bytes!(
 /// An explorer showing the fixture image, with art mode cycled `cycles` times from half blocks.
 fn explorer(cycles: usize, keys: &[Action]) -> Explorer {
     let config = Config::new().expect("default config");
-    let artworks = serde_json::from_str(ARTWORKS).expect("fixture parses");
-    let mut explorer =
-        Explorer::with_art(artworks, &config, Home::with_depth(ColorDepth::TrueColor));
+    let artworks: acres::artworks::Artworks =
+        serde_json::from_str(ARTWORKS).expect("fixture parses");
+    let source = Source::File(Entry::from_file(artworks));
+    let mut explorer = Explorer::with_art(source, &config, Home::with_depth(ColorDepth::TrueColor));
     explorer
         .update(Action::UpdateImage {
             id: 27992,

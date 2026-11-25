@@ -36,9 +36,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - The `acres` rate limit is shared by every process on the machine, so separate `acres-cli` runs, and the TUI running beside them, keep to 60 requests a minute together. The state lives in `rate-limit` in the app's state directory (`$XDG_STATE_HOME/acres` on Linux, the local data directory elsewhere), which `ACRES_STATE_DIR` overrides. `CatalogBuilder::rate_limit_file` and `no_shared_rate_limit` choose another file or keep the limit in memory.
 - `acres-tui` is an explorer (ADR 0013, step 1): a search bar, results, art and record panes with numbered borders, a status bar, and overlays. `?` opens help built from the loaded keymap, `1` to `4`, `tab` and `shift-tab` move focus, `n`/`p` change artwork from any pane, `z` is zen mode, and the search bar narrows the list by title. The status bar suggests keys for the focused pane and echoes the last key (`show_keys: false` turns it off). The mouse scrolls and clicks in the panes (`mouse: false` turns capture off) (see [ADR 0013](docs/decisions/0013-tui-catalog-explorer.md)).
 - `tui/frame/explorer`, `tui/frame/zen` and `tui/frame/help` benches of whole TUI frames in each art mode, run by `make bench`.
+- `acres-tui` searches the collection live (ADR 0013, step 2): `enter` in the search bar runs a search for artworks with images, the next page of 50 loads as the cursor nears the end of the list, and a newer search cancels the one in flight. It starts on Highlights, a built-in list of public-domain artworks that the `highlights` config setting overrides, and falls back to recently updated public-domain works if none of them can be shown. The status bar counts the results and says when the rate limit is holding a search up. `--offline` answers only from the cache.
+- `acres::Catalog::is_rate_limited` and `acres::artworks::search::Builder::descending`.
+- The weekly canary workflow checks that the Highlights ids are still public domain with images.
 
 ### Changed
 
+- `acres-tui` reads a file of artworks with `--from-file <FILE>` (or `-` for stdin) instead of a positional argument, and searches the collection when no file is given. The record pane shows the artist and date when the list has them.
 - `acres-tui` keys are bound per focus context (`Global`, `List`, `Art`, `Record`, `Search`, `Overlay`) instead of per mode. `esc` no longer opens the list, `a` (ramps) is now `r`, `l` (logs) is now `L`, and `ctrl-d` pages instead of quitting. Single-character keys keep their case, so `G` and `g` are different keys.
 - `acres-tui` starts in half blocks, and previews the selected artwork as the cursor moves, 150 ms after it stops, instead of waiting for `enter`.
 - `acres-cli` fetches through one `acres::Catalog`, so its commands share the rate limit, retries and cache lifetimes, and it takes `--offline` (or `ACRES_OFFLINE=true`) to answer only from the cache. JSON commands print the body exactly as the API sent it, instead of re-serializing it with sorted keys.
@@ -78,6 +82,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- `acres::Page` parses listings by `ids`, which come without `pagination`.
 - `acres-tui` builds in release mode again: the panic hook no longer uses `human-panic`, which was never a dependency.
 - `iiif::Quality` and `iiif::Format` are now `Copy`.
 - `iiif` no longer depends on `anyhow`, `bytes`, `strum` or `tracing`, and its crates.io keywords and categories describe the library instead of the CLI/TUI. Broken links in its docs are fixed.

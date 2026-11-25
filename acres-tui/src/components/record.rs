@@ -1,4 +1,3 @@
-use acres::artworks::ArtworkInfo;
 use color_eyre::Result;
 use ratatui::{
     Frame,
@@ -9,14 +8,16 @@ use ratatui::{
 };
 
 use super::{Component, pane_block};
+use crate::entry::Entry;
 
 /// The record pane: what is known about the selected artwork, scrolled with `j`/`k`.
 ///
-/// A saved `Artworks` file carries only the title, id and image id. The wall label, built from
-/// the full record, replaces this in a later step of ADR 0013.
+/// It shows what the results list carries: title, artist and date (a saved `Artworks` file has
+/// only the title). The wall label, built from the full record, replaces this in step 3 of
+/// ADR 0013.
 #[derive(Default)]
 pub struct Record {
-    artwork: Option<ArtworkInfo>,
+    artwork: Option<Entry>,
     scroll: u16,
     /// Lines the record took and rows the pane showed in the last draw, to bound scrolling.
     lines: u16,
@@ -26,7 +27,7 @@ pub struct Record {
 
 impl Record {
     /// Shows `artwork` from the top.
-    pub fn show(&mut self, artwork: Option<ArtworkInfo>) {
+    pub fn show(&mut self, artwork: Option<Entry>) {
         self.artwork = artwork;
         self.scroll = 0;
     }
@@ -48,16 +49,21 @@ impl Record {
             return Text::from(Line::from("No artwork selected").fg(Color::DarkGray));
         };
         let quiet = Style::new().fg(Color::DarkGray);
-        Text::from(vec![
-            Line::from(artwork.data.title.as_str()).bold(),
-            Line::default(),
-            Line::from(vec!["id     ".into(), artwork.data.id.to_string().into()]).style(quiet),
-            Line::from(vec![
-                "image  ".into(),
-                artwork.data.image_id.as_str().into(),
-            ])
-            .style(quiet),
-        ])
+        let summary = &artwork.summary;
+        let mut lines = vec![Line::from(summary.title.as_str()).bold()];
+        if let Some(date) = &summary.date_display {
+            lines.push(Line::from(date.as_str()));
+        }
+        if let Some(artist) = &summary.artist_display {
+            lines.push(Line::default());
+            lines.extend(artist.lines().map(|line| Line::from(line.to_string())));
+        }
+        lines.push(Line::default());
+        lines.push(Line::from(format!("id     {}", summary.id)).style(quiet));
+        if let Some(image_id) = &summary.image_id {
+            lines.push(Line::from(format!("image  {image_id}")).style(quiet));
+        }
+        Text::from(lines)
     }
 }
 
@@ -82,7 +88,7 @@ mod tests {
     fn record() -> Record {
         let artworks: acres::artworks::Artworks =
             serde_json::from_str(ARTWORKS_FIXTURE).expect("fixture parses");
-        let first = Vec::<ArtworkInfo>::from(artworks).into_iter().next();
+        let first = Entry::from_file(artworks).into_iter().next();
         let mut record = Record::default();
         record.show(first);
         record
@@ -92,6 +98,23 @@ mod tests {
     fn renders_the_selected_artwork() {
         let mut record = record();
         insta::assert_snapshot!(render(&mut record, 30, 8));
+    }
+
+    #[test]
+    fn renders_the_artist_and_date_when_listed() {
+        let mut record = Record::default();
+        record.show(Some(Entry {
+            summary: acres::artworks::ArtworkSummary {
+                id: 16568,
+                title: "Water Lilies".into(),
+                artist_display: Some("Claude Monet\nFrench, 1840–1926".into()),
+                date_display: Some("1906".into()),
+                image_id: Some("3c27b499".into()),
+                ..Default::default()
+            },
+            iiif_url: String::new(),
+        }));
+        insta::assert_snapshot!(render(&mut record, 30, 10));
     }
 
     #[test]

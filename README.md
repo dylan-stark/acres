@@ -15,12 +15,19 @@ Currently, it includes
 - an [`iiif` command](#working-with-iiif-urls) for constructing IIIF URLs for downloading images for the artwork you find, and
 - an [`ascii-art` tool](#working-with-ascii-art) for rendering those images as ASCII art directly in the terminal.
 
-The TUI is, essentially, no surprise, the interactive equivalent of the CLI.
-You start it with some artworks search results.
+The TUI is, essentially, no surprise, the interactive equivalent of the CLI: it searches the collection live.
+
+```sh
+acres-tui
+```
+
+It opens on Highlights, a short built-in list of public-domain works (the Great Wave, a few Monets, La Grande Jatte and others).
+Set `highlights` in your config to a list of artwork ids to start on your own picks instead.
+Pass `--offline` to answer only from the cache, or `--from-file` to browse a file of search results from the CLI (`-` reads stdin):
 
 ```sh
 acres-cli artworks > artworks.json
-acres-tui artworks.json
+acres-tui --from-file artworks.json
 ```
 
 The TUI opens on an explorer: a search bar along the top, then the results, the art and the artwork's record side by side, and a status bar along the bottom.
@@ -28,13 +35,13 @@ Each pane is numbered in its top border, and `1` to `4` (or `tab` and `shift-tab
 Hit `?` for every key, listed for the focused pane first, and `esc` to close it.
 
 - `j` and `k` (or the arrows) move through the results, and the art and record follow, a moment after the cursor stops. `n` and `p` do the same from any pane.
-- `/` opens the search bar, which narrows the list to titles containing what you type when you hit `enter`; `up` and `down` recall earlier searches.
+- `/` opens the search bar, and `enter` searches the collection for what you typed (an empty search goes back to Highlights). More results load as you near the end of the list. With `--from-file`, the search narrows the list to titles containing what you typed instead. `up` and `down` recall earlier searches.
 - `b` cycles the art from half blocks to quadrant blocks to ASCII, and `r` picks a different ramp, the characters ASCII mode draws with.
 - `z` shows the art alone, full screen, until `esc` or `z` again.
 - `t` slides out a HUD with how long each fetch, decode, render and frame took, and `L` shows the log.
 - The mouse works too: scroll the list or the record, click a row to select it, and click a pane to focus it. Set `mouse: false` in the config to keep your terminal's own text selection.
 
-The status bar shows a few useful keys for the focused pane and echoes the last key you pressed with what it did, or `not mapped here` when it did nothing there (`show_keys: false` turns that off).
+The status bar counts the results, says when the rate limit is holding a search up, shows a few useful keys for the focused pane and echoes the last key you pressed with what it did, or `not mapped here` when it did nothing there (`show_keys: false` turns that off).
 Keys are set in `acres-tui/.config/config.json5`, per pane, and your own config can override any of them.
 
 When you're done, hit `q` or `ctrl-c` to quit.

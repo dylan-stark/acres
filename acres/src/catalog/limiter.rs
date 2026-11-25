@@ -44,6 +44,8 @@ pub(crate) struct Limiter {
     shared: Option<SharedBucket>,
     /// Whether a failure of the shared bucket has been logged, so it is logged once.
     shared_failed: AtomicBool,
+    /// Whether the head of the queue is waiting for a token right now.
+    starved: AtomicBool,
 }
 
 #[derive(Debug)]
@@ -111,6 +113,7 @@ impl Limiter {
             burst: f64::from(burst.max(1)),
             shared: None,
             shared_failed: AtomicBool::new(false),
+            starved: AtomicBool::new(false),
         }
     }
 
@@ -142,6 +145,12 @@ impl Limiter {
         } else {
             Err(self.interval.mul_f64(1.0 - state.tokens))
         }
+    }
+
+    /// Whether a request is waiting for a token now, rather than behind other requests or not
+    /// at all.
+    pub(crate) fn is_starved(&self) -> bool {
+        self.starved.load(Ordering::Relaxed)
     }
 
     /// Locks the state. A panic while it was held can't leave it half-updated in a way that
@@ -180,8 +189,10 @@ impl Limiter {
                 if state.head() != Some(ticket) {
                     None
                 } else if let Err(wait) = self.take(&mut state) {
+                    self.starved.store(true, Ordering::Relaxed);
                     Some(Instant::now() + wait)
                 } else {
+                    self.starved.store(false, Ordering::Relaxed);
                     state.leave(ticket);
                     if lane == Lane::Image {
                         state.images_in_flight += 1;
@@ -221,7 +232,12 @@ impl Drop for Place<'_> {
         if self.served {
             return;
         }
-        self.limiter.lock().leave(self.ticket);
+        let mut state = self.limiter.lock();
+        state.leave(self.ticket);
+        if state.waiting.is_empty() {
+            self.limiter.starved.store(false, Ordering::Relaxed);
+        }
+        drop(state);
         self.limiter.changed.notify_waiters();
     }
 }
@@ -268,6 +284,22 @@ mod tests {
             at.push(since(start));
         }
         assert_eq!(at, [0, 0, 1000, 2000]);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn reports_starved_only_while_waiting_for_a_token() {
+        let limiter = Arc::new(Limiter::new(60, 1));
+        let first = limiter.acquire(Lane::Metadata).await;
+        assert!(!limiter.is_starved());
+        let waiter = tokio::spawn({
+            let limiter = Arc::clone(&limiter);
+            async move { limiter.acquire(Lane::Metadata).await }
+        });
+        settle().await;
+        assert!(limiter.is_starved(), "the bucket is empty");
+        drop(first);
+        waiter.await.unwrap();
+        assert!(!limiter.is_starved(), "served");
     }
 
     #[tokio::test(start_paused = true)]

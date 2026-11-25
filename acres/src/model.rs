@@ -24,7 +24,9 @@ use serde::{Deserialize, Serialize};
 /// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Page<T> {
-    /// Where this page sits in the whole result.
+    /// Where this page sits in the whole result. A listing by `ids` has none, so it defaults to
+    /// zeros.
+    #[serde(default)]
     pub pagination: Pagination,
     /// The records on this page.
     pub data: Vec<T>,

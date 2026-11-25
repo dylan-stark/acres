@@ -65,6 +65,7 @@ pub struct Builder {
     q: Option<String>,
     query: Option<String>,
     sort: Option<String>,
+    descending: bool,
     from: Option<u32>,
     size: Option<u32>,
     facets: Option<Vec<String>>,
@@ -115,10 +116,29 @@ impl Builder {
         self
     }
 
-    /// Sets the sort field.
+    /// Sets the sort field. The API sorts ascending unless [`Builder::descending`] is set.
     pub fn sort(mut self, field: Option<String>) -> Self {
         tracing::info!(msg = "Setting sort", ?field);
         self.sort = field;
+        self
+    }
+
+    /// Sorts by the [`Builder::sort`] field from highest to lowest, such as newest first.
+    ///
+    /// ```
+    /// use acres::artworks::request::search::{Builder, Filters};
+    ///
+    /// let request = Builder::new()
+    ///     .base_uri("https://api.artic.edu/api/v1")
+    ///     .filters(Filters { has_image: true, ..Filters::default() })
+    ///     .sort(Some("updated_at".into()))
+    ///     .descending(true)
+    ///     .build()
+    ///     .unwrap();
+    /// assert!(request.to_string().contains("sort[updated_at][order]=desc"));
+    /// ```
+    pub fn descending(mut self, descending: bool) -> Self {
+        self.descending = descending;
         self
     }
 
@@ -191,6 +211,7 @@ impl Builder {
             q: self.q.clone(),
             query: self.query.clone(),
             sort: self.sort.clone(),
+            descending: self.descending,
             from: self.from,
             size: self.size,
             facets: self.facets.clone(),
@@ -276,6 +297,7 @@ pub(super) struct SearchQueryParams {
     pub(super) q: Option<String>,
     pub(super) query: Option<String>,
     pub(super) sort: Option<String>,
+    pub(super) descending: bool,
     pub(super) from: Option<u32>,
     pub(super) size: Option<u32>,
     pub(super) facets: Option<Vec<String>>,
@@ -304,8 +326,12 @@ impl Display for SearchQueryParams {
                 params.push(format!("query[bool][filter][{i}]{path}={}", encode(value)));
             }
         }
-        if let Some(sort) = &self.sort {
-            params.push(format!("sort={}", encode(sort)));
+        match &self.sort {
+            Some(sort) if self.descending => {
+                params.push(format!("sort[{}][order]=desc", encode(sort)));
+            }
+            Some(sort) => params.push(format!("sort={}", encode(sort))),
+            None => {}
         }
         if let Some(from) = &self.from {
             params.push(format!("from={from}"));
@@ -388,6 +414,7 @@ mod tests {
             q: None,
             query: None,
             sort: None,
+            descending: false,
             from: None,
             size: None,
             facets: None,
