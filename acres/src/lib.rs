@@ -158,7 +158,7 @@ mod config;
 mod error;
 mod model;
 
-pub use catalog::{Catalog, CatalogBuilder, Fetched, Lane, Resource};
+pub use catalog::{Catalog, CatalogBuilder, FACETS_LIMIT, Fetched, Lane, Resource};
 pub use config::DEFAULT_BASE_URI;
 pub use error::{BoxError, CacheError, Error, ParseError, RequestError, ResponseError};
-pub use model::{ApiConfig, Item, Page, Pagination};
+pub use model::{ApiConfig, ArtworkType, DEFAULT_WEBSITE_URL, Department, Item, Page, Pagination};

@@ -23,7 +23,8 @@ use crate::{
     action::Action,
     components::{
         Component,
-        catalog::{Listing, Load, Loaded},
+        catalog::{Listing, Load, Loaded, Query, Sort, default_filters},
+        filters::FilterPanel,
         help::Help,
         home::Home,
         hud::Hud,
@@ -59,7 +60,9 @@ struct Live {
     /// The current search; increases with each new one.
     generation: u64,
     /// The query the list is for, or `None` for the Highlights.
-    query: Option<String>,
+    query: Option<Query>,
+    /// The filters and sort the next search uses, with the text last searched.
+    settings: Query,
     /// Records matching, across all pages.
     total: u64,
     /// The next page to ask for, from 1.
@@ -111,6 +114,8 @@ pub enum Overlay {
     Quit,
     /// The full record of the selected artwork.
     Record,
+    /// The search's filters.
+    Filters,
 }
 
 /// Where the last draw put each pane, for mapping mouse events.
@@ -149,6 +154,9 @@ pub struct Explorer {
     art: Home,
     record: Record,
     full_record: Record,
+    filters: FilterPanel,
+    /// Whether the departments and types were asked for.
+    facets_requested: bool,
     hud: Hud,
     logs: Logs,
     ramps: Ramps,
@@ -193,6 +201,8 @@ impl Explorer {
             art,
             record,
             full_record: Record::overlay(),
+            filters: FilterPanel::default(),
+            facets_requested: false,
             hud: Hud::new(),
             logs: Logs::new(),
             ramps: Ramps::new(),
@@ -289,6 +299,7 @@ impl Explorer {
             (Some(Overlay::Ramps), _) => &[Action::Select, Action::Cancel],
             // The prompt names its own keys.
             (Some(Overlay::Quit), _) => &[],
+            (Some(Overlay::Filters), _) => &[],
             (Some(Overlay::Record), _) => &[Action::MoveDown, Action::NextArtwork, Action::Cancel],
             (None, Pane::Search) => &[Action::RunSearch, Action::EarlierQuery, Action::Cancel],
             (None, Pane::Results) => {
@@ -350,8 +361,7 @@ impl Explorer {
 
     /// The selected artwork's page on artic.edu.
     fn link(&self) -> Option<String> {
-        let id = self.results.selected()?.id();
-        Some(format!("https://www.artic.edu/artworks/{id}"))
+        Some(self.results.selected()?.link())
     }
 
     fn send(&self, action: Action) {
@@ -360,18 +370,23 @@ impl Explorer {
         }
     }
 
-    /// Starts a new live search for `query`, or the Highlights when it is empty.
-    fn search_live(&mut self, query: String) {
+    /// Starts a new live search for `text` with the current filters and sort, or the
+    /// Highlights when there is nothing to search for.
+    fn search_live(&mut self, text: String) {
         let Some(live) = &mut self.live else { return };
+        live.settings.text = text;
         live.generation += 1;
         live.loading = true;
         live.error = None;
-        let load = if query.is_empty() {
+        let load = if live.settings.is_empty() {
             live.query = None;
             Load::Highlights(live.highlights.clone())
         } else {
-            live.query = Some(query.clone());
-            Load::Search { q: query, page: 1 }
+            live.query = Some(live.settings.clone());
+            Load::Search {
+                query: live.settings.clone(),
+                page: 1,
+            }
         };
         let generation = live.generation;
         self.send(Action::Load { generation, load });
@@ -382,14 +397,16 @@ impl Explorer {
         let rows_below = self.results.rows_below();
         let (_, loaded) = self.results.counts();
         let Some(live) = &mut self.live else { return };
-        let Some(q) = live.query.clone() else { return };
+        let Some(query) = live.query.clone() else {
+            return;
+        };
         let reachable = live.total.min(MAX_RESULTS);
         if live.loading || loaded as u64 >= reachable || rows_below > LOAD_AHEAD {
             return;
         }
         live.loading = true;
         let load = Load::Search {
-            q,
+            query,
             page: live.next_page,
         };
         let generation = live.generation;
@@ -452,6 +469,16 @@ impl Explorer {
             (None, true) => format!("Recent public domain · {loaded}"),
             (Some(_), _) => format!("{} / {}", thousands(loaded as u64), thousands(live.total)),
         }];
+        if let Some(query) = &live.query {
+            match query.filter_count() {
+                0 => {}
+                1 => parts.push("1 filter".into()),
+                n => parts.push(format!("{n} filters")),
+            }
+            if query.sort != Sort::Relevance {
+                parts.push(query.sort.label().into());
+            }
+        }
         if live.query.is_some() && live.total > MAX_RESULTS && loaded as u64 >= MAX_RESULTS {
             parts.push("narrow the search to see more".into());
         }
@@ -479,6 +506,7 @@ impl Explorer {
             (Some(Overlay::Ramps), _) => self.ramps.step(delta),
             (Some(Overlay::Quit), _) => {}
             (Some(Overlay::Record), _) => self.full_record.scroll(delta),
+            (Some(Overlay::Filters), _) => self.filters.step(delta),
             (None, Pane::Results) => {
                 let moved = self.results.step(delta);
                 return self.preview(moved);
@@ -519,6 +547,23 @@ impl Component for Explorer {
     fn handle_key_event(&mut self, key: KeyEvent) -> Result<Option<Action>> {
         let key = normalize(key);
         let context = self.context();
+        if self.overlay == Some(Overlay::Filters) && self.filters.is_typing() {
+            // A year row takes digits and a leading minus, before any key they are bound to.
+            let plain = !key
+                .modifiers
+                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
+            match key.code {
+                KeyCode::Char(c) if plain && (c.is_ascii_digit() || c == '-') => {
+                    self.filters.push(c);
+                    return Ok(None);
+                }
+                KeyCode::Backspace if plain => {
+                    self.filters.backspace();
+                    return Ok(None);
+                }
+                _ => {}
+            }
+        }
         if let Some(action) = self.lookup(context, key).cloned() {
             self.set_echo(key, Some(&action));
             return Ok(Some(action));
@@ -560,6 +605,7 @@ impl Component for Explorer {
                 Overlay::Ramps => self.ramps.area,
                 Overlay::Quit => self.quit.area,
                 Overlay::Record => self.full_record.area,
+                Overlay::Filters => self.filters.area,
             };
             if delta == 0 && !area.contains(at) {
                 self.overlay = None;
@@ -697,6 +743,68 @@ impl Component for Explorer {
                 self.full_record.loaded(*id, result);
                 None
             }
+            Action::OpenFilters => {
+                if let Some(live) = &self.live {
+                    self.filters.open(&live.settings.filters);
+                    self.overlay = Some(Overlay::Filters);
+                    if !self.filters.has_facets() && !self.facets_requested {
+                        self.facets_requested = true;
+                        self.send(Action::FetchFacets);
+                    }
+                } else {
+                    self.echo = Some("f · filters need a live search, not --from-file".into());
+                }
+                None
+            }
+            Action::FacetsLoaded(facets) => {
+                self.filters.set_facets(facets.clone());
+                if facets.is_err() {
+                    // Try again the next time the filters open.
+                    self.facets_requested = false;
+                }
+                None
+            }
+            Action::PreviousOption if self.overlay == Some(Overlay::Filters) => {
+                self.filters.change(-1);
+                None
+            }
+            Action::NextOption if self.overlay == Some(Overlay::Filters) => {
+                self.filters.change(1);
+                None
+            }
+            Action::ClearSearch if self.overlay == Some(Overlay::Filters) => {
+                self.filters.reset(&default_filters());
+                None
+            }
+            Action::Select if self.overlay == Some(Overlay::Filters) => {
+                match self.filters.apply() {
+                    Ok(filters) => {
+                        self.overlay = None;
+                        self.focus = Pane::Results;
+                        let text = self.live.as_mut().map(|live| {
+                            live.settings.filters = filters;
+                            live.settings.text.clone()
+                        });
+                        if let Some(text) = text {
+                            self.search_live(text);
+                        }
+                    }
+                    Err(error) => self.filters.fail(error),
+                }
+                None
+            }
+            Action::CycleSort => {
+                let text = self.live.as_mut().map(|live| {
+                    live.settings.sort = live.settings.sort.next();
+                    live.settings.text.clone()
+                });
+                if let Some(text) = text {
+                    self.search_live(text);
+                } else {
+                    self.echo = Some("s · sorting needs a live search, not --from-file".into());
+                }
+                None
+            }
             Action::OpenInBrowser => self.link().map(Action::OpenUrl),
             Action::CopyLink => self.link().map(Action::CopyText),
             Action::RateLimited(limited) => {
@@ -776,6 +884,7 @@ impl Component for Explorer {
             Some(Overlay::Ramps) => self.ramps.draw(frame, area)?,
             Some(Overlay::Quit) => self.quit.draw(frame, area)?,
             Some(Overlay::Record) => self.full_record.draw(frame, area)?,
+            Some(Overlay::Filters) => self.filters.draw(frame, area)?,
             None => {}
         }
         Ok(())
@@ -956,6 +1065,14 @@ mod tests {
             press(&mut explorer, char('y')),
             Some(Action::CopyText(link))
         );
+    }
+
+    #[test]
+    fn filters_and_sort_say_they_need_a_live_search() {
+        let mut explorer = explorer();
+        assert_eq!(press(&mut explorer, char('f')), None);
+        assert_eq!(explorer.overlay(), None);
+        assert!(explorer.echo.as_deref().unwrap().contains("live search"));
     }
 
     #[test]
@@ -1163,7 +1280,10 @@ mod tests {
                     image_id: Some(format!("image-{id}")),
                     ..Default::default()
                 },
-                iiif_url: "https://iiif.example/iiif/2".into(),
+                config: acres::ApiConfig {
+                    iiif_url: "https://iiif.example/iiif/2".into(),
+                    ..Default::default()
+                },
             }
         }
 
@@ -1223,6 +1343,99 @@ mod tests {
             press(explorer, key(KeyCode::Enter));
         }
 
+        /// The query of the one search asked for since the last check.
+        fn searched(rx: &mut UnboundedReceiver<Action>) -> Query {
+            match loads(rx).as_slice() {
+                [(_, Load::Search { query, page: 1 })] => query.clone(),
+                other => panic!("expected one search, got {other:?}"),
+            }
+        }
+
+        #[test]
+        fn filters_apply_on_enter_and_rerun_the_search() {
+            let (mut explorer, mut rx) = started();
+            search(&mut explorer, "monet");
+            loads(&mut rx);
+            press(&mut explorer, char('f'));
+            assert_eq!(explorer.overlay(), Some(Overlay::Filters));
+            assert!(
+                std::iter::from_fn(|| rx.try_recv().ok()).any(|a| a == Action::FetchFacets),
+                "the departments and types are asked for"
+            );
+            // Public domain: yes, then from 1850, typed even though digits focus panes.
+            press(&mut explorer, char('j'));
+            press(&mut explorer, char('l'));
+            for _ in 0..4 {
+                press(&mut explorer, char('j'));
+            }
+            for c in "1850".chars() {
+                press(&mut explorer, char(c));
+            }
+            assert_eq!(explorer.overlay(), Some(Overlay::Filters), "still open");
+            press(&mut explorer, key(KeyCode::Enter));
+            assert_eq!(explorer.overlay(), None);
+            let query = searched(&mut rx);
+            assert_eq!(query.text, "monet");
+            assert_eq!(query.filters.is_public_domain, Some(true));
+            assert_eq!(query.filters.years, Some((1850, 2100)));
+            assert!(query.filters.has_image);
+            explorer.live.as_mut().unwrap().total = 120;
+            explorer.results.replace(vec![entry(1)]);
+            assert!(explorer.counts().contains("2 filters"));
+        }
+
+        #[test]
+        fn esc_drops_filter_edits() {
+            let (mut explorer, mut rx) = started();
+            loads(&mut rx);
+            press(&mut explorer, char('f'));
+            press(&mut explorer, char('l'));
+            press(&mut explorer, key(KeyCode::Esc));
+            assert!(loads(&mut rx).is_empty(), "nothing searched");
+            press(&mut explorer, char('f'));
+            assert_eq!(explorer.filters.apply().unwrap(), default_filters());
+        }
+
+        #[test]
+        fn filters_without_text_browse_the_collection_and_reset_goes_back_to_highlights() {
+            let (mut explorer, mut rx) = started();
+            loads(&mut rx);
+            press(&mut explorer, char('f'));
+            press(&mut explorer, char('j'));
+            press(&mut explorer, char('j'));
+            press(&mut explorer, char('l'));
+            press(&mut explorer, key(KeyCode::Enter));
+            let query = searched(&mut rx);
+            assert_eq!(query.text, "");
+            assert_eq!(query.filters.is_on_view, Some(true));
+            press(&mut explorer, char('f'));
+            let ctrl_u = KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL);
+            press(&mut explorer, ctrl_u);
+            press(&mut explorer, key(KeyCode::Enter));
+            assert!(matches!(
+                loads(&mut rx).as_slice(),
+                [(_, Load::Highlights(_))]
+            ));
+        }
+
+        #[test]
+        fn s_cycles_the_sort_and_reruns_the_search() {
+            let (mut explorer, mut rx) = started();
+            search(&mut explorer, "monet");
+            loads(&mut rx);
+            press(&mut explorer, char('s'));
+            assert_eq!(searched(&mut rx).sort, Sort::Oldest);
+            press(&mut explorer, char('s'));
+            let query = searched(&mut rx);
+            assert_eq!(query.sort, Sort::Newest);
+            explorer.results.replace(vec![entry(1)]);
+            assert!(explorer.counts().contains("newest first"));
+            press(&mut explorer, char('s'));
+            assert_eq!(searched(&mut rx).sort, Sort::Title);
+            press(&mut explorer, char('s'));
+            assert_eq!(searched(&mut rx).sort, Sort::Relevance);
+        }
+
         #[test]
         fn starts_on_the_highlights() {
             let (mut explorer, mut rx) = started();
@@ -1239,7 +1452,7 @@ mod tests {
             let (mut explorer, mut rx) = started();
             search(&mut explorer, "monet");
             let monet = Load::Search {
-                q: "monet".into(),
+                query: Query::text("monet"),
                 page: 1,
             };
             assert_eq!(loads(&mut rx).last(), Some(&(2, monet.clone())));
@@ -1257,7 +1470,7 @@ mod tests {
             search(&mut explorer, "monet");
             loads(&mut rx);
             let first = Load::Search {
-                q: "monet".into(),
+                query: Query::text("monet"),
                 page: 1,
             };
             deliver(&mut explorer, 2, first, listing(0..PAGE_SIZE, 120));
@@ -1269,7 +1482,7 @@ mod tests {
             assert!(loads(&mut rx).is_empty());
             press(&mut explorer, char('j'));
             let second = Load::Search {
-                q: "monet".into(),
+                query: Query::text("monet"),
                 page: 2,
             };
             assert_eq!(loads(&mut rx), [(2, second.clone())]);
@@ -1286,7 +1499,7 @@ mod tests {
             deliver(&mut explorer, 1, Load::Highlights(vec![]), listing(1..3, 2));
             search(&mut explorer, "monet");
             let failed = Load::Search {
-                q: "monet".into(),
+                query: Query::text("monet"),
                 page: 1,
             };
             deliver(&mut explorer, 2, failed, Err("the API is down".into()));

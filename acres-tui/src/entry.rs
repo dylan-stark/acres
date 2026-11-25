@@ -1,6 +1,6 @@
 //! What the explorer lists: one artwork, and the IIIF server its image is on.
 
-use acres::artworks::ArtworkSummary;
+use acres::{ApiConfig, artworks::ArtworkSummary};
 use base64::Engine;
 
 /// The built-in Highlights, the start screen's well-known public-domain works (ADR 0013).
@@ -18,8 +18,8 @@ pub fn highlights() -> Vec<u32> {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Entry {
     pub summary: ArtworkSummary,
-    /// The IIIF base its page came with, such as `https://www.artic.edu/iiif/2`.
-    pub iiif_url: String,
+    /// The image server and website its page came with.
+    pub config: ApiConfig,
 }
 
 impl Entry {
@@ -34,9 +34,12 @@ impl Entry {
     /// The image's IIIF base URI, if the artwork has an image.
     pub fn base_uri(&self) -> Option<iiif::BaseUri> {
         let image_id = self.summary.image_id.as_deref()?;
-        format!("{}/{image_id}", self.iiif_url.trim_end_matches('/'))
-            .parse()
-            .ok()
+        self.config.image_base_uri(image_id).ok()
+    }
+
+    /// The artwork's page on the museum's website.
+    pub fn link(&self) -> String {
+        self.config.artwork_url(self.summary.id)
     }
 
     /// The record's `lqip` placeholder, a GIF a few pixels across, decoded from its data URI.
@@ -50,7 +53,10 @@ impl Entry {
 
     /// The artworks with images in a saved `Artworks` file, as `acres-cli artworks` writes it.
     pub fn from_file(artworks: acres::artworks::Artworks) -> Vec<Entry> {
-        let iiif_url = artworks.config.iiif_url.clone();
+        let config = ApiConfig {
+            iiif_url: artworks.config.iiif_url.clone(),
+            website_url: artworks.config.website_url.clone(),
+        };
         artworks
             .data
             .into_iter()
@@ -62,19 +68,19 @@ impl Entry {
                     image_id: data.image_id,
                     ..ArtworkSummary::default()
                 },
-                iiif_url: iiif_url.clone(),
+                config: config.clone(),
             })
             .collect()
     }
 
-    /// Each record on a page, with the page's IIIF base.
+    /// Each record on a page, with the page's config.
     pub fn from_page(page: acres::Page<ArtworkSummary>) -> Vec<Entry> {
-        let iiif_url = page.config.iiif_url;
+        let config = page.config;
         page.data
             .into_iter()
             .map(|summary| Entry {
                 summary,
-                iiif_url: iiif_url.clone(),
+                config: config.clone(),
             })
             .collect()
     }
@@ -92,15 +98,19 @@ mod tests {
     }
 
     #[test]
-    fn base_uri_joins_the_iiif_url_and_image_id() {
+    fn base_uri_and_link_come_from_the_config() {
         let entry = Entry {
             summary: ArtworkSummary {
                 id: 1,
                 image_id: Some("abc".into()),
                 ..ArtworkSummary::default()
             },
-            iiif_url: "https://www.artic.edu/iiif/2/".into(),
+            config: ApiConfig {
+                iiif_url: "https://www.artic.edu/iiif/2/".into(),
+                website_url: "https://www.artic.edu".into(),
+            },
         };
+        assert_eq!(entry.link(), "https://www.artic.edu/artworks/1");
         assert_eq!(
             entry.base_uri().unwrap().to_string(),
             "https://www.artic.edu/iiif/2/abc"

@@ -252,6 +252,11 @@ pub struct Filters {
     pub artist_id: Option<u32>,
     /// Only artworks made within these years, inclusive. Negative years are BCE.
     pub years: Option<(i32, i32)>,
+    /// Only artworks whose title or artist contains every one of these words.
+    ///
+    /// Unlike `q`, which ranks loosely matching records low but still returns them, this keeps
+    /// only close matches, which suits a sort other than relevance.
+    pub words: Option<String>,
 }
 
 impl Filters {
@@ -283,6 +288,15 @@ impl Filters {
             if let Some(value) = value {
                 clauses.push(vec![(format!("[term][{field}]"), value)]);
             }
+        }
+        if let Some(words) = &self.words {
+            let at = "[multi_match]";
+            clauses.push(vec![
+                (format!("{at}[query]"), words.clone()),
+                (format!("{at}[fields][0]"), "title".into()),
+                (format!("{at}[fields][1]"), "artist_title".into()),
+                (format!("{at}[operator]"), "and".into()),
+            ]);
         }
         if let Some((start, end)) = self.years {
             clauses.push(vec![("[range][date_end][gte]".into(), start.to_string())]);
@@ -531,6 +545,24 @@ mod tests {
              &query[bool][filter][2][term][artist_id]=35\
              &query[bool][filter][3][range][date_end][gte]=1800\
              &query[bool][filter][4][range][date_start][lte]=1900"
+        );
+    }
+
+    #[test]
+    fn words_must_all_match_the_title_or_artist() {
+        let params = SearchQueryParams {
+            filters: Filters {
+                words: Some("water lilies".into()),
+                ..Filters::default()
+            },
+            ..params()
+        };
+        assert_eq!(
+            params.to_string(),
+            "?query[bool][filter][0][multi_match][query]=water+lilies\
+             &query[bool][filter][0][multi_match][fields][0]=title\
+             &query[bool][filter][0][multi_match][fields][1]=artist_title\
+             &query[bool][filter][0][multi_match][operator]=and"
         );
     }
 

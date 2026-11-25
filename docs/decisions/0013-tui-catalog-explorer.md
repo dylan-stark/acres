@@ -219,3 +219,11 @@ Steps 2 to 5 build on ADR 0016's `Catalog`. Bench results for both machines are 
   | zen (half / quadrant / ASCII) | 0.42 / 0.42 / 0.42 ms | 0.27 / 0.27 / 0.22 ms |
   | help | 0.40 ms | 0.23 ms |
 
+## Notes from step 4
+
+- **Filters are staged.** The overlay edits a copy: `h`/`l` change a row, the year rows take digits and a leading minus, `enter` applies and reruns the search, `esc` drops the edits and `ctrl-u` resets them. With no search text, filters or a sort browse the whole collection instead of the Highlights.
+- **Departments and types come from the API.** `/departments` (16) and `/artwork-types` (45) are listed when the overlay first opens and cached like records. Classification is left out: the library has no filter for it, and its list runs to thousands of terms, too long to cycle through.
+- **Four sorts, not three.** Date sorting splits into oldest and newest, since both are useful. Title sorts by `title.keyword`, because the API cannot sort analyzed text. Titles that start with quotes sort first.
+- **Placeholder dates.** Some records carry dates like year -1824528578 or 1486490, which would top a date sort. A date sort keeps to the years -8000 to 2100 unless a range is set.
+- **Sorted searches match strictly.** `q` ranks loose matches low but still returns them, nearly the whole collection for "monet", so any other sort brings the loose matches to the top. Sorted, the text becomes a filter that every word must match in the title or artist (`Filters::words`, an AND `multi_match`). "monet" sorted newest goes from 120,000 results to 49.
+

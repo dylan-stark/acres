@@ -33,7 +33,7 @@ impl FromStr for Artworks {
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Config {
     pub iiif_url: String,
-    website_url: String,
+    pub website_url: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
