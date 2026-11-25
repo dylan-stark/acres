@@ -12,7 +12,7 @@ use acres::{
         ArtworkSummary,
         request::{
             artworks,
-            search::{self, Filters},
+            search::{self, Filters, MAX_RESULTS},
         },
     },
 };
@@ -75,6 +75,10 @@ pub struct Query {
     pub text: String,
     pub filters: Filters,
     pub sort: Sort,
+    /// The name of the artist in `filters.artist_id`, set by a pivot, for the status bar.
+    pub artist: Option<String>,
+    /// The name of the department in `filters.department_id`, set by a pivot.
+    pub department: Option<String>,
 }
 
 impl Default for Query {
@@ -83,6 +87,8 @@ impl Default for Query {
             text: String::new(),
             filters: default_filters(),
             sort: Sort::default(),
+            artist: None,
+            department: None,
         }
     }
 }
@@ -110,16 +116,52 @@ impl Query {
         *self == Self::default()
     }
 
-    /// How many filters differ from the defaults.
+    /// More by the artist `id`, called `name`, keeping these filters and sort.
+    pub fn by_artist(&self, id: u32, name: Option<String>) -> Self {
+        let mut query = Self {
+            text: String::new(),
+            artist: name,
+            ..self.clone()
+        };
+        query.filters.artist_id = Some(id);
+        query.filters.words = None;
+        query
+    }
+
+    /// More from the department `id`, called `name`, keeping these filters and sort.
+    pub fn from_department(&self, id: String, name: Option<String>) -> Self {
+        let mut query = Self {
+            text: String::new(),
+            department: name,
+            ..self.clone()
+        };
+        query.filters.department_id = Some(id);
+        query.filters.words = None;
+        query
+    }
+
+    /// The pivot's names, such as `by Claude Monet`, for the filters still set.
+    pub fn pivots(&self) -> Vec<String> {
+        let mut pivots = Vec::new();
+        if let (Some(_), Some(artist)) = (self.filters.artist_id, &self.artist) {
+            pivots.push(format!("by {artist}"));
+        }
+        if let (Some(_), Some(department)) = (&self.filters.department_id, &self.department) {
+            pivots.push(format!("from {department}"));
+        }
+        pivots
+    }
+
+    /// How many filters differ from the defaults, leaving out those named by [`Query::pivots`].
     pub fn filter_count(&self) -> usize {
         let f = &self.filters;
         [
             !f.has_image,
             f.is_public_domain.is_some(),
             f.is_on_view.is_some(),
-            f.department_id.is_some(),
+            f.department_id.is_some() && self.department.is_none(),
             f.artwork_type_id.is_some(),
-            f.artist_id.is_some(),
+            f.artist_id.is_some() && self.artist.is_none(),
             f.years.is_some(),
         ]
         .into_iter()
@@ -135,6 +177,9 @@ pub enum Load {
     Highlights(Vec<u32>),
     /// Page `page` (from 1) of a search.
     Search { query: Query, page: u32 },
+    /// One artwork picked at random from the first [`MAX_RESULTS`] matches of `query`, by
+    /// `seed`.
+    Surprise { query: Query, seed: u64 },
 }
 
 /// A list that came back, or why it didn't.
@@ -305,11 +350,54 @@ async fn fetch(
                 fallback: false,
             })
         }
+        Load::Surprise { query, seed } => surprise(catalog, query, *seed, tx).await,
     }
 }
 
 /// The request for page `page` of `query`.
 fn search_request(base_uri: &str, query: &Query, page: u32) -> eyre::Result<search::Request> {
+    sized_request(base_uri, query, page, PAGE_SIZE)
+}
+
+/// One artwork from `query`'s first [`MAX_RESULTS`] matches, chosen by `seed`.
+///
+/// The API has no random order, so this asks for one record to learn the total, then for the
+/// record at a position picked by `seed`. The first request is cached like any page, so after
+/// the first surprise for a search only the second goes out.
+async fn surprise(
+    catalog: &Catalog,
+    query: &Query,
+    seed: u64,
+    tx: &UnboundedSender<Action>,
+) -> eyre::Result<Listing> {
+    let first = sized_request(catalog.base_uri(), query, 1, 1)?;
+    let page: Page<ArtworkSummary> = timed(catalog, &first, "surprise total", tx).await?;
+    let reachable = page.pagination.total.min(MAX_RESULTS);
+    if reachable == 0 {
+        return Ok(Listing::default());
+    }
+    let at = u32::try_from(seed % reachable + 1).unwrap_or(1);
+    let page = if at == 1 {
+        page
+    } else {
+        let request = sized_request(catalog.base_uri(), query, at, 1)?;
+        timed(catalog, &request, &format!("surprise {at}"), tx).await?
+    };
+    let entries = Entry::from_page(page);
+    Ok(Listing {
+        total: entries.len() as u64,
+        entries,
+        fallback: false,
+    })
+}
+
+/// The request for page `page` of `query`, `limit` records to a page.
+fn sized_request(
+    base_uri: &str,
+    query: &Query,
+    page: u32,
+    limit: u32,
+) -> eyre::Result<search::Request> {
     let mut filters = query.filters.clone();
     let (sort, descending) = match query.sort {
         Sort::Relevance => (None, false),
@@ -334,7 +422,7 @@ fn search_request(base_uri: &str, query: &Query, page: u32) -> eyre::Result<sear
         .sort(sort.map(String::from))
         .descending(descending)
         .fields(Some(fields(ArtworkSummary::FIELDS)))
-        .limit(Some(PAGE_SIZE))
+        .limit(Some(limit))
         .page(Some(page))
         .build()?)
 }
@@ -478,6 +566,58 @@ mod tests {
                 other => panic!("unexpected {other:?}"),
             }
         }
+    }
+
+    #[tokio::test]
+    async fn a_surprise_learns_the_total_then_fetches_one_record_by_seed() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/artworks/search"))
+            .and(query_param("limit", "1"))
+            .and(query_param("page", "1"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(page(serde_json::json!([{"id": 1, "title": "First"}]), 3)),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        // Seed 4 of 3 matches lands on the second.
+        Mock::given(method("GET"))
+            .and(path("/artworks/search"))
+            .and(query_param("limit", "1"))
+            .and(query_param("page", "2"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(page(serde_json::json!([{"id": 2, "title": "Second"}]), 3)),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        let load = Load::Surprise {
+            query: Query::default(),
+            seed: 4,
+        };
+        let loaded = run(catalog(&server), load).await;
+        assert_eq!(titles(&loaded), ["Second"]);
+        assert_eq!(loaded.result.unwrap().total, 1);
+    }
+
+    #[tokio::test]
+    async fn a_surprise_with_no_matches_lists_nothing() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/artworks/search"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(page(serde_json::json!([]), 0)))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let load = Load::Surprise {
+            query: Query::text("nothing like it"),
+            seed: 9,
+        };
+        let loaded = run(catalog(&server), load).await;
+        assert_eq!(loaded.result.unwrap(), Listing::default());
     }
 
     fn titles(loaded: &Loaded) -> Vec<&str> {

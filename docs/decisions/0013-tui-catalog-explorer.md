@@ -23,7 +23,7 @@ The catalog has over 120,000 artworks. A tool that only shows what someone expor
 
 What the explorer takes from the API's rules:
 
-- Pages of 50 (the API allows up to 100). The list stops at the API's 10,000-record cap, and the status bar says the rest needs a narrower search.
+- Pages of 50 (the API allows up to 100). The list stops at the API's record cap (1,000 in practice, see Notes from step 5), and the status bar says the rest needs a narrower search.
 - While the client waits on the rate limit, the status bar says `rate limited`.
 - Images stay 843 px wide, the API's recommended size, with the IIIF base from each response's `config.iiif_url`.
 - List requests ask for `thumbnail`, so its tiny `lqip` image can show before the full image arrives (see Decisions on review questions).
@@ -78,6 +78,7 @@ The two modes (`Browse`, `View`) become focus contexts: `List`, `Art`, `Record`,
 | `m` | Global | Mark or unmark as saved |
 | `'` | Global | Switch between results and saved |
 | `e` | Global | Edit the note on a saved artwork |
+| `R` | Global | Surprise: a random artwork matching the search (added in step 5) |
 | `o` / `y` | Global | Open on artic.edu / copy its link |
 | `z` | Global | Zen: art only, full screen |
 | `b` | Global | Cycle art mode: half blocks (the default), quadrant blocks, ASCII (kept from ADR 0014) |
@@ -227,3 +228,11 @@ Steps 2 to 5 build on ADR 0016's `Catalog`. Bench results for both machines are 
 - **Placeholder dates.** Some records carry dates like year -1824528578 or 1486490, which would top a date sort. A date sort keeps to the years -8000 to 2100 unless a range is set.
 - **Sorted searches match strictly.** `q` ranks loose matches low but still returns them, nearly the whole collection for "monet", so any other sort brings the loose matches to the top. Sorted, the text becomes a filter that every word must match in the title or artist (`Filters::words`, an AND `multi_match`). "monet" sorted newest goes from 120,000 results to 49.
 
+## Notes from step 5
+
+- **Pivots narrow.** `A` and `D` keep the filters and sort and add the artist or department, so `D` after `A` lists one artist's works from one department. The search text is cleared, since a pivot is a new question. The list carries `artist_id`, `artist_title`, `department_id` and `department_title`, so a pivot costs no record request, and the status bar names it (`by Claude Monet`, `from Arts of the Americas`) in place of a filter count.
+- **History keeps whole lists.** Each new list pushes the one showing, with its loaded pages, cursor, filters and search text, onto a stack of up to 50. `backspace` restores it without a request and drops any page still on its way for the list it leaves. A search typed while another loads is remembered once, and a surprise after a surprise replaces it, so the stack holds lists that were actually seen.
+- **Surprise (`R`).** The API has no random order: Elasticsearch's `random_score` is accepted but does not change the order. A surprise asks for one record to learn the total, which is cached like any page, then for the record at a random position in the first 1,000 matches. With no search text those are the API's most boosted works, so filters or a pivot widen the variety. From a file, `R` picks a random row.
+- **The API's real depth cap is 1,000.** Its documentation says a search reaches 10,000 records, but it answers 403 for any page ending past the 1,000th (page 21 of 50, or page 1,001 of 1). `MAX_RESULTS` is now 1,000, so the list stops there and asks for a narrower search instead of failing a page.
+- **Saved list.** `saved.json` in the data directory holds a version (1) and, newest first, each record as listed with its `config`, `saved_at` (RFC 3339 UTC) and an optional note. It is written whole through a temporary file on each change. A file with a newer version is refused rather than overwritten. `'` swaps the saved list into the results pane, titled Saved. Searches and pages keep loading behind it, and a new search, pivot or sort switches back. Unsaving there drops the row and selects the next.
+- **Notes.** `e` opens a one-line input over the panes, like the search bar: every printable key is text, `enter` saves, `esc` cancels and `ctrl-u` clears. A blank note is removed.

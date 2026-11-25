@@ -28,6 +28,7 @@ Pass `--offline` to answer only from the cache, or `--from-file` to browse a fil
 ```sh
 acres-cli artworks > artworks.json
 acres-tui --from-file artworks.json
+acres-tui --offline --from-file saved.json  # your saved artworks, without the network
 ```
 
 The TUI opens on an explorer: a search bar along the top, then the results, the art and the artwork's record side by side, and a status bar along the bottom.
@@ -38,6 +39,8 @@ Hit `?` for every key, listed for the focused pane first, and `esc` to close it.
 - The record pane reads like a museum wall label: artist, title and date, medium, credit line and reference number. With it focused (`4`), `d` expands it to the full record, with dimensions, place, department, where it hangs and the description, and `enter` opens the full record in a large overlay. `o` opens the artwork on artic.edu and `y` copies its link.
 - `/` opens the search bar, and `enter` searches the collection for what you typed (an empty search goes back to Highlights). More results load as you near the end of the list. With `--from-file`, the search narrows the list to titles containing what you typed instead. `up` and `down` recall earlier searches.
 - `f` opens the filters: image, public domain, on view, department, artwork type and a range of years. `h`/`l` change a row, digits type a year, `enter` applies and `esc` cancels. Filters work without any search text too, to browse the whole collection. `s` cycles the sort: relevance, oldest, newest and title. Sorted, a search keeps only artworks whose title or artist has every word you typed.
+- `A` lists more by the selected artwork's artist and `D` more from its department, keeping your filters and sort. `R` shows a surprise: a random artwork from the first 1,000 that match your search and filters (with `--from-file`, a random row). `backspace` goes back to the list before, with the cursor where you left it.
+- `m` saves the selected artwork, or unsaves it, and saved ones are marked `*` in the results. `'` switches to the saved list and back, and `e` writes a one-line note on a saved artwork, shown under its wall label. The list is kept in `saved.json` in the data directory (`acres-tui --version` prints it) with each record whole, so it opens offline, and `--from-file saved.json` opens it too.
 - `b` cycles the art from half blocks to quadrant blocks to ASCII, and `r` picks a different ramp, the characters ASCII mode draws with.
 - `z` shows the art alone, full screen, until `esc` or `z` again.
 - `t` slides out a HUD over the right of the art with how long each fetch, decode, render and frame took, and `L` slides the log out over the left.

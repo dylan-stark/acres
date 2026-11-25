@@ -2,20 +2,17 @@
 source: acres-tui/src/explorer.rs
 expression: "render(&mut explorer, 100, 40)"
 ---
-┌[1] Search────────────────────────────────────────────────────────────────────────────────────────┐
-│/ to search titles                                                                                │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
-┌[2] Results──────────┌ Keys ────────────────────────────────────────────────┐] Record─────────────┐
-│> A Sunday on La Gran│Results                                               │Sunday on La Grande  │
-│  The Bedroom        │  enter    show the full image                        │tte — 1884           │
-│  Water Lilies       │  j, down  move down                                  │                     │
-│  The Great Wave     │  k, up    move up                                    │     27992           │
-│  Paris Street; Rainy│  g        top                                        │age                  │
-│                     │  G        bottom                                     │484387-2509-5e8e-2c43│
-│                     │  ctrl-d   half a page down                           │2f9981972eb          │
-│                     │  ctrl-u   half a page up                             │                     │
-│                     │                                                      │                     │
-│                     │Anywhere                                              │                     │
+┌[1] Search───────────┌ Keys ────────────────────────────────────────────────┐─────────────────────┐
+│/ to search titles   │Results                                               │                     │
+└─────────────────────│  enter    show the full image                        │─────────────────────┘
+┌[2] Results──────────│  j, down  move down                                  │] Record─────────────┐
+│> A Sunday on La Gran│  k, up    move up                                    │Sunday on La Grande  │
+│  The Bedroom        │  g        top                                        │tte — 1884           │
+│  Water Lilies       │  G        bottom                                     │                     │
+│  The Great Wave     │  ctrl-d   half a page down                           │     27992           │
+│  Paris Street; Rainy│  ctrl-u   half a page up                             │age                  │
+│                     │                                                      │484387-2509-5e8e-2c43│
+│                     │Anywhere                                              │2f9981972eb          │
 │                     │  ?          toggle help                              │                     │
 │                     │  /, 1       search                                   │                     │
 │                     │  2          focus the results                        │                     │
@@ -30,15 +27,18 @@ expression: "render(&mut explorer, 100, 40)"
 │                     │  y          copy its link                            │                     │
 │                     │  f          filters                                  │                     │
 │                     │  s          cycle sort                               │                     │
+│                     │  A          more by this artist                      │                     │
+│                     │  D          more from this department                │                     │
+│                     │  R          surprise me                              │                     │
+│                     │  backspace  back to the previous list                │                     │
+│                     │  m          save or unsave                           │                     │
+│                     │  '          switch results and saved                 │                     │
+│                     │  e          edit its note                            │                     │
 │                     │  z          zen: art only                            │                     │
 │                     │  b          cycle art mode                           │                     │
 │                     │  r          pick a ramp                              │                     │
 │                     │  t          toggle timings                           │                     │
 │                     │  L          toggle logs                              │                     │
 │                     │  q          quit, after asking                       │                     │
-│                     │  ctrl-c     quit without asking                      │                     │
-│                     │  ctrl-z     suspend                                  │                     │
-│                     │  esc        close                                    │                     │
-│                     └ ? or esc to close ───────────────────────────────────┘                     │
-└───────────────────────┘└────────────────────────────────────────────────┘└───────────────────────┘
- 5 artworks  ? help  j move down  esc close                                          ? · toggle help
+└─────────────────────│  ctrl-c     quit without asking                      │─────────────────────┘
+ 5 artworks  ? help  j└ ? or esc to close ───────────────────────────────────┘       ? · toggle help

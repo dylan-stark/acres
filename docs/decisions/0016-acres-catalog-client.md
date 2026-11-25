@@ -20,7 +20,7 @@ The API's rules ([AIC API docs](https://api.artic.edu/docs/), as of 2026-11-24):
 | --- | --- |
 | Rate limit | Anonymous users are throttled to 60 requests a minute, per IP |
 | Page size | `limit` cannot exceed 100; default 12 |
-| Search depth | No more than 10,000 records from a single search query |
+| Search depth | No more than 10,000 records from a single search query (in practice 1,000, see ADR 0013's notes from step 5) |
 | Identification | Send an `AIC-User-Agent` header with a project name and contact, as a courtesy |
 | Images | Take the IIIF base from `config.iiif_url`; 843 px wide is the most likely cached size; fetch one at a time |
 

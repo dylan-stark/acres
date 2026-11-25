@@ -14,7 +14,7 @@ async fn main() -> Result<()> {
 
     let args = Cli::parse();
     let from_file = match args.from_file {
-        Some(file) => Some(Entry::from_file(file.contents()?)),
+        Some(file) => Some(Entry::from_text(&file.contents()?)?),
         None => None,
     };
     let mut app = App::new(args.tick_rate, args.frame_rate, from_file, args.offline)?;

@@ -55,6 +55,20 @@ pub enum Action {
     OpenFilters,
     #[strum(message = "cycle sort")]
     CycleSort,
+    #[strum(message = "more by this artist")]
+    MoreByArtist,
+    #[strum(message = "more from this department")]
+    MoreFromDepartment,
+    #[strum(message = "surprise me")]
+    Surprise,
+    #[strum(message = "back to the previous list")]
+    Back,
+    #[strum(message = "save or unsave")]
+    ToggleSaved,
+    #[strum(message = "switch results and saved")]
+    SwitchSaved,
+    #[strum(message = "edit its note")]
+    EditNote,
     #[strum(message = "zen: art only")]
     ToggleZen,
     #[strum(message = "cycle art mode")]

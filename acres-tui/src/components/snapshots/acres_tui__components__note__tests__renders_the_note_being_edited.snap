@@ -1,0 +1,8 @@
+---
+source: acres-tui/src/components/note.rs
+expression: "render(&mut editor, 60, 5)"
+---
+
+  ┌ Note · A Sunday on La Grande Jatte ──────────────────┐
+  │see it!                                               │
+  └──────────────────────────────enter save · esc cancel ┘

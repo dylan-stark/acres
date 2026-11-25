@@ -39,6 +39,9 @@ pub struct Record {
     /// Where the last draw put it, so a click outside the overlay can close it.
     pub area: Rect,
     pub focused: bool,
+    /// Whether the artwork shown is saved, and its note, shown under the label.
+    pub saved: bool,
+    pub note: Option<String>,
 }
 
 impl Record {
@@ -121,6 +124,13 @@ impl Record {
             _ => &artwork.summary,
         };
         let mut lines = label(summary);
+        if self.saved {
+            lines.push(Line::default());
+            lines.push(Line::from("* Saved").style(quiet));
+            if let Some(note) = &self.note {
+                lines.push(Line::from(note.clone()).italic());
+            }
+        }
         if self.expanded {
             lines.push(Line::default());
             lines.push(Line::from("───").style(quiet));
@@ -197,7 +207,7 @@ fn details(full: &Artwork) -> Vec<Line<'static>> {
     let fields = [
         ("Dimensions", full.dimensions.clone()),
         ("Made in", full.place_of_origin.clone()),
-        ("Department", full.department_title.clone()),
+        ("Department", full.summary.department_title.clone()),
         ("On view", on_view),
     ];
     let mut lines = Vec::new();
@@ -315,10 +325,12 @@ mod tests {
 
     fn full_record() -> Artwork {
         Artwork {
-            summary: jatte().summary,
+            summary: ArtworkSummary {
+                department_title: Some("Painting and Sculpture of Europe".into()),
+                ..jatte().summary
+            },
             dimensions: Some("207.5 × 308.1 cm (81 3/4 × 121 1/4 in.)".into()),
             place_of_origin: Some("France".into()),
-            department_title: Some("Painting and Sculpture of Europe".into()),
             is_on_view: true,
             gallery_title: Some("Gallery 240".into()),
             description: Some(
@@ -339,6 +351,15 @@ mod tests {
         let mut record = Record::default();
         record.show(Some(jatte()));
         insta::assert_snapshot!(render(&mut record, 44, 14));
+    }
+
+    #[test]
+    fn renders_a_saved_artworks_note_under_the_label() {
+        let mut record = Record::default();
+        record.show(Some(jatte()));
+        record.saved = true;
+        record.note = Some("Look for the monkey".into());
+        insta::assert_snapshot!(render(&mut record, 44, 18));
     }
 
     #[test]
