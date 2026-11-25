@@ -680,6 +680,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_full_record_comes_back_for_its_artwork() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/artworks/27992"))
+            .and(query_param_contains("fields", "description"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "data": {"id": 27992, "title": "A Sunday", "dimensions": "207.5 cm"},
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut fetcher = Fetcher::new(tx, catalog(&server));
+        fetcher.update(Action::FetchRecord(27992)).unwrap();
+        loop {
+            match rx.recv().await.expect("a result") {
+                Action::RecordLoaded { id, result } => {
+                    assert_eq!(id, 27992);
+                    assert_eq!(result.unwrap().dimensions.as_deref(), Some("207.5 cm"));
+                    break;
+                }
+                Action::Timing(timing) => assert_eq!(timing.label, "record 27992"),
+                other => panic!("unexpected {other:?}"),
+            }
+        }
+    }
+
+    #[tokio::test]
     async fn a_newer_generation_aborts_the_search_in_flight() {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
