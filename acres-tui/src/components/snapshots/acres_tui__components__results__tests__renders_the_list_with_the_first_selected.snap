@@ -1,0 +1,12 @@
+---
+source: acres-tui/src/components/results.rs
+expression: "render(&mut results, 40, 8)"
+---
+┌[2] Results───────────────────────────┐
+│> A Sunday on La Grande Jatte — 1884  │
+│  The Bedroom                         │
+│  Water Lilies                        │
+│  The Great Wave                      │
+│  Paris Street; Rainy Day             │
+│                                      │
+└──────────────────────────────────────┘

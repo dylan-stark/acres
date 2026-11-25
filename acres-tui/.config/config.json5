@@ -1,28 +1,65 @@
 {
+  // A key is looked up in the focused pane's context first (List, Art, Record, Search, or
+  // Overlay while help or ramps are open), then in Global. The search bar only falls back to
+  // Global for ctrl keys, so every other key types itself there.
   "keybindings": {
-    "Browse": {
-      "<j>": "MoveDown", // Move down
-      "down": "MoveDown", // Move down
-      "<k>": "MoveUp", // Move up
-      "up": "MoveUp", // Move up
-      "<x>": "Select", // Select item
-      "enter": "Select", // Select item
-      "esc": "EnterViewMode", // Leave browse mode
-      "<q>": "Quit", // Quit the application
-      "<Ctrl-d>": "Quit", // Another way to quit
-      "<Ctrl-c>": "Quit", // Yet another way to quit
-      "<Ctrl-z>": "Suspend" // Suspend the application
-    },
-    "View": {
-      "esc": "EnterBrowseArtworksMode", // Browse artworks list
-      "<a>": "EnterBrowseRampsMode", // Browse ramps list
-      "<b>": "CycleArtMode", // Cycle ASCII, half blocks and quadrant blocks
-      "<l>": "ToggleLogs", // Toggle showing logs
+    "Global": {
+      "<?>": "ToggleHelp", // Toggle the help overlay
+      "</>": "FocusSearch", // Focus the search bar
+      "<1>": "FocusSearch", // Focus pane 1, the search bar
+      "<2>": "FocusResults", // Focus pane 2, the results
+      "<3>": "FocusArt", // Focus pane 3, the art
+      "<4>": "FocusRecord", // Focus pane 4, the record
+      "tab": "FocusNext", // Focus the next pane
+      "shift-tab": "FocusPrevious", // Focus the previous pane
+      "<n>": "NextArtwork", // Select the next artwork, from any pane
+      "<p>": "PreviousArtwork", // Select the previous artwork, from any pane
+      "<z>": "ToggleZen", // Zen: art only, full screen
+      "<b>": "CycleArtMode", // Cycle half blocks, quadrant blocks and ASCII
+      "<r>": "PickRamp", // Pick a ramp (ASCII mode)
       "<t>": "ToggleHud", // Toggle the timing HUD
-      "<q>": "Quit", // Quit the application
-      "<Ctrl-d>": "Quit", // Another way to quit
-      "<Ctrl-c>": "Quit", // Yet another way to quit
-      "<Ctrl-z>": "Suspend" // Suspend the application
+      "<L>": "ToggleLogs", // Toggle logs
+      "esc": "Cancel", // Close an overlay or leave zen
+      "<q>": "Quit", // Quit
+      "<Ctrl-c>": "Quit", // Quit
+      "<Ctrl-z>": "Suspend", // Suspend
+    },
+    "List": {
+      "<j>": "MoveDown",
+      "down": "MoveDown",
+      "<k>": "MoveUp",
+      "up": "MoveUp",
+      "<g>": "Top",
+      "<G>": "Bottom",
+      "<Ctrl-d>": "HalfPageDown",
+      "<Ctrl-u>": "HalfPageUp",
+      "enter": "FocusArt", // Focus the art
+    },
+    "Record": {
+      "<j>": "MoveDown", // Scroll the record
+      "down": "MoveDown",
+      "<k>": "MoveUp",
+      "up": "MoveUp",
+      "<g>": "Top",
+      "<G>": "Bottom",
+      "<Ctrl-d>": "HalfPageDown",
+      "<Ctrl-u>": "HalfPageUp",
+    },
+    "Search": {
+      "enter": "RunSearch", // Run the search and focus the results
+      "up": "EarlierQuery", // Recall an earlier query
+      "down": "LaterQuery",
+      "<Ctrl-u>": "ClearSearch", // Clear the query
+      "esc": "Cancel", // Leave the search bar, keeping the query
+    },
+    "Overlay": {
+      "<j>": "MoveDown",
+      "down": "MoveDown",
+      "<k>": "MoveUp",
+      "up": "MoveUp",
+      "<g>": "Top",
+      "<G>": "Bottom",
+      "enter": "Select", // Choose the highlighted ramp
     },
   }
 }

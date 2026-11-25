@@ -1,0 +1,20 @@
+---
+source: acres-tui/src/explorer.rs
+expression: "render(&mut explorer, 100, 16)"
+---
+┌[1] Search────────────────────────────────────────────────────────────────────────────────────────┐
+│/ to search titles                                                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌[2] Results────────────┐┌[3] Art─────────────────────────────────────────┐┌[4] Record─────────────┐
+│> A Sunday on La Grande││                                                ││A Sunday on La Grande  │
+│  The Bedroom          ││                                                ││Jatte — 1884           │
+│  Water Lilies         ││                                                ││                       │
+│  The Great Wave       ││                                                ││id     27992           │
+│  Paris Street; Rainy D││                                                ││image                  │
+│                       ││                                                ││2d484387-2509-5e8e-2c43│
+│                       ││                                                ││-22f9981972eb          │
+│                       ││                                                ││                       │
+│                       ││                                                ││                       │
+│                       ││                                                ││                       │
+└───────────────────────┘└────────────────────────────────────────────────┘└───────────────────────┘
+ 5 artworks  ? help  j move down  enter focus the art  / search

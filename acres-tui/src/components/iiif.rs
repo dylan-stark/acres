@@ -6,6 +6,10 @@ use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 
 use crate::{action::Action, components::Component};
 
+/// How long the selection must rest on an artwork before its image is fetched, so holding `j`
+/// through a list does not fetch every row (ADR 0013).
+pub const PREVIEW_DELAY: std::time::Duration = std::time::Duration::from_millis(150);
+
 pub struct Iiif {
     base_uri: Option<BaseUri>,
     artwork_id: u32,
@@ -16,8 +20,8 @@ pub struct Iiif {
     format: Format,
     action_tx: UnboundedSender<Action>,
     catalog: Catalog,
-    /// The image being fetched. A newer request aborts it, which also gives up its place in the
-    /// catalog's queue.
+    /// The image waiting out the preview delay or being fetched. A newer request aborts it,
+    /// which also gives up its place in the catalog's queue.
     pending: Option<JoinHandle<()>>,
 }
 
@@ -72,6 +76,7 @@ impl Component for Iiif {
                         previous.abort();
                     }
                     self.pending = Some(tokio::spawn(async move {
+                        tokio::time::sleep(PREVIEW_DELAY).await;
                         let start = std::time::Instant::now();
                         match catalog.image(&image_request).await {
                             Ok(fetched) => {

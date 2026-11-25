@@ -1,14 +1,12 @@
 use color_eyre::Result;
-use crossterm::event::KeyEvent;
 use ratatui::prelude::Rect;
-use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
-use tracing::info;
 
 use crate::{
     action::Action,
-    components::{Component, acres::Artworks, home::Home, hud::Hud, iiif::Iiif, ramps::Ramps},
+    components::{Component, iiif::Iiif},
     config::Config,
+    explorer::Explorer,
     tui::{Event, Tui},
 };
 
@@ -19,17 +17,8 @@ pub struct App {
     components: Vec<Box<dyn Component>>,
     should_quit: bool,
     should_suspend: bool,
-    mode: Mode,
-    last_tick_key_events: Vec<KeyEvent>,
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
-}
-
-#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Mode {
-    Browse,
-    #[default]
-    View,
 }
 
 impl App {
@@ -41,22 +30,18 @@ impl App {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         // One catalog for the whole app, so every request shares its rate limit and cache.
         let catalog = acres::Catalog::builder().build()?;
+        let config = Config::new()?;
         Ok(Self {
             tick_rate,
             frame_rate,
             components: vec![
-                // Drawn in order: the HUD slides out over the art, and lists open over both.
-                Box::new(Home::new()),
-                Box::new(Hud::new()),
+                // The explorer owns the screen and the keys; the fetcher only fetches images.
+                Box::new(Explorer::new(artworks, &config)),
                 Box::new(Iiif::new(action_tx.clone(), catalog)),
-                Box::new(Artworks::new(artworks)),
-                Box::new(Ramps::new()),
             ],
             should_quit: false,
             should_suspend: false,
-            config: Config::new()?,
-            mode: Mode::default(),
-            last_tick_key_events: Vec::new(),
+            config,
             action_tx,
             action_rx,
         })
@@ -64,7 +49,7 @@ impl App {
 
     pub async fn run(&mut self) -> Result<()> {
         let mut tui = Tui::new()?
-            // .mouse(true) // uncomment this line to enable mouse support
+            .mouse(self.config.config.mouse)
             .tick_rate(self.tick_rate)
             .frame_rate(self.frame_rate);
         tui.enter()?;
@@ -87,7 +72,6 @@ impl App {
                 tui.suspend()?;
                 action_tx.send(Action::Resume)?;
                 action_tx.send(Action::ClearScreen)?;
-                // tui.mouse(true);
                 tui.enter()?;
             } else if self.should_quit {
                 tui.stop()?;
@@ -108,7 +92,6 @@ impl App {
             Event::Tick => action_tx.send(Action::Tick)?,
             Event::Render => action_tx.send(Action::Render)?,
             Event::Resize(x, y) => action_tx.send(Action::Resize(x, y))?,
-            Event::Key(key) => self.handle_key_event(key)?,
             _ => {}
         }
         for component in self.components.iter_mut() {
@@ -119,41 +102,9 @@ impl App {
         Ok(())
     }
 
-    fn handle_key_event(&mut self, key: KeyEvent) -> Result<()> {
-        let action_tx = self.action_tx.clone();
-        let Some(keymap) = self.config.keybindings.get(&self.mode) else {
-            return Ok(());
-        };
-        match keymap.get(&vec![key]) {
-            Some(action) => {
-                info!("Got action: {action:?}");
-                action_tx.send(action.clone())?;
-            }
-            _ => {
-                // If the key was not handled as a single key action,
-                // then consider it for multi-key combinations.
-                self.last_tick_key_events.push(key);
-
-                // Check for multi-key combinations
-                if let Some(action) = keymap.get(&self.last_tick_key_events) {
-                    info!("Got action: {action:?}");
-                    action_tx.send(action.clone())?;
-                }
-            }
-        }
-        Ok(())
-    }
-
     fn handle_actions(&mut self, tui: &mut Tui) -> Result<()> {
         while let Ok(action) = self.action_rx.try_recv() {
             match action {
-                Action::Tick => {
-                    self.last_tick_key_events.drain(..);
-                }
-                Action::EnterViewMode => self.mode = Mode::View,
-                Action::EnterBrowseArtworksMode | Action::EnterBrowseRampsMode => {
-                    self.mode = Mode::Browse
-                }
                 Action::Quit => self.should_quit = true,
                 Action::Suspend => self.should_suspend = true,
                 Action::Resume => self.should_suspend = false,

@@ -23,19 +23,21 @@ acres-cli artworks > artworks.json
 acres-tui artworks.json
 ```
 
-Once in, hit `esc` to bring up the list of artworks.
-Use `j` to move down and `k` to move up.
-And hit `enter` or `x` to select the piece.
+The TUI opens on an explorer: a search bar along the top, then the results, the art and the artwork's record side by side, and a status bar along the bottom.
+Each pane is numbered in its top border, and `1` to `4` (or `tab` and `shift-tab`) move focus between them.
+Hit `?` for every key, listed for the focused pane first, and `esc` to close it.
 
-Behind the scenes the image will be fetched from the Art Institute's collection, converted to ASCII, and displayed.
-From here you can select something else or hit `esc` again to close the pop-up.
+- `j` and `k` (or the arrows) move through the results, and the art and record follow, a moment after the cursor stops. `n` and `p` do the same from any pane.
+- `/` opens the search bar, which narrows the list to titles containing what you type when you hit `enter`; `up` and `down` recall earlier searches.
+- `b` cycles the art from half blocks to quadrant blocks to ASCII, and `r` picks a different ramp, the characters ASCII mode draws with.
+- `z` shows the art alone, full screen, until `esc` or `z` again.
+- `t` slides out a HUD with how long each fetch, decode, render and frame took, and `L` shows the log.
+- The mouse works too: scroll the list or the record, click a row to select it, and click a pane to focus it. Set `mouse: false` in the config to keep your terminal's own text selection.
 
-The art fits the window and redraws in color whenever you resize it.
-Hit `a` to pick a different ramp, the characters the art is drawn with, from a pop-up.
-Hit `b` to cycle from ASCII to half blocks to quadrant blocks and back, for more detail in full color.
-Hit `t` to slide out a HUD with how long each fetch, decode, render and frame took, and `t` again to close it.
+The status bar shows a few useful keys for the focused pane and echoes the last key you pressed with what it did, or `not mapped here` when it did nothing there (`show_keys: false` turns that off).
+Keys are set in `acres-tui/.config/config.json5`, per pane, and your own config can override any of them.
 
-When you're done, you can hit `q`, `ctrl-d`, or `ctrl-c` to quit.
+When you're done, hit `q` or `ctrl-c` to quit.
 
 <img src="https://vhs.charm.sh/vhs-2KTn0PpCykVj61k6Bkm8j.gif" alt="Made with VHS">
 <a href="https://vhs.charm.sh">

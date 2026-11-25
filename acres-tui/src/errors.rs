@@ -21,16 +21,9 @@ pub fn init() -> Result<()> {
             error!("Unable to exit Terminal: {:?}", r);
         }
 
+        // Release builds print color-eyre's report; debug builds use better-panic below.
         #[cfg(not(debug_assertions))]
-        {
-            use human_panic::{handle_dump, metadata, print_msg};
-            let metadata = metadata!();
-            let file_path = handle_dump(&metadata, panic_info);
-            // prints human-panic message
-            print_msg(file_path, &metadata)
-                .expect("human-panic: printing error message to console failed");
-            eprintln!("{}", panic_hook.panic_report(panic_info)); // prints color-eyre stack trace to stderr
-        }
+        eprintln!("{}", panic_hook.panic_report(panic_info));
         let msg = format!("{}", panic_hook.panic_report(panic_info));
         error!("Error: {}", strip_ansi_escapes::strip_str(msg));
 

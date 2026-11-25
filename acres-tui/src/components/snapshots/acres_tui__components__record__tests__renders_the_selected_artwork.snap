@@ -1,0 +1,12 @@
+---
+source: acres-tui/src/components/record.rs
+expression: "render(&mut record, 30, 8)"
+---
+┌[4] Record──────────────────┐
+│A Sunday on La Grande Jatte │
+│— 1884                      │
+│                            │
+│id     27992                │
+│image                       │
+│2d484387-2509-5e8e-2c43-22f9│
+└────────────────────────────┘

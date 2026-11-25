@@ -1,29 +1,16 @@
 #![deny(missing_docs)]
 
-//! acres-tui is a terminal UI for browsing artworks from the Art Institute of Chicago's [public APIs].
+//! acres-tui is a terminal UI for exploring artworks from the Art Institute of Chicago's
+//! [public APIs](https://api.artic.edu/docs/).
 
-// Following is meant to handle clippy bug about uneeded return
-#![allow(clippy::needless_return)]
-
+use acres_tui::{app::App, cli::Cli};
 use clap::Parser;
-use cli::Cli;
 use color_eyre::Result;
-
-use crate::app::App;
-
-mod action;
-mod app;
-mod cli;
-mod components;
-mod config;
-mod errors;
-mod logging;
-mod tui;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    crate::errors::init()?;
-    crate::logging::init()?;
+    acres_tui::errors::init()?;
+    acres_tui::logging::init()?;
 
     let args = Cli::parse();
     let mut app = App::new(args.tick_rate, args.frame_rate, args.artworks.contents()?)?;
