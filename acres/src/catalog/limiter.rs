@@ -4,14 +4,22 @@
 //! first-come: metadata before images, metadata oldest first, images newest first, and only one
 //! image in flight. A waiter that is dropped leaves the queue without taking a token, so a caller
 //! cancels a request by dropping its future, and an expired one by wrapping it in a timeout.
+//!
+//! With a [`SharedBucket`], the tokens come from a file that other processes share, so separate
+//! CLI runs and the TUI keep to one limit together. The queue itself stays per process.
 
 use std::{
     pin::pin,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{
+        Arc, Mutex, MutexGuard,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
 use tokio::{sync::Notify, time::Instant};
+
+use super::shared::SharedBucket;
 
 /// Which queue a request waits in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -32,6 +40,10 @@ pub(crate) struct Limiter {
     interval: Duration,
     /// Most tokens the bucket holds.
     burst: f64,
+    /// Where tokens come from when they are shared with other processes.
+    shared: Option<SharedBucket>,
+    /// Whether a failure of the shared bucket has been logged, so it is logged once.
+    shared_failed: AtomicBool,
 }
 
 #[derive(Debug)]
@@ -97,6 +109,38 @@ impl Limiter {
             changed: Notify::new(),
             interval: Duration::from_secs(60) / per_minute.max(1),
             burst: f64::from(burst.max(1)),
+            shared: None,
+            shared_failed: AtomicBool::new(false),
+        }
+    }
+
+    /// Takes tokens from `bucket`, shared with other processes, instead of from memory.
+    pub(crate) fn shared(mut self, bucket: SharedBucket) -> Self {
+        self.shared = Some(bucket);
+        self
+    }
+
+    /// Takes a token, or returns how long until one is free.
+    ///
+    /// A shared bucket that can't be read or written falls back to the in-memory one, so a
+    /// read-only state directory slows nothing down. It is logged once.
+    fn take(&self, state: &mut State) -> Result<(), Duration> {
+        if let Some(shared) = &self.shared {
+            match shared.try_take(self.interval, self.burst) {
+                Ok(taken) => return taken,
+                Err(error) => {
+                    if !self.shared_failed.swap(true, Ordering::Relaxed) {
+                        tracing::warn!(%error, "shared rate limit unavailable, limiting per process");
+                    }
+                }
+            }
+        }
+        state.refill(Instant::now(), self.interval, self.burst);
+        if state.tokens >= 1.0 {
+            state.tokens -= 1.0;
+            Ok(())
+        } else {
+            Err(self.interval.mul_f64(1.0 - state.tokens))
         }
     }
 
@@ -133,11 +177,11 @@ impl Limiter {
 
             let next_token_at = {
                 let mut state = self.lock();
-                state.refill(Instant::now(), self.interval, self.burst);
                 if state.head() != Some(ticket) {
                     None
-                } else if state.tokens >= 1.0 {
-                    state.tokens -= 1.0;
+                } else if let Err(wait) = self.take(&mut state) {
+                    Some(Instant::now() + wait)
+                } else {
                     state.leave(ticket);
                     if lane == Lane::Image {
                         state.images_in_flight += 1;
@@ -150,9 +194,6 @@ impl Limiter {
                         limiter: Arc::clone(self),
                         lane,
                     };
-                } else {
-                    let missing = 1.0 - state.tokens;
-                    Some(state.refilled + self.interval.mul_f64(missing))
                 }
             };
 

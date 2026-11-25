@@ -1,6 +1,6 @@
-use assert_cmd::prelude::*;
+mod common;
+
 use serde_json::json;
-use std::process::Command;
 
 #[tokio::test]
 async fn artworks_command_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
@@ -32,7 +32,7 @@ async fn artworks_command_outputs_json() -> Result<(), Box<dyn std::error::Error
         .await;
 
     // When we run the CLI to get artworks list
-    let mut cmd = Command::cargo_bin("acres-cli")?;
+    let mut cmd = common::acres_cli();
     cmd.env("ACRES_BASE_URI", mock_uri)
         .env("ACRES_USE_CACHE", "false") // So it hits wiremock
         .arg("artworks");
