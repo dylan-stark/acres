@@ -51,7 +51,7 @@
 //! #     .mount(&mock_server)
 //! #     .await;
 //! let catalog = acres::Catalog::builder().build()?;
-//! # let catalog = acres::Catalog::builder().base_uri(&mock_uri).no_cache().build()?;
+//! # let catalog = acres::Catalog::builder().base_uri(&mock_uri).no_cache().no_shared_rate_limit().build()?;
 //!
 //! let request = artwork::Request::new(catalog.base_uri(), 4);
 //! let json = catalog.raw(request, acres::Resource::Record).await?.value;
@@ -117,7 +117,7 @@
 //! #     .mount(&mock_server)
 //! #     .await;
 //! let catalog = acres::Catalog::builder().build()?;
-//! # let catalog = acres::Catalog::builder().base_uri(&mock_uri).no_cache().build()?;
+//! # let catalog = acres::Catalog::builder().base_uri(&mock_uri).no_cache().no_shared_rate_limit().build()?;
 //!
 //! let request = artworks::Request::builder()
 //!     .base_uri(catalog.base_uri())

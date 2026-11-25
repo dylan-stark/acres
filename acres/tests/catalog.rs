@@ -30,6 +30,7 @@ async fn server() -> (MockServer, String) {
 
 fn catalog(base: &str) -> Catalog {
     Catalog::builder()
+        .no_shared_rate_limit()
         .base_uri(base)
         .no_cache()
         .offline(false)
@@ -161,6 +162,7 @@ async fn sends_aic_user_agent_with_a_contact() {
         .await;
 
     Catalog::builder()
+        .no_shared_rate_limit()
         .base_uri(&base)
         .no_cache()
         .contact(Some("me@example.com".into()))
@@ -203,6 +205,7 @@ async fn gives_up_after_the_retries() {
         .await;
 
     let error = Catalog::builder()
+        .no_shared_rate_limit()
         .base_uri(&base)
         .no_cache()
         .retries(2)
@@ -245,6 +248,7 @@ async fn a_request_past_its_max_wait_expires_unsent() {
 
     // One token, earned back once a minute: the second request can't be sent within 50 ms.
     let catalog = Catalog::builder()
+        .no_shared_rate_limit()
         .base_uri(&base)
         .no_cache()
         .rate_limit(1, 1)
@@ -270,6 +274,7 @@ async fn a_cached_response_is_not_fetched_again() {
         .await;
 
     let catalog = Catalog::builder()
+        .no_shared_rate_limit()
         .base_uri(&base)
         .cache_dir(temp_dir("cached"))
         .build()
@@ -289,6 +294,7 @@ async fn offline_answers_from_the_cache_only() {
         .await;
     let dir = temp_dir("offline");
     let online = Catalog::builder()
+        .no_shared_rate_limit()
         .base_uri(&base)
         .cache_dir(&dir)
         .build()
@@ -299,6 +305,7 @@ async fn offline_answers_from_the_cache_only() {
         .unwrap();
 
     let offline = Catalog::builder()
+        .no_shared_rate_limit()
         .base_uri(&base)
         .cache_dir(&dir)
         .offline(true)
@@ -333,7 +340,7 @@ async fn raw_returns_the_body_unchanged() {
 }
 
 #[tokio::test]
-async fn catalogs_on_one_cache_dir_share_the_rate_limit() {
+async fn catalogs_on_one_rate_limit_file_share_the_rate_limit() {
     let (server, base) = server().await;
     Mock::given(method("GET"))
         .respond_with(ResponseTemplate::new(200).set_body_string("{}"))
@@ -341,12 +348,13 @@ async fn catalogs_on_one_cache_dir_share_the_rate_limit() {
         .mount(&server)
         .await;
 
-    // Like two CLI runs: separate catalogs, one cache directory, one token a minute between them.
-    let dir = temp_dir("shared-limit");
+    // Like two CLI runs: separate catalogs, one state file, one token a minute between them.
+    let file = temp_dir("shared-limit").join("rate-limit");
     let catalog = || {
         Catalog::builder()
             .base_uri(&base)
-            .cache_dir(&dir)
+            .no_cache()
+            .rate_limit_file(&file)
             .rate_limit(1, 1)
             .max_wait(Duration::from_millis(50))
             .build()

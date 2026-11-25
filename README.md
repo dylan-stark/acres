@@ -44,7 +44,7 @@ When you're done, you can hit `q`, `ctrl-d`, or `ctrl-c` to quit.
 
 ## The CLI
 
-Every command goes through one rate-limited client (60 requests a minute, as the API asks, shared by every run and the TUI through the cache directory) and an on-disk cache: images are kept for good, records for 7 days and search or listing pages for 24 hours. Pass `--offline` (or set `ACRES_OFFLINE=true`) to answer only from the cache, and set `ACRES_CONTACT` to add a contact to the `AIC-User-Agent` header the API asks for.
+Every command goes through one rate-limited client (60 requests a minute, as the API asks, shared by every run and the TUI) and an on-disk cache: images are kept for good, records for 7 days and search or listing pages for 24 hours. Pass `--offline` (or set `ACRES_OFFLINE=true`) to answer only from the cache, and set `ACRES_CONTACT` to add a contact to the `AIC-User-Agent` header the API asks for.
 
 ### Working with the Artworks Collection
 

@@ -25,10 +25,10 @@ use crate::{
         Artwork, ArtworkSummary,
         request::{artworks, search},
     },
-    config::{Config, DEFAULT_BASE_URI, get_acres_cache_dir},
+    config::{Config, DEFAULT_BASE_URI, get_acres_cache_dir, get_acres_state_dir},
 };
 
-/// The file in the cache directory that holds the shared rate limit.
+/// The file in the state directory that holds the shared rate limit.
 const RATE_LIMIT_FILE: &str = "rate-limit";
 
 /// What kind of resource a request fetches, which sets its queue and how long it stays cached.
@@ -346,6 +346,7 @@ pub(crate) fn http_client(contact: Option<&str>) -> Result<reqwest::Client, Erro
 pub struct CatalogBuilder {
     base_uri: String,
     cache_dir: Option<PathBuf>,
+    rate_limit_file: Option<PathBuf>,
     offline: bool,
     contact: Option<String>,
     max_wait: Duration,
@@ -357,16 +358,18 @@ pub struct CatalogBuilder {
 impl Default for CatalogBuilder {
     fn default() -> Self {
         let config = Config::new().ok();
-        let (base_uri, cache_dir, offline, contact) = match config {
+        let (base_uri, cache_dir, state_dir, offline, contact) = match config {
             Some(config) => (
                 config.base_uri,
                 config.use_cache.then_some(config.cache_dir),
+                config.state_dir,
                 config.offline,
                 config.contact,
             ),
             None => (
                 DEFAULT_BASE_URI.to_string(),
                 Some(get_acres_cache_dir()),
+                get_acres_state_dir(),
                 false,
                 None,
             ),
@@ -374,6 +377,7 @@ impl Default for CatalogBuilder {
         Self {
             base_uri,
             cache_dir,
+            rate_limit_file: Some(state_dir.join(RATE_LIMIT_FILE)),
             offline,
             contact,
             max_wait: Duration::from_secs(10),
@@ -400,6 +404,20 @@ impl CatalogBuilder {
     /// Turns caching off: every request goes to the network.
     pub fn no_cache(mut self) -> Self {
         self.cache_dir = None;
+        self
+    }
+
+    /// Shares the rate limit with every process that uses `path`. The default is `rate-limit`
+    /// in the app's state directory (`ACRES_STATE_DIR`), so separate CLI runs and the TUI keep
+    /// to one limit together, whether or not they cache.
+    pub fn rate_limit_file(mut self, path: impl Into<PathBuf>) -> Self {
+        self.rate_limit_file = Some(path.into());
+        self
+    }
+
+    /// Keeps the rate limit in memory, for this process only.
+    pub fn no_shared_rate_limit(mut self) -> Self {
+        self.rate_limit_file = None;
         self
     }
 
@@ -437,10 +455,9 @@ impl CatalogBuilder {
 
     /// Builds the catalog.
     pub fn build(self) -> Result<Catalog, Error> {
-        // With a cache directory, the rate limit is shared by every process that uses it.
         let mut limiter = Limiter::new(self.per_minute, self.burst);
-        if let Some(dir) = &self.cache_dir {
-            limiter = limiter.shared(SharedBucket::new(dir.join(RATE_LIMIT_FILE)));
+        if let Some(path) = self.rate_limit_file {
+            limiter = limiter.shared(SharedBucket::new(path));
         }
         Ok(Catalog {
             inner: Arc::new(Inner {

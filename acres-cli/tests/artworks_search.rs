@@ -1,6 +1,6 @@
-use assert_cmd::prelude::*;
+mod common;
+
 use serde_json::{Value, json};
-use std::process::Command;
 
 #[tokio::test]
 async fn artworks_search_with_q() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,7 +19,7 @@ async fn artworks_search_with_q() -> Result<(), Box<dyn std::error::Error>> {
         .await;
 
     // When we run the CLI to get artworks list
-    let mut cmd = Command::cargo_bin("acres-cli")?;
+    let mut cmd = common::acres_cli();
     cmd.env("ACRES_BASE_URI", mock_uri)
         .env("ACRES_USE_CACHE", "false") // So it hits wiremock
         .arg("artworks-search")
@@ -64,7 +64,7 @@ async fn artworks_search_with_query() -> Result<(), Box<dyn std::error::Error>> 
         .await;
 
     // When we run the CLI to get artworks list
-    let mut cmd = Command::cargo_bin("acres-cli")?;
+    let mut cmd = common::acres_cli();
     cmd.env("ACRES_BASE_URI", mock_uri)
         .env("ACRES_USE_CACHE", "false") // So it hits wiremock
         .arg("artworks-search")
@@ -108,7 +108,7 @@ async fn artworks_search_with_query_sort() -> Result<(), Box<dyn std::error::Err
         .await;
 
     // When we run the CLI to get artworks list
-    let mut cmd = Command::cargo_bin("acres-cli")?;
+    let mut cmd = common::acres_cli();
     cmd.env("ACRES_BASE_URI", mock_uri)
         .env("ACRES_USE_CACHE", "false") // So it hits wiremock
         .arg("artworks-search")
@@ -145,7 +145,7 @@ async fn artworks_search_with_from_and_size() -> Result<(), Box<dyn std::error::
         .await;
 
     // When we run the CLI to get artworks list
-    let mut cmd = Command::cargo_bin("acres-cli")?;
+    let mut cmd = common::acres_cli();
     cmd.env("ACRES_BASE_URI", mock_uri)
         .env("ACRES_USE_CACHE", "false") // So it hits wiremock
         .arg("artworks-search")
@@ -183,7 +183,7 @@ async fn artworks_search_with_facets() -> Result<(), Box<dyn std::error::Error>>
         .await;
 
     // When we run the CLI to get artworks list
-    let mut cmd = Command::cargo_bin("acres-cli")?;
+    let mut cmd = common::acres_cli();
     cmd.env("ACRES_BASE_URI", mock_uri)
         .env("ACRES_USE_CACHE", "false") // So it hits wiremock
         .arg("artworks-search")

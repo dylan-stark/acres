@@ -33,7 +33,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `ACRES_OFFLINE` answers only from the cache, and `ACRES_CONTACT` adds a contact to `AIC-User-Agent`.
 - `acres/parse/search_page` bench, run by `make bench` with the others.
 - `acres::DEFAULT_BASE_URI`, the public API's base URI.
-- The `acres` rate limit is shared by every process that uses the same cache directory, so separate `acres-cli` runs, and the TUI running beside them, keep to 60 requests a minute together. The state lives in `rate-limit` in the cache directory.
+- The `acres` rate limit is shared by every process on the machine, so separate `acres-cli` runs, and the TUI running beside them, keep to 60 requests a minute together. The state lives in `rate-limit` in the app's state directory (`$XDG_STATE_HOME/acres` on Linux, the local data directory elsewhere), which `ACRES_STATE_DIR` overrides. `CatalogBuilder::rate_limit_file` and `no_shared_rate_limit` choose another file or keep the limit in memory.
 
 ### Changed
 

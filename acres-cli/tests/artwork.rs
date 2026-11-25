@@ -1,7 +1,7 @@
-use assert_cmd::prelude::*;
+mod common;
+
 use eyre::Context;
 use serde_json::json;
-use std::process::Command;
 
 #[tokio::test]
 async fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,7 +18,7 @@ async fn artwork_command_outputs_json() -> Result<(), Box<dyn std::error::Error>
         .await;
 
     // When we run the CLI to get artworks list
-    let mut cmd = Command::cargo_bin("acres-cli")?;
+    let mut cmd = common::acres_cli();
     cmd.env("ACRES_BASE_URI", mock_uri)
         .env("ACRES_USE_CACHE", "false") // So it hits wiremock
         .arg("artwork")
@@ -76,7 +76,7 @@ async fn artwork_manifest_command_outputs_json() -> Result<(), Box<dyn std::erro
         .await;
 
     // When we run the CLI to get artworks list
-    let mut cmd = Command::cargo_bin("acres-cli")?;
+    let mut cmd = common::acres_cli();
     cmd.env("ACRES_BASE_URI", mock_uri)
         .env("ACRES_USE_CACHE", "false") // So it hits wiremock
         .arg("artwork-manifest")
@@ -113,7 +113,7 @@ async fn artwork_manifest_command_outputs_json() -> Result<(), Box<dyn std::erro
 //    let _ = image_buffer.save(cached_image_file);
 //
 //    // When we generate the ascii art
-//    let mut cmd = Command::cargo_bin("acres-cli")?;
+//    let mut cmd = common::acres_cli();
 //    cmd.env("ACRES_CACHE_DIR", cache_path)
 //        .arg("artwork")
 //        .arg("0")
@@ -143,7 +143,7 @@ async fn artwork_command_prints_the_body_as_sent() -> Result<(), Box<dyn std::er
         .mount(&mock_server)
         .await;
 
-    let output = Command::cargo_bin("acres-cli")?
+    let output = common::acres_cli()
         .env("ACRES_BASE_URI", format!("{}/api/v1", mock_server.uri()))
         .env("ACRES_USE_CACHE", "false")
         .args(["artwork", "4"])
@@ -164,8 +164,7 @@ async fn offline_answers_from_the_cache_and_never_sends() -> Result<(), Box<dyn 
         .mount(&mock_server)
         .await;
     let run = |args: &[&str]| {
-        Command::cargo_bin("acres-cli")
-            .unwrap()
+        common::acres_cli()
             .env("ACRES_BASE_URI", format!("{}/api/v1", mock_server.uri()))
             .env("ACRES_CACHE_DIR", cache_dir.path())
             .args(args)
