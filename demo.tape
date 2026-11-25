@@ -7,15 +7,18 @@ Set Width 1200
 Set Height 600
 
 # Start up TUI on the offline fixture (`make demo` serves its images locally).
-Type "acres-tui acres-tui/tests/fixtures/artworks.json"
+Type "acres-tui --from-file acres-tui/tests/fixtures/artworks.json"
 Sleep 500ms
 Enter
 Sleep 3s
 
-# Move through the results: the art and record follow the cursor.
-Type "j"
+# Show the full image, then move through the results and show the next one. (A saved file has
+# no placeholders, so the art clears until space fetches the image.)
+Space
 Sleep 2s
 Type "j"
+Sleep 1s
+Space
 Sleep 2s
 
 # Open help for the results pane, then close it.
@@ -61,3 +64,8 @@ Type "t"
 Sleep 3s
 Type "t"
 Sleep 2s
+
+# Quit, confirming at the prompt.
+Type "q"
+Sleep 1s
+Type "q"

@@ -11,10 +11,13 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{action::Action, config::Config, tui::Event};
 
+pub mod catalog;
 pub mod help;
 pub mod home;
 pub mod hud;
 pub mod iiif;
+pub mod logs;
+pub mod quit;
 pub mod ramps;
 pub mod record;
 pub mod results;

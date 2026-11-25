@@ -4,13 +4,20 @@ use charaoke::{
     BlockMode, Blocks, Cells, ColorDepth, Converter, Grid, PixelFormat, QUADRANTS, Ramp, ansi256,
 };
 use color_eyre::{Result, eyre};
-use ratatui::{prelude::*, widgets::*};
+use ratatui::prelude::*;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::{Component, ramps::DEFAULT_RAMP};
 use crate::action::{Action, Timing};
 
-/// The art view: renders the loaded image to fit its pane, with an optional log pane.
+/// Images narrower than this, such as the few-pixel `lqip` placeholders, are scaled up smoothly
+/// before loading, so they read as soft color instead of a few hard blocks.
+const MIN_WIDTH: u32 = 64;
+
+/// The width tiny images are scaled up to.
+const UPSCALED_WIDTH: u32 = 256;
+
+/// The art view: renders the loaded image to fit its pane.
 pub struct Home {
     converter: Converter,
     /// The loaded image's size in pixels.
@@ -22,9 +29,6 @@ pub struct Home {
     /// The pane `cells` or `blocks` was rendered for, so a redraw at the same size skips the render.
     rendered_for: Option<Rect>,
     depth: ColorDepth,
-    show_logs: bool,
-    log: Vec<String>,
-    messages_width: u16,
     action_tx: Option<UnboundedSender<Action>>,
 }
 
@@ -50,9 +54,6 @@ impl Home {
             blocks: Blocks::default(),
             rendered_for: None,
             depth,
-            show_logs: false,
-            log: Vec::new(),
-            messages_width: 0,
             action_tx: None,
         }
     }
@@ -63,15 +64,27 @@ impl Home {
         }
     }
 
-    fn log(&mut self, message: String) {
-        self.messages_width = self.messages_width.max(message.len() as u16);
-        self.log.push(message);
+    /// Puts `message` in the log drawer.
+    fn log(&self, message: String) {
+        tracing::warn!("{message}");
+        self.send(Action::Log(message));
     }
 
     /// Decodes and loads a fetched image, reporting each stage's time.
     fn set_image(&mut self, id: u32, image: &[u8], timing: Timing) -> Result<()> {
         let start = Instant::now();
-        let image = image::load_from_memory(image)?.into_rgb8();
+        let mut image = image::load_from_memory(image)?.into_rgb8();
+        if (1..MIN_WIDTH).contains(&image.width()) {
+            let height = (u64::from(image.height()) * u64::from(UPSCALED_WIDTH)
+                / u64::from(image.width()))
+            .max(1);
+            image = image::imageops::resize(
+                &image,
+                UPSCALED_WIDTH,
+                u32::try_from(height).unwrap_or(u32::MAX),
+                image::imageops::FilterType::Triangle,
+            );
+        }
         let decode = start.elapsed();
         let (Some(w), Some(h)) = (
             NonZeroU32::new(image.width()),
@@ -240,57 +253,44 @@ impl Component for Home {
     fn update(&mut self, action: Action) -> Result<Option<Action>> {
         match action {
             Action::Tick | Action::Render | Action::FrameTime(_) | Action::Timing(_) => {}
-            Action::UpdateImage { id, image, fetch } => {
-                self.log(format!("action: UpdateImage(id: {id})"));
-                let timing = Timing::new(format!("image {id}")).stage("fetch", fetch);
+            Action::UpdateImage {
+                id,
+                image,
+                fetch,
+                full,
+            } => {
+                let label = if full { "image" } else { "placeholder" };
+                let timing = Timing::new(format!("{label} {id}")).stage("fetch", fetch);
                 if let Err(err) = self.set_image(id, &image, timing) {
                     self.log(format!("failed to load image {id}: {err}"));
                 }
             }
-            Action::SetRamp(name) => {
-                self.log(format!("action: SetRamp({name})"));
-                match Ramp::preset(&name) {
-                    Some(ramp) => {
-                        let ramp =
-                            ramp.with_brightness_offset(self.converter.ramp().brightness_offset());
-                        self.converter.set_ramp(ramp);
-                        self.rendered_for = None;
-                    }
-                    None => self.log(format!("no ramp named {name}")),
-                }
-            }
-            Action::CycleArtMode => {
-                self.mode = next_mode(self.mode);
-                self.log(format!("action: CycleArtMode({})", mode_name(self.mode)));
+            Action::ClearImage => {
+                self.image_size = None;
+                self.cells = Cells::default();
+                self.blocks = Blocks::default();
                 self.rendered_for = None;
             }
-            Action::ToggleLogs => self.show_logs = !self.show_logs,
-            Action::Log(message) => self.log(message),
-            _ => self.log(format!("action: {}", action)),
+            Action::SetRamp(name) => match Ramp::preset(&name) {
+                Some(ramp) => {
+                    let ramp =
+                        ramp.with_brightness_offset(self.converter.ramp().brightness_offset());
+                    self.converter.set_ramp(ramp);
+                    self.rendered_for = None;
+                }
+                None => self.log(format!("no ramp named {name}")),
+            },
+            Action::CycleArtMode => {
+                self.mode = next_mode(self.mode);
+                self.rendered_for = None;
+            }
+            _ => {}
         }
         Ok(None)
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
-        let logs_width = if self.show_logs {
-            self.messages_width
-        } else {
-            0
-        };
-        let [view_area, logs_area] =
-            Layout::horizontal([Constraint::Fill(1), Constraint::Max(logs_width)]).areas(area);
-
-        let messages = self
-            .log
-            .iter()
-            .rev()
-            .take(logs_area.height.into())
-            .map(|m| m.to_string());
-        let messages = List::new(messages)
-            .direction(ListDirection::BottomToTop)
-            .style(Style::new().light_green().on_dark_gray().italic());
-        frame.render_widget(messages, logs_area);
-
+        let view_area = area;
         let rendered = self.fit(view_area);
         let start = Instant::now();
         let (cols, rows) = self.art_size();
@@ -365,9 +365,37 @@ mod tests {
             id: 1,
             image: IMAGE.into(),
             fetch: Duration::ZERO,
+            full: true,
         })
         .unwrap();
         home
+    }
+
+    /// La Grande Jatte's `lqip` placeholder from the API, 8x5 pixels.
+    const LQIP: &str = "R0lGODlhCAAFAPUAAE1WUFVTU1NWUFZYVllbVlpaW1tcWF1cXVxiWl1jWl9mX2NmVWVnXF9eZlxdaGZkYmpmZWRtYGZuY2htZGpsanBsZXVwZXB5Znp+ZXJwaYSAaYiBaYqIbIeAdI2DcYqFcI+FcoiCd5iRcouJgIyKhoyNi4mMjo2RkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAIAAUAAAYlwBLmMmEkCAHTaRTqfB4QEmgj8mgaGY6lsohIHAXKwQBQIAaCIAA7";
+
+    #[test]
+    fn a_tiny_placeholder_is_scaled_up_to_fill_the_pane() {
+        use base64::Engine;
+        let gif = base64::engine::general_purpose::STANDARD
+            .decode(LQIP)
+            .unwrap();
+        let mut home = Home::with_depth(ColorDepth::TrueColor);
+        home.update(Action::UpdateImage {
+            id: 27992,
+            image: gif.into(),
+            fetch: Duration::ZERO,
+            full: false,
+        })
+        .unwrap();
+        let (w, _) = home.image_size.unwrap();
+        assert_eq!(w.get(), UPSCALED_WIDTH);
+        // A tall pane, so the width is what limits the fit.
+        render(&mut home, 40, 40);
+        assert_eq!(home.blocks.cols(), 40, "fills the pane's width");
+
+        home.update(Action::ClearImage).unwrap();
+        assert!(render(&mut home, 40, 12).trim().is_empty());
     }
 
     #[test]
@@ -402,6 +430,7 @@ mod tests {
             id: 7,
             image: IMAGE.into(),
             fetch: Duration::from_millis(5),
+            full: true,
         })
         .unwrap();
         let Ok(Action::Timing(image)) = rx.try_recv() else {
@@ -554,16 +583,5 @@ mod tests {
         assert_eq!(color_depth(env("24bit")), ColorDepth::TrueColor);
         assert_eq!(color_depth(env("")), ColorDepth::Ansi256);
         assert_eq!(color_depth(|_| None), ColorDepth::Ansi256);
-    }
-
-    #[test]
-    fn renders_logs_only_when_toggled() {
-        let mut home = Home::with_depth(ColorDepth::TrueColor);
-        home.update(Action::Log("first".into())).unwrap();
-        home.update(Action::Log("second".into())).unwrap();
-        assert!(!render(&mut home, 24, 4).contains("second"));
-
-        home.update(Action::ToggleLogs).unwrap();
-        insta::assert_snapshot!(render(&mut home, 24, 4));
     }
 }

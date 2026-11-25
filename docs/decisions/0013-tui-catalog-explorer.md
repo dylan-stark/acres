@@ -51,13 +51,13 @@ Features, in the order they land:
 
 1. **Live search.** `/` opens the search bar; `enter` runs a full-text `q` search. With no query the TUI starts on Highlights, a short built-in list of well-known public-domain works (see Start screen under Decisions on review questions), so it is useful with zero arguments.
 2. **Paged results.** The list loads the next page when the cursor is within 10 rows of the end, so it reads as one long list. The status bar shows `loaded / total`.
-3. **Preview as you move.** Moving the cursor shows that artwork's art and record after a short debounce (150 ms), so holding `j` does not fire a fetch per row. `enter` moves focus to the art.
+3. **Preview as you move.** Moving the cursor shows that artwork's art and record after a short debounce (150 ms), so holding `j` does not fire a fetch per row. The preview is the record's `lqip` placeholder, and `enter` or `space` fetches the full 843-pixel image (changed after step 2, see below).
 4. **Wall label in the record pane.** The pane reads like the short labels next to works in the museum's galleries: the artist with nationality and life dates (`artist_display`), title and date, medium, and the credit line with reference number. With the pane focused, `d` expands it in place to the full record (dimensions, place of origin, department, whether and where it is on view, and the description with HTML stripped), scrolled with `j`/`k`. `enter` opens the same full record in a large overlay over the art, which `esc` closes. `o` opens the artwork's page on artic.edu in the browser; `y` copies its link.
 5. **Filters and sort.** `f` opens a filter overlay: has image (on by default, since a record without `image_id` has no art), public domain, on view, department, artwork type, classification, and a date range. `s` cycles sort: relevance, date, title. Filters become an Elasticsearch `query` on the same search endpoint.
 6. **Pivots.** From a selected artwork, `A` lists more by the same artist and `D` more from its department. Each pivot is just a new search, so it pages and filters the same way.
 7. **History.** Every search and pivot is pushed on a stack. `backspace` goes back, restoring the list, cursor and selection.
 8. **Saved artworks.** `m` marks or unmarks the selected artwork. `'` toggles between results and the saved list. Saved artworks live in `ACRES_TUI_DATA` as `saved.json`, a format of the TUI's own: a version number and, per entry, the artwork record as fetched, when it was saved, and an optional one-line note. Keeping the whole record means the saved list opens offline, and `--from-file` accepts `saved.json` as well as an Artworks JSON. `e` edits the selected saved artwork's note in a one-line input like the search bar, and the note shows under the wall label.
-9. **What stays.** Fit-to-pane art in color in all three modes (ASCII, half blocks, quadrant blocks), the ramps picker, the timing HUD and the log pane all stay, some under new keys.
+9. **What stays.** Fit-to-pane art in color in all three modes (ASCII, half blocks, quadrant blocks), the ramps picker, the timing HUD and the log all stay, some under new keys. The log becomes a drawer over the left of the art, like the HUD on the right, so opening it never resizes the art.
 
 Out of scope here, each its own ADR later: zooming and panning the art through IIIF regions (tiling), and other collections (agents, exhibitions, galleries) as their own browsers. This ADR reserves the zoom and pan keys and gestures (see the keymap), so that ADR adds behavior without changing any binding.
 
@@ -84,12 +84,14 @@ The two modes (`Browse`, `View`) become focus contexts: `List`, `Art`, `Record`,
 | `r` | Global | Pick a ramp (ASCII mode only) |
 | `t` | Global | Toggle the timing HUD |
 | `L` | Global | Toggle logs |
-| `q`, `ctrl-c` | Global | Quit |
+| `q` | Global | Quit, after a prompt that `q` or `enter` confirms |
+| `ctrl-c` | Global | Quit without asking |
 | `ctrl-z` | Global | Suspend |
 | `j` / `k`, `down` / `up` | List, Record, Overlay | Move, or scroll the record |
 | `g` / `G` | List, Record, Overlay | Top / bottom |
 | `ctrl-d` / `ctrl-u` | List, Record | Half a page down / up |
-| `enter` | List | Focus the art |
+| `enter` | List, Art | Fetch and show the full image |
+| `space` | Global | Fetch and show the full image |
 | `d` | Record | Expand the wall label to the full record in place, or collapse it |
 | `enter` | Record | Open the full record in a large overlay |
 | `enter` | Search | Run the search and focus the list |
@@ -197,3 +199,9 @@ Steps 2 to 5 build on ADR 0016's `Catalog`. Bench results for both machines are 
 - **Mouse support** (click to select, scroll the list): here, or its own ADR? Decided: yes, in this ADR.
 - **Saved list format.** Is reusing the CLI's `Artworks` JSON enough, or do you want notes or tags per saved artwork? Decided: a TUI-owned, versioned saved.json with the record, the time saved and a note per entry (see Saved artworks). Tags wait, since they only pay off with a way to filter by them.
 - **Scope of one ADR.** With the library split into ADR 0016, five PRs remain here. Should the keymap and help (step 1) also become their own ADR? Decided: no, one ADR landed through several PRs.
+
+## Changes after using step 2
+
+- **Placeholder first, full image on request.** After the debounce, the art shows the record's `thumbnail.lqip`, a GIF about 8x5 pixels that comes inline with every list, scaled up smoothly into a blur of the artwork's colors. Browsing so downloads no images and spends nothing from the rate limit. `enter` or `space` fetches the 843-pixel image, once per artwork. We tried a 200-pixel thumbnail fetch first, but it still costs a request per artwork and looks little different from the full image. This brings forward the placeholder planned for step 3, without its config switch, since it is now the only preview.
+- **Quit asks first.** `q` opens a small prompt, and `q` again or `enter` quits, so a stray `q` never ends a session. `ctrl-c` quits at once.
+- **The log is a drawer.** It slides over the left of the art the way the timing HUD slides over the right, instead of narrowing the pane and re-rendering the art.

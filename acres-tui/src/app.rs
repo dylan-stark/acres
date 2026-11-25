@@ -4,9 +4,10 @@ use tokio::sync::mpsc;
 
 use crate::{
     action::Action,
-    components::{Component, iiif::Iiif},
+    components::{Component, catalog::Fetcher, iiif::Iiif},
     config::Config,
-    explorer::Explorer,
+    entry::{Entry, highlights},
+    explorer::{Explorer, Source},
     tui::{Event, Tui},
 };
 
@@ -22,21 +23,34 @@ pub struct App {
 }
 
 impl App {
+    /// An app over the live collection, or over `from_file` when given.
     pub fn new(
         tick_rate: f64,
         frame_rate: f64,
-        artworks: acres::artworks::Artworks,
+        from_file: Option<Vec<Entry>>,
+        offline: bool,
     ) -> Result<Self> {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         // One catalog for the whole app, so every request shares its rate limit and cache.
-        let catalog = acres::Catalog::builder().build()?;
+        let mut catalog = acres::Catalog::builder();
+        if offline {
+            catalog = catalog.offline(true);
+        }
+        let catalog = catalog.build()?;
         let config = Config::new()?;
+        let source = match from_file {
+            Some(entries) => Source::File(entries),
+            None => Source::Live {
+                highlights: config.config.highlights.clone().unwrap_or_else(highlights),
+            },
+        };
         Ok(Self {
             tick_rate,
             frame_rate,
             components: vec![
-                // The explorer owns the screen and the keys; the fetcher only fetches images.
-                Box::new(Explorer::new(artworks, &config)),
+                // The explorer owns the screen and the keys; the others only fetch.
+                Box::new(Explorer::new(source, &config)),
+                Box::new(Fetcher::new(action_tx.clone(), catalog.clone())),
                 Box::new(Iiif::new(action_tx.clone(), catalog)),
             ],
             should_quit: false,

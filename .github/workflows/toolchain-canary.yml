@@ -27,3 +27,23 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Clippy check
         run: cargo clippy --all-targets --all-features --workspace -- -D warnings
+
+  highlights:
+    name: Highlights ids
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Check the built-in Highlights are public domain with images
+        run: |
+          ids=$(jq -r 'join(",")' acres-tui/highlights.json)
+          curl -fsS -H 'AIC-User-Agent: acres canary' \
+            "https://api.artic.edu/api/v1/artworks?ids=${ids}&fields=id,is_public_domain,image_id" \
+            > listed.json
+          missing=$(jq -r --slurpfile want acres-tui/highlights.json \
+            '[.data[] | select(.is_public_domain and .image_id != null) | .id] as $ok
+             | $want[0] - $ok | map(tostring) | join(", ")' listed.json)
+          if [ -n "$missing" ]; then
+            echo "::error::Highlights missing, not public domain or imageless: $missing"
+            exit 1
+          fi

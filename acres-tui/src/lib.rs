@@ -11,6 +11,7 @@ pub mod app;
 pub mod cli;
 pub mod components;
 pub mod config;
+pub mod entry;
 pub mod errors;
 pub mod explorer;
 pub mod logging;

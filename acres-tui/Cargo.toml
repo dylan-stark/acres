@@ -17,7 +17,8 @@ derive_deref = "1.1.1"
 directories = "6.0.0"
 futures = "0.3.31"
 iiif = { path = "../iiif" }
-image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
+base64 = "0.22.1"
+image = { version = "0.25.10", default-features = false, features = ["gif", "jpeg", "png"] }
 json5 = "0.4.1"
 lazy_static = "1.5.0"
 libc = "0.2.177"
@@ -43,6 +44,7 @@ vergen-gix = { version = "1.0.9", features = ["build", "cargo"] }
 [dev-dependencies]
 criterion = "0.8.2"
 insta = "1.43.2"
+wiremock = "0.6.5"
 
 [[bench]]
 name = "frame"

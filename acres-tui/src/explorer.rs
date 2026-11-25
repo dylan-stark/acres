@@ -3,9 +3,14 @@
 //!
 //! The explorer owns focus. A key is looked up in the focused pane's context, then in `Global`,
 //! and the action it maps to is sent like any other. Actions that change what is selected come
-//! back as [`Action::IiifUpdateBaseUri`], which the image fetcher picks up.
+//! back as [`Action::ShowArtwork`], which the image fetcher picks up.
+//!
+//! Live, the explorer starts on the Highlights and runs searches through the catalog fetcher.
+//! Each search gets a new generation, and a list that comes back for an older one is dropped,
+//! so only the latest search ever reaches the screen. From a file, the search bar narrows the
+//! loaded list by title instead.
 
-use acres::artworks::ArtworkInfo;
+use acres::artworks::request::search::MAX_RESULTS;
 use color_eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
@@ -17,11 +22,56 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{
     action::Action,
     components::{
-        Component, help::Help, home::Home, hud::Hud, pane_block, ramps::Ramps, record::Record,
-        results::Results, search::Search, status::Status,
+        Component,
+        catalog::{Listing, Load, Loaded},
+        help::Help,
+        home::Home,
+        hud::Hud,
+        logs::Logs,
+        pane_block,
+        quit::QuitPrompt,
+        ramps::Ramps,
+        record::Record,
+        results::Results,
+        search::Search,
+        status::Status,
     },
     config::{Config, Context, KeyBindings, key_event_to_string, normalize},
+    entry::Entry,
 };
+
+/// Where the list comes from.
+#[derive(Debug, Clone)]
+pub enum Source {
+    /// A saved `Artworks` file: searching narrows it by title.
+    File(Vec<Entry>),
+    /// The live catalog, starting on these Highlights.
+    Live { highlights: Vec<u32> },
+}
+
+/// Start loading the next page when the cursor is this close to the end of the list.
+const LOAD_AHEAD: usize = 10;
+
+/// What the live list holds and what is on its way.
+#[derive(Debug, Default)]
+struct Live {
+    highlights: Vec<u32>,
+    /// The current search; increases with each new one.
+    generation: u64,
+    /// The query the list is for, or `None` for the Highlights.
+    query: Option<String>,
+    /// Records matching, across all pages.
+    total: u64,
+    /// The next page to ask for, from 1.
+    next_page: u32,
+    /// Whether a list request is in flight.
+    loading: bool,
+    /// Whether the Highlights were unavailable and the list is the fallback instead.
+    fallback: bool,
+    /// Why the last request failed, until the next one.
+    error: Option<String>,
+    rate_limited: bool,
+}
 
 /// A pane that can take focus, in `tab` order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,6 +107,8 @@ impl Pane {
 pub enum Overlay {
     Help,
     Ramps,
+    /// Asks before quitting.
+    Quit,
 }
 
 /// Where the last draw put each pane, for mapping mouse events.
@@ -95,22 +147,35 @@ pub struct Explorer {
     art: Home,
     record: Record,
     hud: Hud,
+    logs: Logs,
     ramps: Ramps,
+    quit: QuitPrompt,
     help: Help,
     status: Status,
     areas: Areas,
+    /// Set when the list comes from the catalog.
+    live: Option<Live>,
     action_tx: Option<UnboundedSender<Action>>,
 }
 
 impl Explorer {
-    /// An explorer over `artworks`, with the first one selected and the results focused.
-    pub fn new(artworks: acres::artworks::Artworks, config: &Config) -> Self {
-        Self::with_art(artworks, config, Home::new())
+    /// An explorer over `source`, with the results focused.
+    pub fn new(source: Source, config: &Config) -> Self {
+        Self::with_art(source, config, Home::new())
     }
 
     /// The same, drawing the art with `art`, so tests and benches can fix the color depth.
-    pub fn with_art(artworks: acres::artworks::Artworks, config: &Config, art: Home) -> Self {
-        let results = Results::new(artworks);
+    pub fn with_art(source: Source, config: &Config, art: Home) -> Self {
+        let (results, live) = match source {
+            Source::File(entries) => (Results::new(entries), None),
+            Source::Live { highlights } => (
+                Results::default(),
+                Some(Live {
+                    highlights,
+                    ..Live::default()
+                }),
+            ),
+        };
         let mut record = Record::default();
         record.show(results.selected().cloned());
         Self {
@@ -125,16 +190,19 @@ impl Explorer {
             art,
             record,
             hud: Hud::new(),
+            logs: Logs::new(),
             ramps: Ramps::new(),
+            quit: QuitPrompt::default(),
             help: Help::default(),
             status: Status::default(),
             areas: Areas::default(),
+            live,
             action_tx: None,
         }
     }
 
     /// The artwork selected now.
-    pub fn selected(&self) -> Option<&ArtworkInfo> {
+    pub fn selected(&self) -> Option<&Entry> {
         self.results.selected()
     }
 
@@ -177,15 +245,55 @@ impl Explorer {
         })
     }
 
+    /// Every key bound to `action` in `context`, joined like `q, enter`, shortest first.
+    fn keys_for(&self, context: Context, action: &Action) -> String {
+        let mut keys: Vec<String> = self
+            .keybindings
+            .get(&context)
+            .into_iter()
+            .flatten()
+            .filter(|(_, bound)| *bound == action)
+            .map(|(keys, _)| keys.iter().map(key_event_to_string).collect::<String>())
+            .collect();
+        keys.sort_by_key(|key| (key.chars().count() > 1, key.clone()));
+        keys.join(", ")
+    }
+
+    /// Opens the quit prompt, naming the keys that answer it.
+    fn ask_quit(&mut self) {
+        let quit = [
+            self.keys_for(Context::Global, &Action::AskQuit),
+            self.keys_for(Context::Overlay, &Action::Select),
+        ];
+        self.quit.quit_keys = quit
+            .into_iter()
+            .filter(|keys| !keys.is_empty())
+            .collect::<Vec<_>>()
+            .join(", ");
+        self.quit.stay_keys = self.keys_for(Context::Overlay, &Action::Cancel);
+        if self.quit.stay_keys.is_empty() {
+            self.quit.stay_keys = self.keys_for(Context::Global, &Action::Cancel);
+        }
+        self.overlay = Some(Overlay::Quit);
+    }
+
     /// The keys the status bar suggests for where focus is.
     fn hints(&self) -> Vec<(String, &'static str)> {
         let context = self.context();
         let actions: &[Action] = match (self.overlay, self.focus) {
             (Some(Overlay::Help), _) => &[Action::MoveDown, Action::Cancel],
             (Some(Overlay::Ramps), _) => &[Action::Select, Action::Cancel],
+            // The prompt names its own keys.
+            (Some(Overlay::Quit), _) => &[],
             (None, Pane::Search) => &[Action::RunSearch, Action::EarlierQuery, Action::Cancel],
-            (None, Pane::Results) => &[Action::MoveDown, Action::FocusArt, Action::FocusSearch],
-            (None, Pane::Art) => &[Action::CycleArtMode, Action::ToggleZen, Action::NextArtwork],
+            (None, Pane::Results) => {
+                &[Action::MoveDown, Action::ShowFullImage, Action::FocusSearch]
+            }
+            (None, Pane::Art) => &[
+                Action::ShowFullImage,
+                Action::CycleArtMode,
+                Action::ToggleZen,
+            ],
             (None, Pane::Record) => &[Action::MoveDown, Action::NextArtwork, Action::FocusSearch],
         };
         std::iter::once(&Action::ToggleHelp)
@@ -211,11 +319,125 @@ impl Explorer {
         self.echo = Some(format!("{} · {description}", key_event_to_string(&key)));
     }
 
-    /// Shows `artwork` if the selection moved to it, and asks for its image.
-    fn preview(&mut self, artwork: Option<ArtworkInfo>) -> Option<Action> {
+    /// Shows `artwork` if the selection moved to it, and asks for its image. Near the end of a
+    /// live list, also asks for the next page.
+    fn preview(&mut self, artwork: Option<Entry>) -> Option<Action> {
+        self.load_more();
         let artwork = artwork?;
         self.record.show(Some(artwork.clone()));
-        Some(Action::IiifUpdateBaseUri(artwork))
+        Some(Action::ShowArtwork(artwork))
+    }
+
+    fn send(&self, action: Action) {
+        if let Some(tx) = &self.action_tx {
+            let _ = tx.send(action);
+        }
+    }
+
+    /// Starts a new live search for `query`, or the Highlights when it is empty.
+    fn search_live(&mut self, query: String) {
+        let Some(live) = &mut self.live else { return };
+        live.generation += 1;
+        live.loading = true;
+        live.error = None;
+        let load = if query.is_empty() {
+            live.query = None;
+            Load::Highlights(live.highlights.clone())
+        } else {
+            live.query = Some(query.clone());
+            Load::Search { q: query, page: 1 }
+        };
+        let generation = live.generation;
+        self.send(Action::Load { generation, load });
+    }
+
+    /// Asks for the next page when the cursor is near the end of a live search's list.
+    fn load_more(&mut self) {
+        let rows_below = self.results.rows_below();
+        let (_, loaded) = self.results.counts();
+        let Some(live) = &mut self.live else { return };
+        let Some(q) = live.query.clone() else { return };
+        let reachable = live.total.min(MAX_RESULTS);
+        if live.loading || loaded as u64 >= reachable || rows_below > LOAD_AHEAD {
+            return;
+        }
+        live.loading = true;
+        let load = Load::Search {
+            q,
+            page: live.next_page,
+        };
+        let generation = live.generation;
+        self.send(Action::Load { generation, load });
+    }
+
+    /// Takes in a list that came back, unless a newer search has started since.
+    fn loaded(&mut self, loaded: Loaded) -> Option<Action> {
+        let live = self.live.as_mut()?;
+        if loaded.generation != live.generation {
+            return None;
+        }
+        live.loading = false;
+        let Listing {
+            entries,
+            total,
+            fallback,
+        } = match loaded.result {
+            Ok(listing) => listing,
+            Err(error) => {
+                // Keep what is listed, and say why nothing changed.
+                live.error = Some(error);
+                return None;
+            }
+        };
+        live.error = None;
+        let first = match loaded.load {
+            Load::Highlights(_) => true,
+            Load::Search { page, .. } => page == 1,
+        };
+        live.total = total;
+        live.fallback = fallback;
+        if first {
+            live.next_page = 2;
+            let selected = self.results.replace(entries);
+            self.record.show(selected.clone());
+            let next = selected.map(Action::ShowArtwork);
+            self.load_more();
+            next
+        } else {
+            live.next_page += 1;
+            self.results.append(entries);
+            self.load_more();
+            None
+        }
+    }
+
+    /// What the status bar says about the list.
+    fn counts(&self) -> String {
+        let (shown, loaded) = self.results.counts();
+        let Some(live) = &self.live else {
+            return if shown == loaded {
+                format!("{loaded} artworks")
+            } else {
+                format!("{shown} / {loaded} artworks")
+            };
+        };
+        let mut parts = vec![match (&live.query, live.fallback) {
+            (None, false) => format!("Highlights · {loaded} artworks"),
+            (None, true) => format!("Recent public domain · {loaded}"),
+            (Some(_), _) => format!("{} / {}", thousands(loaded as u64), thousands(live.total)),
+        }];
+        if live.query.is_some() && live.total > MAX_RESULTS && loaded as u64 >= MAX_RESULTS {
+            parts.push("narrow the search to see more".into());
+        }
+        if live.rate_limited {
+            parts.push("rate limited".into());
+        } else if live.loading {
+            parts.push("loading…".into());
+        }
+        if let Some(error) = &live.error {
+            parts.push(error.clone());
+        }
+        parts.join(" · ")
     }
 
     fn focus_pane(&mut self, pane: Pane) {
@@ -229,6 +451,7 @@ impl Explorer {
         match (self.overlay, self.focus) {
             (Some(Overlay::Help), _) => self.help.scroll(delta),
             (Some(Overlay::Ramps), _) => self.ramps.step(delta),
+            (Some(Overlay::Quit), _) => {}
             (None, Pane::Results) => {
                 let moved = self.results.step(delta);
                 return self.preview(moved);
@@ -255,8 +478,10 @@ impl Component for Explorer {
     }
 
     fn init(&mut self, _area: ratatui::layout::Size) -> Result<()> {
-        if let (Some(tx), Some(artwork)) = (&self.action_tx, self.results.selected()) {
-            tx.send(Action::IiifUpdateBaseUri(artwork.clone()))?;
+        if self.live.is_some() {
+            self.search_live(String::new());
+        } else if let Some(artwork) = self.results.selected() {
+            self.send(Action::ShowArtwork(artwork.clone()));
         }
         Ok(())
     }
@@ -303,6 +528,7 @@ impl Component for Explorer {
             let area = match overlay {
                 Overlay::Help => self.help.area,
                 Overlay::Ramps => self.ramps.area,
+                Overlay::Quit => self.quit.area,
             };
             if delta == 0 && !area.contains(at) {
                 self.overlay = None;
@@ -408,14 +634,32 @@ impl Component for Explorer {
             Action::HalfPageDown => self.scroll(self.half_page()),
             Action::HalfPageUp => self.scroll(-self.half_page()),
             Action::Select if self.overlay == Some(Overlay::Ramps) => self.ramps.choose(),
+            Action::Select if self.overlay == Some(Overlay::Quit) => Some(Action::Quit),
+            Action::AskQuit if self.overlay == Some(Overlay::Quit) => Some(Action::Quit),
+            Action::AskQuit => {
+                self.ask_quit();
+                None
+            }
             Action::RunSearch => {
                 let query = self.search.submit();
-                let moved = self.results.filter(&query);
                 self.focus = Pane::Results;
-                if self.results.selected().is_none() {
-                    self.record.show(None);
+                if self.live.is_some() {
+                    self.search_live(query);
+                    None
+                } else {
+                    let moved = self.results.filter(&query);
+                    if self.results.selected().is_none() {
+                        self.record.show(None);
+                    }
+                    self.preview(moved)
                 }
-                self.preview(moved)
+            }
+            Action::Loaded(loaded) => self.loaded(loaded.clone()),
+            Action::RateLimited(limited) => {
+                if let Some(live) = &mut self.live {
+                    live.rate_limited = *limited;
+                }
+                None
             }
             Action::EarlierQuery => {
                 self.search.earlier();
@@ -431,9 +675,10 @@ impl Component for Explorer {
             }
             _ => None,
         };
-        // The art logs every action, and the HUD collects timings.
+        // The log records every action, and the HUD collects timings.
         self.art.update(action.clone())?;
-        self.hud.update(action)?;
+        self.hud.update(action.clone())?;
+        self.logs.update(action)?;
         Ok(next)
     }
 
@@ -442,6 +687,7 @@ impl Component for Explorer {
             self.areas = Areas::default();
             self.art.draw(frame, area)?;
             self.hud.draw(frame, area)?;
+            self.logs.draw(frame, area)?;
         } else {
             let [search, middle, status] = Layout::vertical([
                 Constraint::Length(3),
@@ -474,13 +720,9 @@ impl Component for Explorer {
             frame.render_widget(block, art);
             self.art.draw(frame, inner)?;
             self.hud.draw(frame, inner)?;
+            self.logs.draw(frame, inner)?;
 
-            let (shown, loaded) = self.results.counts();
-            self.status.counts = if shown == loaded {
-                format!("{loaded} artworks")
-            } else {
-                format!("{shown} / {loaded} artworks")
-            };
+            self.status.counts = self.counts();
             self.status.hints = self.hints();
             self.status.echo = self.echo.clone();
             self.status.draw(frame, status)?;
@@ -488,10 +730,24 @@ impl Component for Explorer {
         match self.overlay {
             Some(Overlay::Help) => self.help.draw(frame, area)?,
             Some(Overlay::Ramps) => self.ramps.draw(frame, area)?,
+            Some(Overlay::Quit) => self.quit.draw(frame, area)?,
             None => {}
         }
         Ok(())
     }
+}
+
+/// `n` with commas between thousands, such as `10,000`.
+fn thousands(n: u64) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, digit) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(digit);
+    }
+    out
 }
 
 #[cfg(test)]
@@ -504,7 +760,11 @@ mod tests {
     fn explorer() -> Explorer {
         let config = Config::new().expect("default config");
         let artworks = serde_json::from_str(ARTWORKS_FIXTURE).expect("fixture parses");
-        Explorer::with_art(artworks, &config, Home::with_depth(ColorDepth::TrueColor))
+        Explorer::with_art(
+            Source::File(Entry::from_file(artworks)),
+            &config,
+            Home::with_depth(ColorDepth::TrueColor),
+        )
     }
 
     fn key(code: KeyCode) -> KeyEvent {
@@ -522,7 +782,7 @@ mod tests {
     }
 
     fn selected_title(explorer: &Explorer) -> Option<String> {
-        explorer.selected().map(|a| a.data.title.clone())
+        explorer.selected().map(|a| a.title().to_string())
     }
 
     #[test]
@@ -554,9 +814,7 @@ mod tests {
         press(&mut explorer, char('3'));
         assert_eq!(explorer.focus(), Pane::Art);
         let next = press(&mut explorer, char('n'));
-        assert!(
-            matches!(next, Some(Action::IiifUpdateBaseUri(a)) if a.data.title == "The Bedroom")
-        );
+        assert!(matches!(next, Some(Action::ShowArtwork(a)) if a.title() == "The Bedroom"));
         press(&mut explorer, char('p'));
         assert_eq!(
             selected_title(&explorer).as_deref(),
@@ -595,9 +853,55 @@ mod tests {
             press(&mut explorer, char(c));
         });
         let next = press(&mut explorer, key(KeyCode::Enter));
-        assert!(matches!(next, Some(Action::IiifUpdateBaseUri(a)) if a.data.id == 24645));
+        assert!(matches!(next, Some(Action::ShowArtwork(a)) if a.id() == 24645));
         assert_eq!(explorer.focus(), Pane::Results);
         assert_eq!(explorer.results.counts(), (1, 5));
+    }
+
+    #[test]
+    fn q_asks_before_quitting() {
+        let mut explorer = explorer();
+        assert_eq!(press(&mut explorer, char('q')), None);
+        assert_eq!(explorer.overlay(), Some(Overlay::Quit));
+        insta::assert_snapshot!(render(&mut explorer, 100, 16));
+        assert_eq!(press(&mut explorer, char('q')), Some(Action::Quit));
+
+        let mut explorer = self::explorer();
+        press(&mut explorer, char('q'));
+        assert_eq!(
+            press(&mut explorer, key(KeyCode::Enter)),
+            Some(Action::Quit)
+        );
+
+        let mut explorer = self::explorer();
+        press(&mut explorer, char('q'));
+        assert_eq!(press(&mut explorer, key(KeyCode::Esc)), None);
+        assert_eq!(explorer.overlay(), None, "esc stays");
+    }
+
+    #[test]
+    fn enter_and_space_ask_for_the_full_image() {
+        let mut explorer = explorer();
+        let action = |explorer: &mut Explorer, key| explorer.handle_key_event(key).unwrap();
+        assert_eq!(
+            action(&mut explorer, key(KeyCode::Enter)),
+            Some(Action::ShowFullImage)
+        );
+        assert_eq!(
+            action(&mut explorer, char(' ')),
+            Some(Action::ShowFullImage)
+        );
+        press(&mut explorer, char('3'));
+        assert_eq!(
+            action(&mut explorer, key(KeyCode::Enter)),
+            Some(Action::ShowFullImage)
+        );
+        press(&mut explorer, char('/'));
+        assert_eq!(
+            action(&mut explorer, char(' ')),
+            None,
+            "a space in the query"
+        );
     }
 
     #[test]
@@ -715,9 +1019,7 @@ mod tests {
         // Results rows start below the search bar and the list's own border.
         let picked = explorer.handle_mouse_event(mouse(click, 5, 6)).unwrap();
         assert_eq!(explorer.focus(), Pane::Results);
-        assert!(
-            matches!(picked, Some(Action::IiifUpdateBaseUri(a)) if a.data.title == "Water Lilies")
-        );
+        assert!(matches!(picked, Some(Action::ShowArtwork(a)) if a.title() == "Water Lilies"));
     }
 
     #[test]
@@ -745,5 +1047,192 @@ mod tests {
         assert_eq!(explorer.overlay(), Some(Overlay::Help), "inside");
         explorer.handle_mouse_event(mouse(click, 0, 0)).unwrap();
         assert_eq!(explorer.overlay(), None);
+    }
+
+    mod live {
+        use tokio::sync::mpsc::{self, UnboundedReceiver};
+
+        use super::*;
+        use crate::components::catalog::PAGE_SIZE;
+
+        fn entry(id: u32) -> Entry {
+            Entry {
+                summary: acres::artworks::ArtworkSummary {
+                    id,
+                    title: format!("Artwork {id}"),
+                    image_id: Some(format!("image-{id}")),
+                    ..Default::default()
+                },
+                iiif_url: "https://iiif.example/iiif/2".into(),
+            }
+        }
+
+        fn listing(ids: std::ops::Range<u32>, total: u64) -> Result<Listing, String> {
+            Ok(Listing {
+                entries: ids.map(entry).collect(),
+                total,
+                fallback: false,
+            })
+        }
+
+        /// A live explorer, started, with what it has asked for so far.
+        fn started() -> (Explorer, UnboundedReceiver<Action>) {
+            let config = Config::new().expect("default config");
+            let source = Source::Live {
+                highlights: vec![24645, 16568],
+            };
+            let mut explorer =
+                Explorer::with_art(source, &config, Home::with_depth(ColorDepth::TrueColor));
+            let (tx, rx) = mpsc::unbounded_channel();
+            explorer.register_action_handler(tx).unwrap();
+            explorer.init(ratatui::layout::Size::new(100, 30)).unwrap();
+            (explorer, rx)
+        }
+
+        fn loads(rx: &mut UnboundedReceiver<Action>) -> Vec<(u64, Load)> {
+            let mut loads = Vec::new();
+            while let Ok(action) = rx.try_recv() {
+                if let Action::Load { generation, load } = action {
+                    loads.push((generation, load));
+                }
+            }
+            loads
+        }
+
+        fn deliver(
+            explorer: &mut Explorer,
+            generation: u64,
+            load: Load,
+            result: Result<Listing, String>,
+        ) -> Option<Action> {
+            explorer
+                .update(Action::Loaded(Loaded {
+                    generation,
+                    load,
+                    result,
+                }))
+                .unwrap()
+        }
+
+        fn search(explorer: &mut Explorer, query: &str) {
+            press(explorer, char('/'));
+            explorer.search.clear();
+            query.chars().for_each(|c| {
+                press(explorer, char(c));
+            });
+            press(explorer, key(KeyCode::Enter));
+        }
+
+        #[test]
+        fn starts_on_the_highlights() {
+            let (mut explorer, mut rx) = started();
+            assert_eq!(loads(&mut rx), [(1, Load::Highlights(vec![24645, 16568]))]);
+            assert!(explorer.counts().contains("loading"));
+            let shown = deliver(&mut explorer, 1, Load::Highlights(vec![]), listing(1..3, 2));
+            assert!(matches!(shown, Some(Action::ShowArtwork(a)) if a.id() == 1));
+            assert_eq!(explorer.counts(), "Highlights · 2 artworks");
+            assert!(loads(&mut rx).is_empty(), "the Highlights are not paged");
+        }
+
+        #[test]
+        fn a_list_for_an_older_search_is_dropped() {
+            let (mut explorer, mut rx) = started();
+            search(&mut explorer, "monet");
+            let monet = Load::Search {
+                q: "monet".into(),
+                page: 1,
+            };
+            assert_eq!(loads(&mut rx).last(), Some(&(2, monet.clone())));
+            // The Highlights arrive after the search started: too late.
+            let late = deliver(&mut explorer, 1, Load::Highlights(vec![]), listing(1..3, 2));
+            assert_eq!(late, None);
+            assert_eq!(explorer.results.counts(), (0, 0));
+            deliver(&mut explorer, 2, monet, listing(100..150, 120));
+            assert_eq!(explorer.counts(), "50 / 120");
+        }
+
+        #[test]
+        fn the_next_page_loads_near_the_end_of_the_list() {
+            let (mut explorer, mut rx) = started();
+            search(&mut explorer, "monet");
+            loads(&mut rx);
+            let first = Load::Search {
+                q: "monet".into(),
+                page: 1,
+            };
+            deliver(&mut explorer, 2, first, listing(0..PAGE_SIZE, 120));
+            assert!(loads(&mut rx).is_empty(), "the cursor is at the top");
+            let ahead = PAGE_SIZE as usize - LOAD_AHEAD - 1;
+            for _ in 0..ahead - 1 {
+                press(&mut explorer, char('j'));
+            }
+            assert!(loads(&mut rx).is_empty());
+            press(&mut explorer, char('j'));
+            let second = Load::Search {
+                q: "monet".into(),
+                page: 2,
+            };
+            assert_eq!(loads(&mut rx), [(2, second.clone())]);
+            press(&mut explorer, char('j'));
+            assert!(loads(&mut rx).is_empty(), "one page at a time");
+            deliver(&mut explorer, 2, second, listing(50..100, 120));
+            assert_eq!(explorer.counts(), "100 / 120");
+            assert_eq!(selected_title(&explorer).as_deref(), Some("Artwork 40"));
+        }
+
+        #[test]
+        fn a_failed_search_keeps_the_list_and_says_why() {
+            let (mut explorer, _rx) = started();
+            deliver(&mut explorer, 1, Load::Highlights(vec![]), listing(1..3, 2));
+            search(&mut explorer, "monet");
+            let failed = Load::Search {
+                q: "monet".into(),
+                page: 1,
+            };
+            deliver(&mut explorer, 2, failed, Err("the API is down".into()));
+            assert_eq!(explorer.results.counts(), (2, 2));
+            assert!(explorer.counts().ends_with("the API is down"));
+        }
+
+        #[test]
+        fn an_empty_search_goes_back_to_the_highlights() {
+            let (mut explorer, mut rx) = started();
+            search(&mut explorer, "monet");
+            search(&mut explorer, "");
+            assert_eq!(
+                loads(&mut rx).last(),
+                Some(&(3, Load::Highlights(vec![24645, 16568])))
+            );
+        }
+
+        #[test]
+        fn the_status_bar_says_when_the_rate_limit_holds_things_up() {
+            let (mut explorer, _rx) = started();
+            explorer.update(Action::RateLimited(true)).unwrap();
+            assert!(explorer.counts().ends_with("rate limited"));
+        }
+
+        #[test]
+        fn a_search_past_the_record_cap_asks_for_a_narrower_one() {
+            let (mut explorer, _rx) = started();
+            search(&mut explorer, "a");
+            let live = explorer.live.as_mut().unwrap();
+            live.total = 52_000;
+            let cap = MAX_RESULTS as u32;
+            explorer.results.replace((0..cap).map(entry).collect());
+            assert!(
+                explorer
+                    .counts()
+                    .starts_with("10,000 / 52,000 · narrow the search")
+            );
+        }
+
+        #[test]
+        fn thousands_puts_commas_between_groups() {
+            assert_eq!(thousands(0), "0");
+            assert_eq!(thousands(999), "999");
+            assert_eq!(thousands(1_000), "1,000");
+            assert_eq!(thousands(1_234_567), "1,234,567");
+        }
     }
 }
