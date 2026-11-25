@@ -1,0 +1,7 @@
+---
+source: acres-tui/src/components/search.rs
+expression: "render(&mut search, 30, 3)"
+---
+┌[1] Search──────────────────┐
+│/ to search titles          │
+└────────────────────────────┘

@@ -64,6 +64,7 @@ dependencies = [
  "clap-stdin",
  "color-eyre",
  "config",
+ "criterion",
  "crossterm 0.29.0",
  "derive_deref",
  "directories",

@@ -8,19 +8,66 @@ use derive_deref::{Deref, DerefMut};
 use directories::ProjectDirs;
 use lazy_static::lazy_static;
 use ratatui::style::{Color, Modifier, Style};
-use serde::{Deserialize, de::Deserializer};
+use serde::{Deserialize, Serialize, de::Deserializer};
 use tracing::error;
 
-use crate::{action::Action, app::Mode};
+use crate::action::Action;
+
+/// Where a key is looked up: the focused pane or overlay first, then `Global`.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum Context {
+    Global,
+    Search,
+    List,
+    Art,
+    Record,
+    Overlay,
+}
+
+impl Context {
+    /// How help titles this context's section.
+    pub fn title(self) -> &'static str {
+        match self {
+            Context::Global => "Anywhere",
+            Context::Search => "Search bar",
+            Context::List => "Results",
+            Context::Art => "Art",
+            Context::Record => "Record",
+            Context::Overlay => "Overlay",
+        }
+    }
+}
 
 const CONFIG: &str = include_str!("../.config/config.json5");
 
-#[derive(Clone, Debug, Deserialize, Default)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
     pub data_dir: PathBuf,
     #[serde(default)]
     pub config_dir: PathBuf,
+    /// Captures the mouse, so scrolling and clicking work in the panes. Off leaves the terminal's
+    /// own text selection working.
+    #[serde(default = "yes")]
+    pub mouse: bool,
+    /// Echoes the last key and what it did in the status bar.
+    #[serde(default = "yes")]
+    pub show_keys: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            data_dir: PathBuf::new(),
+            config_dir: PathBuf::new(),
+            mouse: true,
+            show_keys: true,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -77,16 +124,16 @@ impl Config {
 
         let mut cfg: Self = builder.build()?.try_deserialize()?;
 
-        for (mode, default_bindings) in default_config.keybindings.iter() {
-            let user_bindings = cfg.keybindings.entry(*mode).or_default();
+        for (context, default_bindings) in default_config.keybindings.iter() {
+            let user_bindings = cfg.keybindings.entry(*context).or_default();
             for (key, cmd) in default_bindings.iter() {
                 user_bindings
                     .entry(key.clone())
                     .or_insert_with(|| cmd.clone());
             }
         }
-        for (mode, default_styles) in default_config.styles.iter() {
-            let user_styles = cfg.styles.entry(*mode).or_default();
+        for (context, default_styles) in default_config.styles.iter() {
+            let user_styles = cfg.styles.entry(*context).or_default();
             for (style_key, style) in default_styles.iter() {
                 user_styles.entry(style_key.clone()).or_insert(*style);
             }
@@ -121,23 +168,23 @@ fn project_directory() -> Option<ProjectDirs> {
 }
 
 #[derive(Clone, Debug, Default, Deref, DerefMut)]
-pub struct KeyBindings(pub HashMap<Mode, HashMap<Vec<KeyEvent>, Action>>);
+pub struct KeyBindings(pub HashMap<Context, HashMap<Vec<KeyEvent>, Action>>);
 
 impl<'de> Deserialize<'de> for KeyBindings {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let parsed_map = HashMap::<Mode, HashMap<String, Action>>::deserialize(deserializer)?;
+        let parsed_map = HashMap::<Context, HashMap<String, Action>>::deserialize(deserializer)?;
 
         let keybindings = parsed_map
             .into_iter()
-            .map(|(mode, inner_map)| {
+            .map(|(context, inner_map)| {
                 let converted_inner_map = inner_map
                     .into_iter()
                     .map(|(key_str, cmd)| (parse_key_sequence(&key_str).unwrap(), cmd))
                     .collect();
-                (mode, converted_inner_map)
+                (context, converted_inner_map)
             })
             .collect();
 
@@ -145,10 +192,29 @@ impl<'de> Deserialize<'de> for KeyBindings {
     }
 }
 
+/// Parses one key, such as `j`, `G`, `?`, `ctrl-d` or `shift-tab`.
+///
+/// Modifiers and named keys ignore case. A single character keeps its case, since `g` and `G`
+/// are different keys.
 fn parse_key_event(raw: &str) -> Result<KeyEvent, String> {
     let raw_lower = raw.to_ascii_lowercase();
     let (remaining, modifiers) = extract_modifiers(&raw_lower);
-    parse_key_code_with_modifiers(remaining, modifiers)
+    let remaining = if remaining.chars().count() == 1 {
+        &raw[raw.len() - remaining.len()..]
+    } else {
+        remaining
+    };
+    parse_key_code_with_modifiers(remaining, modifiers).map(normalize)
+}
+
+/// A key as the keymap stores it: press only, with `shift` folded into a character's case (and
+/// into `backtab`), since terminals disagree on whether `?` or `G` arrive with `shift` set.
+pub fn normalize(key: KeyEvent) -> KeyEvent {
+    let mut modifiers = key.modifiers;
+    if matches!(key.code, KeyCode::Char(_) | KeyCode::BackTab) {
+        modifiers.remove(KeyModifiers::SHIFT);
+    }
+    KeyEvent::new(key.code, modifiers)
 }
 
 fn extract_modifiers(raw: &str) -> (&str, KeyModifiers) {
@@ -176,10 +242,7 @@ fn extract_modifiers(raw: &str) -> (&str, KeyModifiers) {
     (current, modifiers)
 }
 
-fn parse_key_code_with_modifiers(
-    raw: &str,
-    mut modifiers: KeyModifiers,
-) -> Result<KeyEvent, String> {
+fn parse_key_code_with_modifiers(raw: &str, modifiers: KeyModifiers) -> Result<KeyEvent, String> {
     let c = match raw {
         "esc" => KeyCode::Esc,
         "enter" => KeyCode::Enter,
@@ -191,10 +254,8 @@ fn parse_key_code_with_modifiers(
         "end" => KeyCode::End,
         "pageup" => KeyCode::PageUp,
         "pagedown" => KeyCode::PageDown,
-        "backtab" => {
-            modifiers.insert(KeyModifiers::SHIFT);
-            KeyCode::BackTab
-        }
+        "backtab" => KeyCode::BackTab,
+        "tab" if modifiers.contains(KeyModifiers::SHIFT) => KeyCode::BackTab,
         "backspace" => KeyCode::Backspace,
         "delete" => KeyCode::Delete,
         "insert" => KeyCode::Insert,
@@ -240,7 +301,7 @@ pub fn key_event_to_string(key_event: &KeyEvent) -> String {
         KeyCode::PageUp => "pageup",
         KeyCode::PageDown => "pagedown",
         KeyCode::Tab => "tab",
-        KeyCode::BackTab => "backtab",
+        KeyCode::BackTab => "shift-tab",
         KeyCode::Delete => "delete",
         KeyCode::Insert => "insert",
         KeyCode::F(c) => {
@@ -316,23 +377,23 @@ pub fn parse_key_sequence(raw: &str) -> Result<Vec<KeyEvent>, String> {
 }
 
 #[derive(Clone, Debug, Default, Deref, DerefMut)]
-pub struct Styles(pub HashMap<Mode, HashMap<String, Style>>);
+pub struct Styles(pub HashMap<Context, HashMap<String, Style>>);
 
 impl<'de> Deserialize<'de> for Styles {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let parsed_map = HashMap::<Mode, HashMap<String, String>>::deserialize(deserializer)?;
+        let parsed_map = HashMap::<Context, HashMap<String, String>>::deserialize(deserializer)?;
 
         let styles = parsed_map
             .into_iter()
-            .map(|(mode, inner_map)| {
+            .map(|(context, inner_map)| {
                 let converted_inner_map = inner_map
                     .into_iter()
                     .map(|(str, style)| (str, parse_style(&style)))
                     .collect();
-                (mode, converted_inner_map)
+                (context, converted_inner_map)
             })
             .collect();
 
@@ -502,12 +563,16 @@ mod tests {
         let c = Config::new()?;
         assert_eq!(
             c.keybindings
-                .get(&Mode::View)
+                .get(&Context::Global)
                 .unwrap()
                 .get(&parse_key_sequence("<q>").unwrap_or_default())
                 .unwrap(),
             &Action::Quit
         );
+        let list = c.keybindings.get(&Context::List).unwrap();
+        let key = |raw: &str| parse_key_sequence(raw).unwrap();
+        assert_eq!(list.get(&key("<g>")), Some(&Action::Top));
+        assert_eq!(list.get(&key("<G>")), Some(&Action::Bottom), "case matters");
         Ok(())
     }
 
@@ -572,6 +637,25 @@ mod tests {
             )),
             "ctrl-alt-a".to_string()
         );
+    }
+
+    #[test]
+    fn single_characters_keep_their_case_and_shift_folds_into_it() {
+        let upper = KeyEvent::new(KeyCode::Char('G'), KeyModifiers::empty());
+        assert_eq!(parse_key_event("G").unwrap(), upper);
+        assert_eq!(parse_key_event("shift-g").unwrap(), upper);
+        assert_eq!(
+            normalize(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::SHIFT)),
+            KeyEvent::new(KeyCode::Char('?'), KeyModifiers::empty())
+        );
+    }
+
+    #[test]
+    fn shift_tab_is_backtab_both_ways() {
+        let backtab = KeyEvent::new(KeyCode::BackTab, KeyModifiers::empty());
+        assert_eq!(parse_key_event("shift-tab").unwrap(), backtab);
+        assert_eq!(parse_key_event("backtab").unwrap(), backtab);
+        assert_eq!(key_event_to_string(&backtab), "shift-tab");
     }
 
     #[test]

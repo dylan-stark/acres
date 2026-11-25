@@ -1,0 +1,44 @@
+---
+source: acres-tui/src/components/help.rs
+expression: "render(&mut help, 60, 50)"
+---
+
+
+
+
+
+
+
+
+
+
+
+  ┌ Keys ────────────────────────────────────────────────┐
+  │Results                                               │
+  │  enter    focus the art                              │
+  │  j, down  move down                                  │
+  │  k, up    move up                                    │
+  │  g        top                                        │
+  │  G        bottom                                     │
+  │  ctrl-d   half a page down                           │
+  │  ctrl-u   half a page up                             │
+  │                                                      │
+  │Anywhere                                              │
+  │  ?          toggle help                              │
+  │  /, 1       search                                   │
+  │  2          focus the results                        │
+  │  3          focus the art                            │
+  │  4          focus the record                         │
+  │  tab        next pane                                │
+  │  shift-tab  previous pane                            │
+  │  n          next artwork                             │
+  │  p          previous artwork                         │
+  │  z          zen: art only                            │
+  │  b          cycle art mode                           │
+  │  r          pick a ramp                              │
+  │  t          toggle timings                           │
+  │  L          toggle logs                              │
+  │  q, ctrl-c  quit                                     │
+  │  ctrl-z     suspend                                  │
+  │  esc        close                                    │
+  └ ? or esc to close ───────────────────────────────────┘

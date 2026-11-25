@@ -10,60 +10,54 @@ Set Height 600
 Type "acres-tui acres-tui/tests/fixtures/artworks.json"
 Sleep 500ms
 Enter
-Sleep 500ms
-
-# Open the artworks list and show the first artwork.
-Escape
-Sleep 1s
-Enter
-Sleep 1s
-Escape
 Sleep 3s
 
-# Try a few ramps: letters, then minimal, then back to alphabet.
-Type "a"
-Sleep 1s
-Down
-Sleep 500ms
-Down
-Sleep 500ms
-Enter
+# Move through the results: the art and record follow the cursor.
+Type "j"
 Sleep 2s
-Down
-Sleep 500ms
-Down
-Sleep 500ms
-Enter
-Sleep 2s
-Up
-Sleep 500ms
-Up
-Sleep 500ms
-Up
-Sleep 500ms
-Up
-Sleep 500ms
-Enter
-Sleep 1s
-Escape
+Type "j"
 Sleep 2s
 
-# Switch to The Great Wave.
+# Open help for the results pane, then close it.
+Type "?"
+Sleep 3s
 Escape
 Sleep 1s
-Down
-Sleep 500ms
+
+# Cycle to quadrant blocks, then ASCII, and try a ramp.
+Type "b"
+Sleep 2s
+Type "b"
+Sleep 2s
+Type "r"
+Sleep 1s
 Down
 Sleep 500ms
 Down
 Sleep 500ms
 Enter
-Sleep 1s
+Sleep 2s
 Escape
+Sleep 1s
+Type "b"
+Sleep 1s
+
+# Search the titles for The Great Wave.
+Type "/"
+Sleep 500ms
+Type "wave"
+Sleep 500ms
+Enter
 Sleep 3s
+
+# Zen: the art alone, full screen.
+Type "z"
+Sleep 3s
+Escape
+Sleep 1s
 
 # Slide out the timing HUD, then close it.
 Type "t"
-Sleep 4s
+Sleep 3s
 Type "t"
 Sleep 2s

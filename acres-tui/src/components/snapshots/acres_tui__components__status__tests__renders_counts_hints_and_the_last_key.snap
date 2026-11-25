@@ -1,0 +1,5 @@
+---
+source: acres-tui/src/components/status.rs
+expression: "render(&mut status, 70, 1)"
+---
+ 5 artworks  ? help  j / k move                    x · not mapped here

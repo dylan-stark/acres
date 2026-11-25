@@ -44,7 +44,8 @@ impl Home {
         Self {
             converter: Converter::new(Ramp::preset(DEFAULT_RAMP).expect("default is a preset")),
             image_size: None,
-            mode: None,
+            // Half blocks read best in the explorer's narrow art pane (ADR 0013).
+            mode: Some(BlockMode::Half),
             cells: Cells::default(),
             blocks: Blocks::default(),
             rendered_for: None,
@@ -352,8 +353,14 @@ mod tests {
         "../../tests/fixtures/iiif/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg"
     );
 
+    /// A view of the fixture image in ASCII, which most tests check.
     fn with_image() -> Home {
+        with_image_in(None)
+    }
+
+    fn with_image_in(mode: Option<BlockMode>) -> Home {
         let mut home = Home::with_depth(ColorDepth::TrueColor);
+        home.mode = mode;
         home.update(Action::UpdateImage {
             id: 1,
             image: IMAGE.into(),
@@ -389,6 +396,7 @@ mod tests {
     fn reports_timings_only_when_it_renders() {
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let mut home = Home::with_depth(ColorDepth::TrueColor);
+        home.mode = None;
         home.register_action_handler(tx).unwrap();
         home.update(Action::UpdateImage {
             id: 7,
@@ -448,17 +456,19 @@ mod tests {
     }
 
     #[test]
+    fn starts_in_half_blocks() {
+        assert_eq!(Home::new().mode, Some(BlockMode::Half));
+    }
+
+    #[test]
     fn renders_half_blocks_centered() {
-        let mut home = with_image();
-        home.update(Action::CycleArtMode).unwrap();
+        let mut home = with_image_in(Some(BlockMode::Half));
         insta::assert_snapshot!(render(&mut home, 40, 12));
     }
 
     #[test]
     fn renders_quadrant_blocks_centered() {
-        let mut home = with_image();
-        home.update(Action::CycleArtMode).unwrap();
-        home.update(Action::CycleArtMode).unwrap();
+        let mut home = with_image_in(Some(BlockMode::Quadrant));
         insta::assert_snapshot!(render(&mut home, 40, 12));
     }
 
@@ -484,9 +494,7 @@ mod tests {
 
     #[test]
     fn blocks_widget_draws_what_the_bench_copy_draws() {
-        let mut home = with_image();
-        home.update(Action::CycleArtMode).unwrap();
-        home.update(Action::CycleArtMode).unwrap();
+        let mut home = with_image_in(Some(BlockMode::Quadrant));
         let area = Rect::new(0, 0, 60, 20);
         home.fit(area);
         let mut real = Buffer::empty(area);
@@ -502,8 +510,7 @@ mod tests {
 
     #[test]
     fn blocks_widget_sets_both_colors() {
-        let mut home = with_image();
-        home.update(Action::CycleArtMode).unwrap();
+        let mut home = with_image_in(Some(BlockMode::Half));
         home.fit(Rect::new(0, 0, 8, 4));
         for depth in [ColorDepth::TrueColor, ColorDepth::Ansi256] {
             let mut buf = Buffer::empty(Rect::new(0, 0, 8, 4));

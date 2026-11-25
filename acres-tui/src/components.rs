@@ -2,17 +2,24 @@ use color_eyre::Result;
 use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::{
     Frame,
-    layout::{Rect, Size},
+    layout::{Constraint, Layout, Rect, Size},
+    style::{Color, Style, Stylize},
+    text::Line,
+    widgets::{Block, BorderType},
 };
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{action::Action, config::Config, tui::Event};
 
-pub mod acres;
+pub mod help;
 pub mod home;
 pub mod hud;
 pub mod iiif;
 pub mod ramps;
+pub mod record;
+pub mod results;
+pub mod search;
+pub mod status;
 
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -128,4 +135,39 @@ pub trait Component {
     ///
     /// * `Result<()>` - An Ok result or an error.
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()>;
+}
+
+/// The color of the focused pane's border, and of other things that mark focus.
+pub const ACCENT: Color = Color::Cyan;
+
+/// A pane's thin border, with `[number] name` set into the top edge, like `─[2] Results──`.
+pub fn pane_block(number: u8, name: &str, focused: bool) -> Block<'static> {
+    let style = if focused {
+        Style::new().fg(ACCENT)
+    } else {
+        Style::new().fg(Color::DarkGray)
+    };
+    let title = Line::from(format!("[{number}] {name}"));
+    let title = if focused { title.bold() } else { title };
+    Block::bordered()
+        .border_type(BorderType::Plain)
+        .border_style(style)
+        .title(title)
+}
+
+/// A `width` x `height` box centered in `area`, clipped to it.
+pub fn centered(area: Rect, width: u16, height: u16) -> Rect {
+    let [_, middle, _] = Layout::horizontal([
+        Constraint::Fill(1),
+        Constraint::Length(width.min(area.width)),
+        Constraint::Fill(1),
+    ])
+    .areas(area);
+    let [_, middle, _] = Layout::vertical([
+        Constraint::Fill(1),
+        Constraint::Length(height.min(area.height)),
+        Constraint::Fill(1),
+    ])
+    .areas(middle);
+    middle
 }

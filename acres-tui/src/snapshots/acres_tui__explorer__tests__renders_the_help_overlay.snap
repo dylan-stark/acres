@@ -1,0 +1,44 @@
+---
+source: acres-tui/src/explorer.rs
+expression: "render(&mut explorer, 100, 40)"
+---
+┌[1] Search────────────────────────────────────────────────────────────────────────────────────────┐
+│/ to search titles                                                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌[2] Results────────────┐┌[3] Art─────────────────────────────────────────┐┌[4] Record─────────────┐
+│> A Sunday on La Grande││                                                ││A Sunday on La Grande  │
+│  The Bedroom          ││                                                ││Jatte — 1884           │
+│  Water Lilies       ┌ Keys ────────────────────────────────────────────────┐                     │
+│  The Great Wave     │Results                                               │     27992           │
+│  Paris Street; Rainy│  enter    focus the art                              │age                  │
+│                     │  j, down  move down                                  │484387-2509-5e8e-2c43│
+│                     │  k, up    move up                                    │2f9981972eb          │
+│                     │  g        top                                        │                     │
+│                     │  G        bottom                                     │                     │
+│                     │  ctrl-d   half a page down                           │                     │
+│                     │  ctrl-u   half a page up                             │                     │
+│                     │                                                      │                     │
+│                     │Anywhere                                              │                     │
+│                     │  ?          toggle help                              │                     │
+│                     │  /, 1       search                                   │                     │
+│                     │  2          focus the results                        │                     │
+│                     │  3          focus the art                            │                     │
+│                     │  4          focus the record                         │                     │
+│                     │  tab        next pane                                │                     │
+│                     │  shift-tab  previous pane                            │                     │
+│                     │  n          next artwork                             │                     │
+│                     │  p          previous artwork                         │                     │
+│                     │  z          zen: art only                            │                     │
+│                     │  b          cycle art mode                           │                     │
+│                     │  r          pick a ramp                              │                     │
+│                     │  t          toggle timings                           │                     │
+│                     │  L          toggle logs                              │                     │
+│                     │  q, ctrl-c  quit                                     │                     │
+│                     │  ctrl-z     suspend                                  │                     │
+│                     │  esc        close                                    │                     │
+│                     └ ? or esc to close ───────────────────────────────────┘                     │
+│                       ││                                                ││                       │
+│                       ││                                                ││                       │
+│                       ││                                                ││                       │
+└───────────────────────┘└────────────────────────────────────────────────┘└───────────────────────┘
+ 5 artworks  ? help  j move down  esc close                                          ? · toggle help
