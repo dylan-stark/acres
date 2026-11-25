@@ -34,6 +34,7 @@ fn explorer(cycles: usize, keys: &[Action]) -> Explorer {
             id: 27992,
             image: IMAGE.into(),
             fetch: Duration::ZERO,
+            full: true,
         })
         .unwrap();
     for _ in 0..cycles {

@@ -12,10 +12,14 @@ Sleep 500ms
 Enter
 Sleep 3s
 
-# Move through the results: the art and record follow the cursor.
+# Move through the results: a thumbnail and the record follow the cursor.
 Type "j"
 Sleep 2s
 Type "j"
+Sleep 2s
+
+# Fetch the full image.
+Space
 Sleep 2s
 
 # Open help for the results pane, then close it.
@@ -61,3 +65,8 @@ Type "t"
 Sleep 3s
 Type "t"
 Sleep 2s
+
+# Quit, confirming at the prompt.
+Type "q"
+Sleep 1s
+Type "q"

@@ -34,17 +34,17 @@ The TUI opens on an explorer: a search bar along the top, then the results, the 
 Each pane is numbered in its top border, and `1` to `4` (or `tab` and `shift-tab`) move focus between them.
 Hit `?` for every key, listed for the focused pane first, and `esc` to close it.
 
-- `j` and `k` (or the arrows) move through the results, and the art and record follow, a moment after the cursor stops. `n` and `p` do the same from any pane.
+- `j` and `k` (or the arrows) move through the results, and the art and record follow, a moment after the cursor stops. `n` and `p` do the same from any pane. The art starts as a small thumbnail, which downloads quickly. `enter` or `space` fetches the full image.
 - `/` opens the search bar, and `enter` searches the collection for what you typed (an empty search goes back to Highlights). More results load as you near the end of the list. With `--from-file`, the search narrows the list to titles containing what you typed instead. `up` and `down` recall earlier searches.
 - `b` cycles the art from half blocks to quadrant blocks to ASCII, and `r` picks a different ramp, the characters ASCII mode draws with.
 - `z` shows the art alone, full screen, until `esc` or `z` again.
-- `t` slides out a HUD with how long each fetch, decode, render and frame took, and `L` shows the log.
+- `t` slides out a HUD over the right of the art with how long each fetch, decode, render and frame took, and `L` slides the log out over the left.
 - The mouse works too: scroll the list or the record, click a row to select it, and click a pane to focus it. Set `mouse: false` in the config to keep your terminal's own text selection.
 
 The status bar counts the results, says when the rate limit is holding a search up, shows a few useful keys for the focused pane and echoes the last key you pressed with what it did, or `not mapped here` when it did nothing there (`show_keys: false` turns that off).
 Keys are set in `acres-tui/.config/config.json5`, per pane, and your own config can override any of them.
 
-When you're done, hit `q` or `ctrl-c` to quit.
+When you're done, hit `q`, then `q` or `enter` again to confirm (`esc` stays). `ctrl-c` quits without asking.
 
 <img src="https://vhs.charm.sh/vhs-2KTn0PpCykVj61k6Bkm8j.gif" alt="Made with VHS">
 <a href="https://vhs.charm.sh">

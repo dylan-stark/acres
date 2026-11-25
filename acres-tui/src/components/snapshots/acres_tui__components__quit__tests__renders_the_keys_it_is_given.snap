@@ -1,0 +1,10 @@
+---
+source: acres-tui/src/components/quit.rs
+expression: "render(&mut prompt, 34, 7)"
+---
+
+   ┌──────────────────────────┐
+   │        Quit acres?       │
+   │                          │
+   │ q, enter quit · esc stay │
+   └──────────────────────────┘

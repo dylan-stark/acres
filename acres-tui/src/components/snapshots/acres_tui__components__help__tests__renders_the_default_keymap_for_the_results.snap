@@ -12,10 +12,9 @@ expression: "render(&mut help, 60, 50)"
 
 
 
-
   ┌ Keys ────────────────────────────────────────────────┐
   │Results                                               │
-  │  enter    focus the art                              │
+  │  enter    show the full image                        │
   │  j, down  move down                                  │
   │  k, up    move up                                    │
   │  g        top                                        │
@@ -33,12 +32,14 @@ expression: "render(&mut help, 60, 50)"
   │  shift-tab  previous pane                            │
   │  n          next artwork                             │
   │  p          previous artwork                         │
+  │  space      show the full image                      │
   │  z          zen: art only                            │
   │  b          cycle art mode                           │
   │  r          pick a ramp                              │
   │  t          toggle timings                           │
   │  L          toggle logs                              │
-  │  q, ctrl-c  quit                                     │
+  │  q          quit, after asking                       │
+  │  ctrl-c     quit without asking                      │
   │  ctrl-z     suspend                                  │
   │  esc        close                                    │
   └ ? or esc to close ───────────────────────────────────┘

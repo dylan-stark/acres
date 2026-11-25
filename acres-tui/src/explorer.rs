@@ -27,7 +27,9 @@ use crate::{
         help::Help,
         home::Home,
         hud::Hud,
+        logs::Logs,
         pane_block,
+        quit::QuitPrompt,
         ramps::Ramps,
         record::Record,
         results::Results,
@@ -105,6 +107,8 @@ impl Pane {
 pub enum Overlay {
     Help,
     Ramps,
+    /// Asks before quitting.
+    Quit,
 }
 
 /// Where the last draw put each pane, for mapping mouse events.
@@ -143,7 +147,9 @@ pub struct Explorer {
     art: Home,
     record: Record,
     hud: Hud,
+    logs: Logs,
     ramps: Ramps,
+    quit: QuitPrompt,
     help: Help,
     status: Status,
     areas: Areas,
@@ -184,7 +190,9 @@ impl Explorer {
             art,
             record,
             hud: Hud::new(),
+            logs: Logs::new(),
             ramps: Ramps::new(),
+            quit: QuitPrompt::default(),
             help: Help::default(),
             status: Status::default(),
             areas: Areas::default(),
@@ -237,15 +245,55 @@ impl Explorer {
         })
     }
 
+    /// Every key bound to `action` in `context`, joined like `q, enter`, shortest first.
+    fn keys_for(&self, context: Context, action: &Action) -> String {
+        let mut keys: Vec<String> = self
+            .keybindings
+            .get(&context)
+            .into_iter()
+            .flatten()
+            .filter(|(_, bound)| *bound == action)
+            .map(|(keys, _)| keys.iter().map(key_event_to_string).collect::<String>())
+            .collect();
+        keys.sort_by_key(|key| (key.chars().count() > 1, key.clone()));
+        keys.join(", ")
+    }
+
+    /// Opens the quit prompt, naming the keys that answer it.
+    fn ask_quit(&mut self) {
+        let quit = [
+            self.keys_for(Context::Global, &Action::AskQuit),
+            self.keys_for(Context::Overlay, &Action::Select),
+        ];
+        self.quit.quit_keys = quit
+            .into_iter()
+            .filter(|keys| !keys.is_empty())
+            .collect::<Vec<_>>()
+            .join(", ");
+        self.quit.stay_keys = self.keys_for(Context::Overlay, &Action::Cancel);
+        if self.quit.stay_keys.is_empty() {
+            self.quit.stay_keys = self.keys_for(Context::Global, &Action::Cancel);
+        }
+        self.overlay = Some(Overlay::Quit);
+    }
+
     /// The keys the status bar suggests for where focus is.
     fn hints(&self) -> Vec<(String, &'static str)> {
         let context = self.context();
         let actions: &[Action] = match (self.overlay, self.focus) {
             (Some(Overlay::Help), _) => &[Action::MoveDown, Action::Cancel],
             (Some(Overlay::Ramps), _) => &[Action::Select, Action::Cancel],
+            // The prompt names its own keys.
+            (Some(Overlay::Quit), _) => &[],
             (None, Pane::Search) => &[Action::RunSearch, Action::EarlierQuery, Action::Cancel],
-            (None, Pane::Results) => &[Action::MoveDown, Action::FocusArt, Action::FocusSearch],
-            (None, Pane::Art) => &[Action::CycleArtMode, Action::ToggleZen, Action::NextArtwork],
+            (None, Pane::Results) => {
+                &[Action::MoveDown, Action::ShowFullImage, Action::FocusSearch]
+            }
+            (None, Pane::Art) => &[
+                Action::ShowFullImage,
+                Action::CycleArtMode,
+                Action::ToggleZen,
+            ],
             (None, Pane::Record) => &[Action::MoveDown, Action::NextArtwork, Action::FocusSearch],
         };
         std::iter::once(&Action::ToggleHelp)
@@ -403,6 +451,7 @@ impl Explorer {
         match (self.overlay, self.focus) {
             (Some(Overlay::Help), _) => self.help.scroll(delta),
             (Some(Overlay::Ramps), _) => self.ramps.step(delta),
+            (Some(Overlay::Quit), _) => {}
             (None, Pane::Results) => {
                 let moved = self.results.step(delta);
                 return self.preview(moved);
@@ -479,6 +528,7 @@ impl Component for Explorer {
             let area = match overlay {
                 Overlay::Help => self.help.area,
                 Overlay::Ramps => self.ramps.area,
+                Overlay::Quit => self.quit.area,
             };
             if delta == 0 && !area.contains(at) {
                 self.overlay = None;
@@ -584,6 +634,12 @@ impl Component for Explorer {
             Action::HalfPageDown => self.scroll(self.half_page()),
             Action::HalfPageUp => self.scroll(-self.half_page()),
             Action::Select if self.overlay == Some(Overlay::Ramps) => self.ramps.choose(),
+            Action::Select if self.overlay == Some(Overlay::Quit) => Some(Action::Quit),
+            Action::AskQuit if self.overlay == Some(Overlay::Quit) => Some(Action::Quit),
+            Action::AskQuit => {
+                self.ask_quit();
+                None
+            }
             Action::RunSearch => {
                 let query = self.search.submit();
                 self.focus = Pane::Results;
@@ -619,9 +675,10 @@ impl Component for Explorer {
             }
             _ => None,
         };
-        // The art logs every action, and the HUD collects timings.
+        // The log records every action, and the HUD collects timings.
         self.art.update(action.clone())?;
-        self.hud.update(action)?;
+        self.hud.update(action.clone())?;
+        self.logs.update(action)?;
         Ok(next)
     }
 
@@ -630,6 +687,7 @@ impl Component for Explorer {
             self.areas = Areas::default();
             self.art.draw(frame, area)?;
             self.hud.draw(frame, area)?;
+            self.logs.draw(frame, area)?;
         } else {
             let [search, middle, status] = Layout::vertical([
                 Constraint::Length(3),
@@ -662,6 +720,7 @@ impl Component for Explorer {
             frame.render_widget(block, art);
             self.art.draw(frame, inner)?;
             self.hud.draw(frame, inner)?;
+            self.logs.draw(frame, inner)?;
 
             self.status.counts = self.counts();
             self.status.hints = self.hints();
@@ -671,6 +730,7 @@ impl Component for Explorer {
         match self.overlay {
             Some(Overlay::Help) => self.help.draw(frame, area)?,
             Some(Overlay::Ramps) => self.ramps.draw(frame, area)?,
+            Some(Overlay::Quit) => self.quit.draw(frame, area)?,
             None => {}
         }
         Ok(())
@@ -796,6 +856,52 @@ mod tests {
         assert!(matches!(next, Some(Action::ShowArtwork(a)) if a.id() == 24645));
         assert_eq!(explorer.focus(), Pane::Results);
         assert_eq!(explorer.results.counts(), (1, 5));
+    }
+
+    #[test]
+    fn q_asks_before_quitting() {
+        let mut explorer = explorer();
+        assert_eq!(press(&mut explorer, char('q')), None);
+        assert_eq!(explorer.overlay(), Some(Overlay::Quit));
+        insta::assert_snapshot!(render(&mut explorer, 100, 16));
+        assert_eq!(press(&mut explorer, char('q')), Some(Action::Quit));
+
+        let mut explorer = self::explorer();
+        press(&mut explorer, char('q'));
+        assert_eq!(
+            press(&mut explorer, key(KeyCode::Enter)),
+            Some(Action::Quit)
+        );
+
+        let mut explorer = self::explorer();
+        press(&mut explorer, char('q'));
+        assert_eq!(press(&mut explorer, key(KeyCode::Esc)), None);
+        assert_eq!(explorer.overlay(), None, "esc stays");
+    }
+
+    #[test]
+    fn enter_and_space_ask_for_the_full_image() {
+        let mut explorer = explorer();
+        let action = |explorer: &mut Explorer, key| explorer.handle_key_event(key).unwrap();
+        assert_eq!(
+            action(&mut explorer, key(KeyCode::Enter)),
+            Some(Action::ShowFullImage)
+        );
+        assert_eq!(
+            action(&mut explorer, char(' ')),
+            Some(Action::ShowFullImage)
+        );
+        press(&mut explorer, char('3'));
+        assert_eq!(
+            action(&mut explorer, key(KeyCode::Enter)),
+            Some(Action::ShowFullImage)
+        );
+        press(&mut explorer, char('/'));
+        assert_eq!(
+            action(&mut explorer, char(' ')),
+            None,
+            "a space in the query"
+        );
     }
 
     #[test]

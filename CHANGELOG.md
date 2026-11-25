@@ -39,9 +39,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `acres-tui` searches the collection live (ADR 0013, step 2): `enter` in the search bar runs a search for artworks with images, the next page of 50 loads as the cursor nears the end of the list, and a newer search cancels the one in flight. It starts on Highlights, a built-in list of public-domain artworks that the `highlights` config setting overrides, and falls back to recently updated public-domain works if none of them can be shown. The status bar counts the results and says when the rate limit is holding a search up. `--offline` answers only from the cache.
 - `acres::Catalog::is_rate_limited` and `acres::artworks::search::Builder::descending`.
 - The weekly canary workflow checks that the Highlights ids are still public domain with images.
+- `acres-tui` asks before quitting: `q` opens a prompt, and `q` or `enter` confirms. `ctrl-c` still quits at once.
 
 ### Changed
 
+- `acres-tui` previews artworks with a 200-pixel thumbnail, about a fifteenth of the download, and fetches the full 843-pixel image only on `enter` or `space`. `enter` in the results no longer focuses the art.
+- The `acres-tui` log (`L`) slides out over the left of the art like the timing HUD, instead of squeezing the art aside.
 - `acres-tui` reads a file of artworks with `--from-file <FILE>` (or `-` for stdin) instead of a positional argument, and searches the collection when no file is given. The record pane shows the artist and date when the list has them.
 - `acres-tui` keys are bound per focus context (`Global`, `List`, `Art`, `Record`, `Search`, `Overlay`) instead of per mode. `esc` no longer opens the list, `a` (ramps) is now `r`, `l` (logs) is now `L`, and `ctrl-d` pages instead of quitting. Single-character keys keep their case, so `G` and `g` are different keys.
 - `acres-tui` starts in half blocks, and previews the selected artwork as the cursor moves, 150 ms after it stops, instead of waiting for `enter`.

@@ -17,4 +17,4 @@ expression: "render(&mut explorer, 100, 16)"
 │                       ││                                                ││                       │
 │                       ││                                                ││                       │
 └───────────────────────┘└────────────────────────────────────────────────┘└───────────────────────┘
- 5 artworks  ? help  j move down  enter focus the art  / search
+ 5 artworks  ? help  j move down  enter show the full image  / search

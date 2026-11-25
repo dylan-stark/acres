@@ -571,7 +571,7 @@ mod tests {
                 .unwrap()
                 .get(&parse_key_sequence("<q>").unwrap_or_default())
                 .unwrap(),
-            &Action::Quit
+            &Action::AskQuit
         );
         let list = c.keybindings.get(&Context::List).unwrap();
         let key = |raw: &str| parse_key_sequence(raw).unwrap();
