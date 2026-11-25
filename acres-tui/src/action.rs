@@ -128,8 +128,15 @@ impl Action {
     }
 }
 
+impl Action {
+    /// The one-line description shown in help and the status bar, for actions a key can do.
+    pub fn description(&self) -> Option<&'static str> {
+        self.get_message()
+    }
+}
+
 /// One event in the timing HUD: a label, such as `resize 160x48`, and the stages it ran.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Timing {
     pub label: String,
     pub stages: Vec<(String, Duration)>,
