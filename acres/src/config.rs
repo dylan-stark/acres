@@ -39,9 +39,11 @@ impl Config {
     }
 }
 
+/// The app's cache directory: `$XDG_CACHE_HOME/acres` on Linux, `~/Library/Caches` on macOS
+/// and the local app data `cache` folder on Windows. Everything in it can be fetched again.
 pub(crate) fn get_acres_cache_dir() -> PathBuf {
     if let Some(proj_dirs) = project_directory() {
-        proj_dirs.data_local_dir().to_path_buf()
+        proj_dirs.cache_dir().to_path_buf()
     } else {
         PathBuf::from(".").join(".cache")
     }

@@ -61,7 +61,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `iiif` errors no longer implement `From<ParseFloatError>`; `ParameterError::InvalidPercentage` is used only for percentages.
 - `acres` errors are layered as in [ADR 0006](docs/decisions/0006-iiif-error-naming.md): `acres::Error` replaces `AcresError` and wraps `RequestError`, `ResponseError`, `CacheError` and `ParseError`. An artwork image URL that can't be built is `RequestError::InvalidImageUrl`, and `ArtworkInfo::load` returns a `Result`. No `anyhow` or `url` type is part of the API any more.
 - `acres` sends `AIC-User-Agent: acres/<version>` instead of an `ACRES-User-Agent` header with a hard-coded address.
-- The `acres` cache keeps each kind of response in its own folder (`pages`, `records`, `images`) under the cache directory, names entries by the hex hash of the URL, and writes them atomically. Caches from earlier versions are not read; delete the old files at the top of the cache directory to reclaim the space.
+- The `acres` cache keeps each kind of response in its own folder (`pages`, `records`, `images`) under the cache directory, names entries by the hex hash of the URL, and writes them atomically. The cache moved from the local data directory to the platform's cache directory (`$XDG_CACHE_HOME/acres` on Linux, `~/Library/Caches` on macOS; `ACRES_CACHE_DIR` still overrides it). Caches from earlier versions are not read; delete the old files in the local data directory (`~/.local/share/acres` on Linux) to reclaim the space.
 - Search `q`, `query` and `sort` values are percent-encoded, so a search with spaces or `&` reaches the API intact.
 
 ### Removed

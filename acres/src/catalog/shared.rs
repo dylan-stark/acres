@@ -3,7 +3,7 @@
 //! Each `acres-cli` run is its own process, and the TUI can run beside a script. An in-memory
 //! bucket would give each of them a full burst, so together they could pass the API's 60 a
 //! minute. Instead, the bucket's state (tokens left and when it was last refilled) lives in one
-//! file in the cache directory. Taking a token locks the file, refills, takes or reports the
+//! file in the app's state directory. Taking a token locks the file, refills, takes or reports the
 //! wait, writes the state back and unlocks. The lock is held for a read and a write, never across
 //! a request.
 //!

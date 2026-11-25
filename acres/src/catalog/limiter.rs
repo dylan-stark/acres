@@ -123,7 +123,7 @@ impl Limiter {
     /// Takes a token, or returns how long until one is free.
     ///
     /// A shared bucket that can't be read or written falls back to the in-memory one, so a
-    /// read-only cache directory slows nothing down. It is logged once.
+    /// read-only state directory slows nothing down. It is logged once.
     fn take(&self, state: &mut State) -> Result<(), Duration> {
         if let Some(shared) = &self.shared {
             match shared.try_take(self.interval, self.burst) {
