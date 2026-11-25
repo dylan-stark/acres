@@ -6,6 +6,7 @@ use strum::{Display, EnumDiscriminants, EnumMessage};
 use crate::{
     components::{
         catalog::{Load, Loaded},
+        filters::Facets,
         home::Decoded,
     },
     entry::Entry,
@@ -50,6 +51,10 @@ pub enum Action {
     OpenInBrowser,
     #[strum(message = "copy its link")]
     CopyLink,
+    #[strum(message = "filters")]
+    OpenFilters,
+    #[strum(message = "cycle sort")]
+    CycleSort,
     #[strum(message = "zen: art only")]
     ToggleZen,
     #[strum(message = "cycle art mode")]
@@ -80,6 +85,10 @@ pub enum Action {
     HalfPageUp,
     #[strum(message = "choose")]
     Select,
+    #[strum(message = "previous option")]
+    PreviousOption,
+    #[strum(message = "next option")]
+    NextOption,
     #[strum(message = "run the search")]
     RunSearch,
     #[strum(message = "earlier query")]
@@ -143,6 +152,12 @@ pub enum Action {
         id: u32,
         result: Result<acres::artworks::Artwork, String>,
     },
+    /// Lists the departments and artwork types for the filters.
+    FetchFacets,
+    /// The departments and artwork types came back, or why they didn't.
+    #[strum(to_string = "FacetsLoaded")]
+    #[serde(skip)]
+    FacetsLoaded(Result<Facets, String>),
     /// Opens this link in the browser.
     OpenUrl(String),
     /// Puts this text on the clipboard.

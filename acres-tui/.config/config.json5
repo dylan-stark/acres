@@ -17,6 +17,8 @@
       "<space>": "ShowFullImage", // Fetch and show the full image, not the placeholder
       "<o>": "OpenInBrowser", // Open the artwork's page on artic.edu
       "<y>": "CopyLink", // Copy the link to the artwork's page
+      "<f>": "OpenFilters", // Filter the search: image, public domain, on view, department, type, years
+      "<s>": "CycleSort", // Cycle the sort: relevance, oldest, newest, title
       "<z>": "ToggleZen", // Zen: art only, full screen
       "<b>": "CycleArtMode", // Cycle half blocks, quadrant blocks and ASCII
       "<r>": "PickRamp", // Pick a ramp (ASCII mode)
@@ -67,7 +69,12 @@
       "up": "MoveUp",
       "<g>": "Top",
       "<G>": "Bottom",
-      "enter": "Select", // Choose the highlighted ramp, or quit from the quit prompt
+      "enter": "Select", // Choose a ramp, apply the filters, or quit from the quit prompt
+      "<h>": "PreviousOption", // Change the highlighted filter
+      "left": "PreviousOption",
+      "<l>": "NextOption",
+      "right": "NextOption",
+      "<Ctrl-u>": "ClearSearch", // Reset the filters
     },
   }
 }

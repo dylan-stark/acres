@@ -24,19 +24,117 @@ use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 use crate::{
     action::{Action, Timing},
     components::Component,
+    components::filters::Facets,
     entry::Entry,
 };
 
 /// Records per page of results.
 pub const PAGE_SIZE: u32 = 50;
 
+/// The order search results come in.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Sort {
+    /// The API's own ranking.
+    #[default]
+    Relevance,
+    Oldest,
+    Newest,
+    /// By title, A to Z. Titles that start with punctuation, such as quotes, come first.
+    Title,
+}
+
+impl Sort {
+    /// The next sort in the order `s` cycles through.
+    pub fn next(self) -> Self {
+        match self {
+            Sort::Relevance => Sort::Oldest,
+            Sort::Oldest => Sort::Newest,
+            Sort::Newest => Sort::Title,
+            Sort::Title => Sort::Relevance,
+        }
+    }
+
+    /// How the status bar names it.
+    pub fn label(self) -> &'static str {
+        match self {
+            Sort::Relevance => "relevance",
+            Sort::Oldest => "oldest first",
+            Sort::Newest => "newest first",
+            Sort::Title => "title",
+        }
+    }
+}
+
+/// Some records carry placeholder dates far outside any real one, such as year -1824528578,
+/// that would top a date sort. Sorting by date keeps to these years unless a range is set.
+pub const DATED_YEARS: (i32, i32) = (-8000, 2100);
+
+/// A search: the text typed, the filters set and the sort chosen.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Query {
+    pub text: String,
+    pub filters: Filters,
+    pub sort: Sort,
+}
+
+impl Default for Query {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            filters: default_filters(),
+            sort: Sort::default(),
+        }
+    }
+}
+
+/// The filters a new session starts with: only artworks with an image, since one without has
+/// no art (ADR 0013).
+pub fn default_filters() -> Filters {
+    Filters {
+        has_image: true,
+        ..Filters::default()
+    }
+}
+
+impl Query {
+    /// A search for `text`, with the default filters and sort.
+    pub fn text(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            ..Self::default()
+        }
+    }
+
+    /// Whether this asks for nothing in particular, so the start screen's Highlights fit.
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+
+    /// How many filters differ from the defaults.
+    pub fn filter_count(&self) -> usize {
+        let f = &self.filters;
+        [
+            !f.has_image,
+            f.is_public_domain.is_some(),
+            f.is_on_view.is_some(),
+            f.department_id.is_some(),
+            f.artwork_type_id.is_some(),
+            f.artist_id.is_some(),
+            f.years.is_some(),
+        ]
+        .into_iter()
+        .filter(|&set| set)
+        .count()
+    }
+}
+
 /// What to list.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Load {
     /// The start screen: these artworks, in this order.
     Highlights(Vec<u32>),
-    /// Page `page` (from 1) of a full-text search.
-    Search { q: String, page: u32 },
+    /// Page `page` (from 1) of a search.
+    Search { query: Query, page: u32 },
 }
 
 /// A list that came back, or why it didn't.
@@ -111,7 +209,46 @@ impl Fetcher {
     }
 }
 
+/// A department or artwork type, as the API lists them.
+#[derive(Deserialize)]
+struct Facet<Id> {
+    id: Id,
+    title: String,
+}
+
+/// The departments and artwork types, to choose from in the filters.
+async fn facets(catalog: &Catalog) -> eyre::Result<Facets> {
+    async fn list<Id: serde::de::DeserializeOwned>(
+        catalog: &Catalog,
+        resource: &str,
+    ) -> eyre::Result<Vec<(Id, String)>> {
+        let endpoint = format!(
+            "{}/{resource}?limit=100&fields=id,title",
+            catalog.base_uri()
+        );
+        // They change rarely, so they keep as long as records do.
+        let fetched = catalog.raw(&endpoint, Resource::Record).await?;
+        let page: Page<Facet<Id>> = serde_json::from_slice(&fetched.value)
+            .map_err(|e| eyre::eyre!("could not read {endpoint}: {e}"))?;
+        Ok(page.data.into_iter().map(|f| (f.id, f.title)).collect())
+    }
+    Ok(Facets {
+        departments: list(catalog, "departments").await?,
+        types: list(catalog, "artwork-types").await?,
+    })
+}
+
 impl Fetcher {
+    /// Lists the departments and artwork types.
+    fn fetch_facets(&self) {
+        let catalog = self.catalog.clone();
+        let tx = self.action_tx.clone();
+        tokio::spawn(async move {
+            let result = facets(&catalog).await.map_err(|e| e.to_string());
+            let _ = tx.send(Action::FacetsLoaded(result));
+        });
+    }
+
     /// Fetches the full record of artwork `id`, replacing any record still on its way.
     fn fetch_record(&mut self, id: u32) {
         if let Some(previous) = self.record.take() {
@@ -173,21 +310,10 @@ async fn fetch(
                 fallback: true,
             })
         }
-        Load::Search { q, page } => {
-            let request = search::Request::builder()
-                .base_uri(catalog.base_uri())
-                .q(Some(q.clone()))
-                // A record without an image has no art (ADR 0013).
-                .filters(Filters {
-                    has_image: true,
-                    ..Filters::default()
-                })
-                .fields(Some(fields(ArtworkSummary::FIELDS)))
-                .limit(Some(PAGE_SIZE))
-                .page(Some(*page))
-                .build()?;
+        Load::Search { query, page } => {
+            let request = search_request(catalog.base_uri(), query, *page)?;
             let label = if *page == 1 {
-                format!("search {q}")
+                format!("search {}", query.text)
             } else {
                 format!("page {page}")
             };
@@ -199,6 +325,37 @@ async fn fetch(
             })
         }
     }
+}
+
+/// The request for page `page` of `query`.
+fn search_request(base_uri: &str, query: &Query, page: u32) -> eyre::Result<search::Request> {
+    let mut filters = query.filters.clone();
+    let (sort, descending) = match query.sort {
+        Sort::Relevance => (None, false),
+        Sort::Oldest | Sort::Newest => {
+            filters.years = filters.years.or(Some(DATED_YEARS));
+            (Some("date_start"), query.sort == Sort::Newest)
+        }
+        // `title` is analyzed text, which the API cannot sort; its keyword form can.
+        Sort::Title => (Some("title.keyword"), false),
+    };
+    let text = query.text.trim();
+    let mut q = (!text.is_empty()).then(|| text.to_string());
+    if sort.is_some() {
+        // `q` matches loosely and ranks the loose matches low, which a sort would bring to the
+        // top. Sorted, only titles and artists with every word match.
+        filters.words = q.take();
+    }
+    Ok(search::Request::builder()
+        .base_uri(base_uri)
+        .q(q)
+        .filters(filters)
+        .sort(sort.map(String::from))
+        .descending(descending)
+        .fields(Some(fields(ArtworkSummary::FIELDS)))
+        .limit(Some(PAGE_SIZE))
+        .page(Some(page))
+        .build()?)
 }
 
 /// The Highlights in `ids` order, without any that are gone, no longer public domain, or have
@@ -277,6 +434,7 @@ impl Component for Fetcher {
         match action {
             Action::Load { generation, load } => self.start(generation, load),
             Action::FetchRecord(id) => self.fetch_record(id),
+            Action::FetchFacets => self.fetch_facets(),
             Action::Tick => {
                 let limited = self.catalog.is_rate_limited();
                 if limited != self.rate_limited {
@@ -422,7 +580,7 @@ mod tests {
         let loaded = run(
             catalog(&server),
             Load::Search {
-                q: "water lilies".into(),
+                query: Query::text("water lilies"),
                 page: 2,
             },
         )
@@ -443,12 +601,54 @@ mod tests {
         let loaded = run(
             catalog,
             Load::Search {
-                q: "x".into(),
+                query: Query::text("x"),
                 page: 1,
             },
         )
         .await;
         assert!(loaded.result.is_err());
+    }
+
+    fn url(query: &Query) -> String {
+        search_request("https://api.example", query, 1)
+            .unwrap()
+            .to_string()
+    }
+
+    #[test]
+    fn date_sorts_keep_to_real_years_and_title_sorts_by_keyword() {
+        let mut query = Query::text("monet");
+        query.sort = Sort::Newest;
+        let newest = url(&query);
+        assert!(newest.contains("sort[date_start][order]=desc"), "{newest}");
+        assert!(newest.contains("[range][date_end][gte]=-8000"), "{newest}");
+        assert!(newest.contains("[range][date_start][lte]=2100"), "{newest}");
+        query.sort = Sort::Oldest;
+        query.filters.years = Some((1850, 1900));
+        let oldest = url(&query);
+        assert!(oldest.contains("sort=date_start"), "{oldest}");
+        assert!(
+            oldest.contains("[range][date_end][gte]=1850"),
+            "a set range wins"
+        );
+        query.sort = Sort::Title;
+        let title = url(&query);
+        assert!(title.contains("sort=title.keyword"));
+        assert!(!title.contains("q=monet"), "sorted, the text must match");
+        assert!(title.contains("[multi_match][query]=monet"), "{title}");
+        query.sort = Sort::Relevance;
+        assert!(url(&query).contains("q=monet"));
+    }
+
+    #[test]
+    fn a_search_without_text_sends_no_q_and_counts_its_filters() {
+        let mut query = Query::default();
+        assert!(query.is_empty());
+        query.filters.is_on_view = Some(true);
+        query.filters.has_image = false;
+        assert!(!url(&query).contains("q="));
+        assert_eq!(query.filter_count(), 2);
+        assert!(!query.is_empty());
     }
 
     #[tokio::test]
@@ -505,7 +705,7 @@ mod tests {
                 .update(Action::Load {
                     generation,
                     load: Load::Search {
-                        q: q.into(),
+                        query: Query::text(q),
                         page: 1,
                     },
                 })

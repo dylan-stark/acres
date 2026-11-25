@@ -1,0 +1,16 @@
+---
+source: acres-tui/src/components/filters.rs
+expression: "render(&mut panel, 70, 12)"
+---
+
+    ┌ Filters ───────────────────────────────────────────────────┐
+    │  Image          required                                   │
+    │  Public domain  any                                        │
+    │  On view        any                                        │
+    │  Department     any                                        │
+    │  Type           any                                        │
+    │  From year      1890                                       │
+    │> To year        -500▏                                      │
+    │                                                            │
+    │the from year is after the to year                          │
+    └────────────────────────────────────────────────────────────┘

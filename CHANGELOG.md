@@ -44,6 +44,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - The `acres-tui` record pane is a wall label (ADR 0013, step 3): artist, title and date, medium, credit line and reference number, all from the results list. `d` expands it in place to the full record (dimensions, place of origin, department, gallery and the description), fetched when asked for, and `enter` opens the full record in a large overlay that follows `n`/`p`. `o` opens the artwork on artic.edu and `y` copies its link (through OSC 52, so it works over SSH).
 - `acres-tui` decodes images on a blocking thread, off the app loop, and keeps the last 16 full images decoded, so going back to one shows it at once with no fetch.
 
+- `acres-tui` filters and sorts searches (ADR 0013, step 4). `f` opens a filter overlay for image, public domain, on view, department, artwork type and years, with the departments and types listed from the API. `s` cycles relevance, oldest, newest and title. Filters apply with no search text too, and the status bar counts the filters set and names the sort.
+- `acres::artworks::search::Filters::words`, which keeps only artworks whose title or artist contains every word, for sorted searches where `q`'s loose matches would come first.
+
 ### Changed
 
 - `acres::artworks::ArtworkSummary` carries `medium_display`, `credit_line` and `main_reference_number`, moved from `Artwork` (which still has them through `summary`), so a results list has everything a wall label needs.
