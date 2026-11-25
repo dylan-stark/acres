@@ -63,4 +63,6 @@ The API's rules ([AIC API docs](https://api.artic.edu/docs/), as of 2026-11-24):
 
   | | M1 Air (target) | Ryzen 9700X (dev) |
   | --- | --- | --- |
-  | `acres/parse/search_page` | to measure | to measure |
+  | `acres/parse/search_page` | 27.7 µs | to measure |
+
+  A page is parsed once per search, not per frame, so even on the Air it is about 0.3% of one 8 ms frame.
