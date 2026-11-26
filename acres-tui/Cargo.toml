@@ -18,7 +18,7 @@ directories = "6.0.0"
 futures = "0.3.31"
 iiif = { path = "../iiif" }
 base64 = "0.22.1"
-image = { version = "0.25.10", default-features = false, features = ["gif", "jpeg", "png"] }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 json5 = "0.4.1"
 lazy_static = "1.5.0"
 libc = "0.2.177"
@@ -48,4 +48,8 @@ wiremock = "0.6.5"
 
 [[bench]]
 name = "frame"
+harness = false
+
+[[bench]]
+name = "browse"
 harness = false

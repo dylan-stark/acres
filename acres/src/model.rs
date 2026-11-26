@@ -143,20 +143,6 @@ impl ArtworkType {
     pub const FIELDS: &'static [&'static str] = &["id", "title"];
 }
 
-/// A tiny preview of an artwork's image.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Thumbnail {
-    /// A low-quality image placeholder: a base64 GIF data URI a few pixels across.
-    pub lqip: Option<String>,
-    /// Width of the full image, in pixels.
-    pub width: Option<u32>,
-    /// Height of the full image, in pixels.
-    pub height: Option<u32>,
-    /// A description of the image.
-    pub alt_text: Option<String>,
-}
-
 /// What a results list shows for one artwork: enough for a gallery wall label.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtworkSummary {
@@ -174,9 +160,6 @@ pub struct ArtworkSummary {
     /// The IIIF image ID, if the artwork has an image.
     #[serde(default)]
     pub image_id: Option<String>,
-    /// A tiny preview of the image.
-    #[serde(default)]
-    pub thumbnail: Option<Thumbnail>,
     /// Medium, such as `Oil on canvas`.
     #[serde(default)]
     pub medium_display: Option<String>,
@@ -208,7 +191,6 @@ impl ArtworkSummary {
         "artist_display",
         "date_display",
         "image_id",
-        "thumbnail",
         "medium_display",
         "credit_line",
         "main_reference_number",
@@ -255,7 +237,6 @@ impl Artwork {
         "artist_display",
         "date_display",
         "image_id",
-        "thumbnail",
         "medium_display",
         "credit_line",
         "main_reference_number",
@@ -293,11 +274,11 @@ mod tests {
     #[test]
     fn nulls_parse_as_none() {
         let summary: ArtworkSummary = serde_json::from_str(
-            r#"{"id": 4, "title": "T", "artist_display": null, "thumbnail": null}"#,
+            r#"{"id": 4, "title": "T", "artist_display": null, "image_id": null}"#,
         )
         .unwrap();
         assert_eq!(summary.artist_display, None);
-        assert_eq!(summary.thumbnail, None);
+        assert_eq!(summary.image_id, None);
     }
 
     #[test]

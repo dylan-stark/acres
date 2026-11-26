@@ -6,21 +6,19 @@ use std::{
 
 use acres::Catalog;
 use color_eyre::eyre::{self};
-use iiif::{BaseUri, Format, ImageRequest, Quality, Region, Rotation, Size};
+use iiif::ImageRequest;
 use ratatui::{Frame, prelude::Rect};
 use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 
 use crate::{
     action::{Action, Timing},
     components::{Component, home::Decoded},
+    entry::Entry,
 };
 
-/// How long the selection must rest on an artwork before its placeholder replaces the art, so
-/// holding `j` through a list does not redraw every row (ADR 0013).
+/// How long the selection must rest on an artwork before its cached image is read and decoded,
+/// so holding `j` through a list does not decode every row (ADR 0013, ADR 0018).
 pub const PREVIEW_DELAY: Duration = Duration::from_millis(150);
-
-/// Width of the full image: the AIC's recommended size, which it serves for every artwork.
-pub const FULL_WIDTH: u32 = 843;
 
 /// Full images kept decoded, so going back to one shows it at once (ADR 0013).
 pub const RECENT: usize = 16;
@@ -38,6 +36,10 @@ impl Recent {
         Some(image)
     }
 
+    fn contains(&self, id: u32) -> bool {
+        self.0.iter().any(|(seen, _)| *seen == id)
+    }
+
     fn put(&mut self, id: u32, image: Decoded) {
         self.0.retain(|(seen, _)| *seen != id);
         if self.0.len() == RECENT {
@@ -47,18 +49,19 @@ impl Recent {
     }
 }
 
-/// Shows the selected artwork's image. Browsing shows the `lqip` placeholder that came with the
-/// list, which costs no request, and the full image is fetched only when asked for. Images are
-/// decoded on a blocking thread, off the app loop.
+/// Shows the selected artwork's image (ADR 0018). Browsing shows an image only if it was
+/// decoded recently or is in the catalog's disk cache, so it never costs a request; otherwise the
+/// art stays empty until the full image is asked for. Images are decoded on a blocking thread,
+/// off the app loop. It also answers which listed artworks have their image cached.
 pub struct Iiif {
-    base_uri: Option<BaseUri>,
+    request: Option<ImageRequest>,
     artwork_id: u32,
     /// Whether the full image of the shown artwork was asked for, so asking again does nothing.
     full: bool,
     action_tx: UnboundedSender<Action>,
     catalog: Catalog,
     recent: Arc<Mutex<Recent>>,
-    /// The placeholder waiting out the preview delay, or the full image being fetched. A newer
+    /// The cached image waiting out the preview delay, or the full image being fetched. A newer
     /// request aborts it, which also gives up its place in the catalog's queue.
     pending: Option<JoinHandle<()>>,
 }
@@ -76,7 +79,7 @@ async fn decode(bytes: Vec<u8>, timing: Timing) -> eyre::Result<(Decoded, Timing
 impl Iiif {
     pub fn new(action_tx: UnboundedSender<Action>, catalog: Catalog) -> Self {
         Self {
-            base_uri: None,
+            request: None,
             artwork_id: 0,
             full: false,
             action_tx,
@@ -92,46 +95,53 @@ impl Iiif {
         }
     }
 
-    /// Shows `placeholder` once the preview delay passes, or clears the art if there is none.
-    fn preview(&mut self, placeholder: Option<Vec<u8>>) {
+    fn recent(&self) -> std::sync::MutexGuard<'_, Recent> {
+        self.recent
+            .lock()
+            .expect("no panics while holding the lock")
+    }
+
+    /// Shows the cached image, if there is one, once the preview delay passes.
+    fn show_cached(&mut self) {
+        let Some(request) = self.request.clone() else {
+            return;
+        };
         let tx = self.action_tx.clone();
+        let catalog = self.catalog.clone();
+        let recent = self.recent.clone();
         let id = self.artwork_id;
         self.pending = Some(tokio::spawn(async move {
             tokio::time::sleep(PREVIEW_DELAY).await;
-            let Some(bytes) = placeholder else {
-                let _ = tx.send(Action::ClearImage);
-                return;
+            let read = Instant::now();
+            let bytes = match catalog.cached_image(&request) {
+                Ok(Some(bytes)) => bytes,
+                Ok(None) => return,
+                Err(e) => {
+                    let _ = tx.send(Action::Log(format!("cached image {id}: {e}")));
+                    return;
+                }
             };
-            match decode(bytes, Timing::new(format!("placeholder {id}"))).await {
+            let timing = Timing::new(format!("cached {id}")).stage("read", read.elapsed());
+            match decode(bytes.to_vec(), timing).await {
                 Ok((image, timing)) => {
-                    let _ = tx.send(Action::UpdateImage {
-                        id,
-                        image,
-                        full: false,
-                        timing,
-                    });
+                    recent
+                        .lock()
+                        .expect("no panics while holding the lock")
+                        .put(id, image.clone());
+                    let _ = tx.send(Action::UpdateImage { id, image, timing });
                 }
                 Err(e) => {
-                    let _ = tx.send(Action::Log(format!("placeholder {id}: {e}")));
-                    let _ = tx.send(Action::ClearImage);
+                    let _ = tx.send(Action::Log(format!("cached image {id}: {e}")));
                 }
             }
         }));
     }
 
-    /// Fetches and decodes the full image now, replacing any placeholder still waiting.
+    /// Fetches and decodes the full image now, replacing any cached read still waiting.
     fn fetch_full(&mut self) {
-        let Some(uri) = &self.base_uri else { return };
-        let image_request = ImageRequest::builder()
-            .base_uri(uri.clone())
-            .region(Region::Full)
-            .size(Size::Width(FULL_WIDTH))
-            .rotation(Rotation::Degrees(
-                0.0.try_into().expect("0 degrees is a valid setting"),
-            ))
-            .quality(Quality::Default)
-            .format(Format::Jpg)
-            .build();
+        let Some(image_request) = self.request.clone() else {
+            return;
+        };
         tracing::debug!(image_request = %image_request);
         let tx = self.action_tx.clone();
         let catalog = self.catalog.clone();
@@ -154,18 +164,15 @@ impl Iiif {
                     .stage("wait", fetched.wait)
                     .stage("fetch", fetched.fetch)
             };
+            // Fetched means cached now, so its row can say so.
+            let _ = tx.send(Action::Cached(vec![id]));
             match decode(fetched.value.to_vec(), timing).await {
                 Ok((image, timing)) => {
                     recent
                         .lock()
                         .expect("no panics while holding the lock")
                         .put(id, image.clone());
-                    let _ = tx.send(Action::UpdateImage {
-                        id,
-                        image,
-                        full: true,
-                        timing,
-                    });
+                    let _ = tx.send(Action::UpdateImage { id, image, timing });
                 }
                 Err(e) => {
                     let _ = tx.send(Action::Log(format!("image {id}: {e}")));
@@ -173,6 +180,32 @@ impl Iiif {
             }
         }));
     }
+
+    /// Checks `entries` against the disk cache on a blocking thread, and sends back the ids of
+    /// those whose image is cached.
+    fn check_cached(&self, entries: Vec<Entry>) {
+        let tx = self.action_tx.clone();
+        let catalog = self.catalog.clone();
+        tokio::task::spawn_blocking(move || {
+            let cached = cached_ids(&catalog, &entries);
+            if !cached.is_empty() {
+                let _ = tx.send(Action::Cached(cached));
+            }
+        });
+    }
+}
+
+/// The ids of `entries` whose full image is in `catalog`'s cache: one `stat` each.
+pub fn cached_ids(catalog: &Catalog, entries: &[Entry]) -> Vec<u32> {
+    entries
+        .iter()
+        .filter(|entry| {
+            entry
+                .image_request()
+                .is_some_and(|request| catalog.has_cached_image(&request))
+        })
+        .map(Entry::id)
+        .collect()
 }
 
 impl Component for Iiif {
@@ -181,30 +214,34 @@ impl Component for Iiif {
             Action::ShowArtwork(entry) => {
                 self.abort_pending();
                 self.artwork_id = entry.id();
-                self.base_uri = entry.base_uri();
-                let seen = self
-                    .recent
-                    .lock()
-                    .expect("no panics while holding the lock")
-                    .get(entry.id());
+                self.request = entry.image_request();
+                let seen = self.recent().get(entry.id());
                 self.full = seen.is_some();
                 match seen {
-                    // Seen in full recently: show it again at once, with no placeholder.
+                    // Decoded recently: show it again at once.
                     Some(image) => {
                         let _ = self.action_tx.send(Action::UpdateImage {
                             id: entry.id(),
                             image,
-                            full: true,
                             timing: Timing::new(format!("recent {}", entry.id())),
                         });
                     }
-                    None => self.preview(entry.placeholder()),
+                    // Clear at once, so the last artwork's art never sits beside this one's
+                    // label, then show the cached image if there is one.
+                    None => {
+                        let _ = self.action_tx.send(Action::ClearImage);
+                        self.show_cached();
+                    }
                 }
             }
-            Action::ShowFullImage if !self.full && self.base_uri.is_some() => {
+            Action::ShowFullImage if !self.full && self.request.is_some() => {
                 self.full = true;
-                self.fetch_full();
+                // A cached image already read and shown needs no second read.
+                if !self.recent().contains(self.artwork_id) {
+                    self.fetch_full();
+                }
             }
+            Action::CheckCached(entries) => self.check_cached(entries),
             _ => {}
         }
         Ok(None)
@@ -217,7 +254,7 @@ impl Component for Iiif {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{path::PathBuf, time::Duration};
 
     use tokio::sync::mpsc;
     use wiremock::{
@@ -226,26 +263,18 @@ mod tests {
     };
 
     use super::*;
-    use crate::entry::Entry;
 
     /// La Grande Jatte, from the demo fixtures, served as every full image.
     const IMAGE: &[u8] = include_bytes!(
         "../../tests/fixtures/iiif/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg"
     );
 
-    /// A real 8x5 `lqip` GIF.
-    const LQIP: &str = "R0lGODlhCAAFAPUAAE1WUFVTU1NWUFZYVllbVlpaW1tcWF1cXVxiWl1jWl9mX2NmVWVnXF9eZlxdaGZkYmpmZWRtYGZuY2htZGpsanBsZXVwZXB5Znp+ZXJwaYSAaYiBaYqIbIeAdI2DcYqFcI+FcoiCd5iRcouJgIyKhoyNi4mMjo2RkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAIAAUAAAYlwBLmMmEkCAHTaRTqfB4QEmgj8mgaGY6lsohIHAXKwQBQIAaCIAA7";
-
-    /// An artwork with an image and a placeholder.
+    /// An artwork with an image.
     fn entry(server: &MockServer, id: u32) -> Entry {
         Entry {
             summary: acres::artworks::ArtworkSummary {
                 id,
                 image_id: Some(format!("image-{id}")),
-                thumbnail: Some(acres::artworks::Thumbnail {
-                    lqip: Some(format!("data:image/gif;base64,{LQIP}")),
-                    ..Default::default()
-                }),
                 ..Default::default()
             },
             config: acres::ApiConfig {
@@ -269,18 +298,14 @@ mod tests {
         assert_eq!(iiif.update(Action::ShowArtwork(entry)).unwrap(), None);
     }
 
-    /// The images that reach the art `within` a time, as `(id, full)`, with `(0, false)` for a
-    /// cleared art pane.
-    async fn arrivals(
-        rx: &mut mpsc::UnboundedReceiver<Action>,
-        within: Duration,
-    ) -> Vec<(u32, bool)> {
+    /// What reaches the art `within` a time: the id of each image, and 0 for a cleared pane.
+    async fn arrivals(rx: &mut mpsc::UnboundedReceiver<Action>, within: Duration) -> Vec<u32> {
         let mut ids = Vec::new();
         let _ = tokio::time::timeout(within, async {
             while let Some(action) = rx.recv().await {
                 match action {
-                    Action::UpdateImage { id, full, .. } => ids.push((id, full)),
-                    Action::ClearImage => ids.push((0, false)),
+                    Action::UpdateImage { id, .. } => ids.push(id),
+                    Action::ClearImage => ids.push(0),
                     _ => {}
                 }
             }
@@ -289,16 +314,34 @@ mod tests {
         ids
     }
 
-    fn iiif(server: &MockServer) -> (Iiif, mpsc::UnboundedReceiver<Action>) {
-        let (tx, rx) = mpsc::unbounded_channel();
-        let catalog = Catalog::builder()
+    /// A fresh, empty cache directory for one test.
+    fn cache_dir(name: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("acres-tui-test-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
+    fn catalog(server: &MockServer, cache: Option<PathBuf>) -> Catalog {
+        let builder = Catalog::builder()
             .base_uri(server.uri())
-            .no_cache()
             .no_shared_rate_limit()
-            .offline(false)
-            .build()
-            .unwrap();
+            .offline(false);
+        match cache {
+            Some(dir) => builder.cache_dir(dir),
+            None => builder.no_cache(),
+        }
+        .build()
+        .unwrap()
+    }
+
+    fn iiif_with(catalog: Catalog) -> (Iiif, mpsc::UnboundedReceiver<Action>) {
+        let (tx, rx) = mpsc::unbounded_channel();
         (Iiif::new(tx, catalog), rx)
+    }
+
+    fn iiif(server: &MockServer) -> (Iiif, mpsc::UnboundedReceiver<Action>) {
+        iiif_with(catalog(server, None))
     }
 
     /// Fails the test if anything is fetched.
@@ -310,30 +353,60 @@ mod tests {
             .await;
     }
 
+    /// Fetches artwork `id`'s full image into the cache at `dir`.
+    async fn cache_image(server: &MockServer, dir: &std::path::Path, id: u32) {
+        let request = entry(server, id).image_request().unwrap();
+        catalog(server, Some(dir.into()))
+            .image(&request)
+            .await
+            .unwrap();
+    }
+
     #[tokio::test]
-    async fn browsing_shows_only_the_last_placeholder_and_fetches_nothing() {
+    async fn browsing_uncached_artworks_clears_the_art_at_once_and_fetches_nothing() {
         let server = MockServer::start().await;
         no_requests(&server).await;
         let (mut iiif, mut rx) = iiif(&server);
         show(&mut iiif, entry(&server, 1));
         show(&mut iiif, entry(&server, 2));
+        // Both cleared at once, and nothing follows.
         assert_eq!(
-            arrivals(&mut rx, Duration::from_millis(400)).await,
-            [(2, false)]
+            rx.try_recv().ok().map(|a| a.to_string()),
+            Some("ClearImage".into())
+        );
+        assert_eq!(
+            rx.try_recv().ok().map(|a| a.to_string()),
+            Some("ClearImage".into())
+        );
+        assert!(
+            arrivals(&mut rx, Duration::from_millis(400))
+                .await
+                .is_empty()
         );
     }
 
     #[tokio::test]
-    async fn an_artwork_without_a_placeholder_clears_the_art() {
+    async fn browsing_shows_only_the_last_cached_image_and_fetches_nothing() {
         let server = MockServer::start().await;
-        no_requests(&server).await;
-        let (mut iiif, mut rx) = iiif(&server);
-        let mut bare = entry(&server, 1);
-        bare.summary.thumbnail = None;
-        show(&mut iiif, bare);
+        full(1, Duration::ZERO).expect(1).mount(&server).await;
+        full(2, Duration::ZERO).expect(0).mount(&server).await;
+        let dir = cache_dir("browse");
+        cache_image(&server, &dir, 1).await;
+        let (mut iiif, mut rx) = iiif_with(catalog(&server, Some(dir.clone())));
+        show(&mut iiif, entry(&server, 1));
+        show(&mut iiif, entry(&server, 2));
+        show(&mut iiif, entry(&server, 1));
         assert_eq!(
-            arrivals(&mut rx, Duration::from_millis(400)).await,
-            [(0, false)]
+            arrivals(&mut rx, Duration::from_millis(500)).await,
+            [0, 0, 0, 1],
+            "cleared three times, then the cached image after the delay"
+        );
+        // Shown already, so asking for it reads and fetches nothing more.
+        iiif.update(Action::ShowFullImage).unwrap();
+        assert!(
+            arrivals(&mut rx, Duration::from_millis(300))
+                .await
+                .is_empty()
         );
     }
 
@@ -343,16 +416,29 @@ mod tests {
         full(1, Duration::ZERO).expect(1).mount(&server).await;
         let (mut iiif, mut rx) = iiif(&server);
         show(&mut iiif, entry(&server, 1));
-        assert_eq!(
-            arrivals(&mut rx, Duration::from_millis(400)).await,
-            [(1, false)]
-        );
+        assert_eq!(arrivals(&mut rx, Duration::from_millis(400)).await, [0]);
         iiif.update(Action::ShowFullImage).unwrap();
         iiif.update(Action::ShowFullImage).unwrap();
-        assert_eq!(
-            arrivals(&mut rx, Duration::from_millis(600)).await,
-            [(1, true)]
-        );
+        assert_eq!(arrivals(&mut rx, Duration::from_millis(600)).await, [1]);
+    }
+
+    #[tokio::test]
+    async fn a_fetched_image_marks_its_row_cached() {
+        let server = MockServer::start().await;
+        full(1, Duration::ZERO).mount(&server).await;
+        let (mut iiif, mut rx) = iiif(&server);
+        show(&mut iiif, entry(&server, 1));
+        iiif.update(Action::ShowFullImage).unwrap();
+        let cached = tokio::time::timeout(Duration::from_millis(600), async {
+            loop {
+                if let Some(Action::Cached(ids)) = rx.recv().await {
+                    return ids;
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(cached, [1]);
     }
 
     #[tokio::test]
@@ -364,10 +450,7 @@ mod tests {
         iiif.update(Action::ShowFullImage).unwrap();
         tokio::time::sleep(Duration::from_millis(100)).await;
         show(&mut iiif, entry(&server, 2));
-        assert_eq!(
-            arrivals(&mut rx, Duration::from_millis(1200)).await,
-            [(2, false)]
-        );
+        assert_eq!(arrivals(&mut rx, Duration::from_millis(1200)).await, [0, 0]);
     }
 
     #[tokio::test]
@@ -377,23 +460,36 @@ mod tests {
         let (mut iiif, mut rx) = iiif(&server);
         show(&mut iiif, entry(&server, 1));
         iiif.update(Action::ShowFullImage).unwrap();
-        assert_eq!(
-            arrivals(&mut rx, Duration::from_millis(600)).await,
-            [(1, true)]
-        );
+        assert_eq!(arrivals(&mut rx, Duration::from_millis(600)).await, [0, 1]);
         show(&mut iiif, entry(&server, 2));
         show(&mut iiif, entry(&server, 1));
-        // At once, and no placeholder follows it.
-        assert_eq!(
-            arrivals(&mut rx, Duration::from_millis(400)).await,
-            [(1, true)]
-        );
+        // At once, with no clear before it.
+        assert_eq!(arrivals(&mut rx, Duration::from_millis(400)).await, [0, 1]);
         iiif.update(Action::ShowFullImage).unwrap();
         assert!(
             arrivals(&mut rx, Duration::from_millis(300))
                 .await
                 .is_empty()
         );
+    }
+
+    #[tokio::test]
+    async fn check_cached_answers_with_the_cached_ids() {
+        let server = MockServer::start().await;
+        full(2, Duration::ZERO).mount(&server).await;
+        let dir = cache_dir("check");
+        cache_image(&server, &dir, 2).await;
+        let catalog = catalog(&server, Some(dir));
+        let mut bare = entry(&server, 3);
+        bare.summary.image_id = None;
+        let entries = vec![entry(&server, 1), entry(&server, 2), bare];
+        assert_eq!(cached_ids(&catalog, &entries), [2]);
+        let (mut iiif, mut rx) = iiif_with(catalog);
+        iiif.update(Action::CheckCached(entries)).unwrap();
+        let answer = tokio::time::timeout(Duration::from_millis(500), rx.recv())
+            .await
+            .unwrap();
+        assert!(matches!(answer, Some(Action::Cached(ids)) if ids == [2]));
     }
 
     #[test]
@@ -408,5 +504,6 @@ mod tests {
         recent.put(99, image.clone());
         assert!(recent.get(1).is_some(), "a get counts as seeing it again");
         assert!(recent.get(2).is_none());
+        assert!(recent.contains(99));
     }
 }

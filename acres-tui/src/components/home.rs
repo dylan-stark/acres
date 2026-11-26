@@ -40,20 +40,9 @@ impl fmt::Debug for Decoded {
 }
 
 impl Decoded {
-    /// Decodes a JPEG, PNG or GIF, scaling a tiny one such as an `lqip` placeholder up smoothly.
+    /// Decodes a JPEG or PNG.
     pub fn decode(bytes: &[u8]) -> Result<Self> {
-        let mut image = image::load_from_memory(bytes)?.into_rgb8();
-        if (1..MIN_WIDTH).contains(&image.width()) {
-            let height = (u64::from(image.height()) * u64::from(UPSCALED_WIDTH)
-                / u64::from(image.width()))
-            .max(1);
-            image = image::imageops::resize(
-                &image,
-                UPSCALED_WIDTH,
-                u32::try_from(height).unwrap_or(u32::MAX),
-                image::imageops::FilterType::Triangle,
-            );
-        }
+        let image = image::load_from_memory(bytes)?.into_rgb8();
         let (Some(width), Some(height)) = (
             NonZeroU32::new(image.width()),
             NonZeroU32::new(image.height()),
@@ -75,13 +64,6 @@ impl Decoded {
         self.height.get()
     }
 }
-
-/// Images narrower than this, such as the few-pixel `lqip` placeholders, are scaled up smoothly
-/// before loading, so they read as soft color instead of a few hard blocks.
-const MIN_WIDTH: u32 = 64;
-
-/// The width tiny images are scaled up to.
-const UPSCALED_WIDTH: u32 = 256;
 
 /// The minimap's largest size in cells, in half blocks (ADR 0017).
 pub const MINIMAP: (u32, u32) = (16, 6);
@@ -107,8 +89,8 @@ pub struct Home {
     converter: Converter,
     /// The loaded image's size in pixels.
     image_size: Option<(NonZeroU32, NonZeroU32)>,
-    /// The artwork the image is of, so a new artwork resets the view and a full image replacing
-    /// its placeholder does not.
+    /// The artwork the image is of, so a new artwork resets the view and the same artwork's
+    /// image again does not.
     image_id: Option<u32>,
     /// Block glyphs to draw in place of characters, or `None` for ASCII.
     mode: Option<BlockMode>,
@@ -754,36 +736,16 @@ mod tests {
         home.update(Action::UpdateImage {
             id: 1,
             image: Decoded::decode(IMAGE).unwrap(),
-            full: true,
             timing: Timing::new("image 1").stage("fetch", Duration::ZERO),
         })
         .unwrap();
         home
     }
 
-    /// La Grande Jatte's `lqip` placeholder from the API, 8x5 pixels.
-    const LQIP: &str = "R0lGODlhCAAFAPUAAE1WUFVTU1NWUFZYVllbVlpaW1tcWF1cXVxiWl1jWl9mX2NmVWVnXF9eZlxdaGZkYmpmZWRtYGZuY2htZGpsanBsZXVwZXB5Znp+ZXJwaYSAaYiBaYqIbIeAdI2DcYqFcI+FcoiCd5iRcouJgIyKhoyNi4mMjo2RkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAIAAUAAAYlwBLmMmEkCAHTaRTqfB4QEmgj8mgaGY6lsohIHAXKwQBQIAaCIAA7";
-
     #[test]
-    fn a_tiny_placeholder_is_scaled_up_to_fill_the_pane() {
-        use base64::Engine;
-        let gif = base64::engine::general_purpose::STANDARD
-            .decode(LQIP)
-            .unwrap();
-        let mut home = Home::with_depth(ColorDepth::TrueColor);
-        home.update(Action::UpdateImage {
-            id: 27992,
-            image: Decoded::decode(&gif).unwrap(),
-            full: false,
-            timing: Timing::new("image 27992").stage("fetch", Duration::ZERO),
-        })
-        .unwrap();
-        let (w, _) = home.image_size.unwrap();
-        assert_eq!(w.get(), UPSCALED_WIDTH);
-        // A tall pane, so the width is what limits the fit.
-        render(&mut home, 40, 40);
-        assert_eq!(home.blocks.cols(), 40, "fills the pane's width");
-
+    fn clear_empties_the_pane() {
+        let mut home = with_image();
+        assert!(!render(&mut home, 40, 12).trim().is_empty());
         home.update(Action::ClearImage).unwrap();
         assert!(render(&mut home, 40, 12).trim().is_empty());
     }
@@ -819,7 +781,6 @@ mod tests {
         home.update(Action::UpdateImage {
             id: 7,
             image: Decoded::decode(IMAGE).unwrap(),
-            full: true,
             timing: Timing::new("image 7").stage("fetch", Duration::ZERO),
         })
         .unwrap();
@@ -1044,7 +1005,6 @@ mod tests {
         let again = |id| Action::UpdateImage {
             id,
             image: image.clone(),
-            full: true,
             timing: Timing::new("image"),
         };
         home.update(again(1)).unwrap();

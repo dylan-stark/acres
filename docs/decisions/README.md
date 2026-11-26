@@ -23,3 +23,4 @@ Short records of non-obvious decisions, so a later reader (human or agent) knows
 | [0014](0014-charaoke-block-modes.md) | `charaoke` adds half-block and quadrant modes | Accepted |
 | [0016](0016-acres-catalog-client.md) | `acres` catalog client | Accepted |
 | [0017](0017-tui-zoom-and-pan.md) | Zoom and pan in the art pane | Accepted |
+| [0018](0018-tui-browse-cached-images.md) | Browse cached images instead of placeholders | Accepted |

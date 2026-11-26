@@ -228,6 +228,24 @@ impl Catalog {
         self.raw(request, Resource::Image).await
     }
 
+    /// The image for `request` if it is in the cache, read without touching the network or the
+    /// rate limit, even when online. With the cache turned off, nothing is cached.
+    pub fn cached_image(&self, request: &iiif::ImageRequest) -> Result<Option<Bytes>, Error> {
+        Ok(self
+            .inner
+            .cache
+            .load(&request.to_string(), Resource::Image)?)
+    }
+
+    /// Whether the image for `request` is in the cache: one `stat`, with no read and no request.
+    /// A cache file that cannot be checked counts as not cached.
+    pub fn has_cached_image(&self, request: &iiif::ImageRequest) -> bool {
+        self.inner
+            .cache
+            .contains(&request.to_string(), Resource::Image)
+            .unwrap_or(false)
+    }
+
     /// Fetches `endpoint` and parses the body as `T`.
     pub async fn get<T: DeserializeOwned>(
         &self,

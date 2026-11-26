@@ -5,15 +5,24 @@ use ratatui::{
     Frame,
     layout::Rect,
     style::{Modifier, Style, palette::tailwind::SLATE},
+    text::{Line, Span},
     widgets::{HighlightSpacing, List, ListItem, ListState},
 };
 
 use super::{Component, pane_block};
 use crate::entry::Entry;
 
+/// Marks a row whose image is in the disk cache.
+pub const CACHED: &str = "•";
+
+/// Marks a row whose image would need a fetch.
+pub const NOT_CACHED: &str = "◦";
+
 /// The results pane: the artworks loaded, narrowed by the last search, with one selected.
 ///
-/// Saved artworks are marked with `*`. The same pane lists the saved list, titled Saved.
+/// A dim [`CACHED`] or [`NOT_CACHED`] before each title says whether its image is on disk
+/// (ADR 0018), and saved artworks are marked with `*`. The same pane lists the saved list, titled
+/// Saved.
 #[derive(Default, Clone)]
 pub struct Results {
     artworks: Vec<Entry>,
@@ -26,6 +35,8 @@ pub struct Results {
     area: Rect,
     /// Ids of saved artworks, marked in the list.
     marked: HashSet<u32>,
+    /// Ids of artworks whose image is in the disk cache.
+    cached: HashSet<u32>,
     /// Whether this lists the saved artworks, which titles the pane Saved.
     pub saved_view: bool,
     pub focused: bool,
@@ -139,6 +150,11 @@ impl Results {
         self.marked = saved.into_iter().collect();
     }
 
+    /// Marks these artworks as having their image cached.
+    pub fn mark_cached(&mut self, cached: &HashSet<u32>) {
+        self.cached.clone_from(cached);
+    }
+
     /// Selects the artwork `id` if it is listed, else the row where the selection was, so
     /// removing a row moves the selection to the next one. Returns the artwork now selected.
     pub fn reselect(&mut self, id: Option<u32>, row: usize) -> Option<Entry> {
@@ -165,16 +181,30 @@ impl Component for Results {
         let block = pane_block(2, name, self.focused);
         self.area = block.inner(area);
         self.rows = self.area.height;
+        let dim = Style::new().fg(SLATE.c500);
         let items: Vec<ListItem> = self
             .shown
             .iter()
             .map(|&i| {
                 let artwork = &self.artworks[i];
-                if !self.saved_view && self.marked.contains(&artwork.id()) {
-                    ListItem::new(format!("* {}", artwork.title()))
+                let glyph = if artwork.summary.image_id.is_none() {
+                    " "
+                } else if self.cached.contains(&artwork.id()) {
+                    CACHED
                 } else {
-                    ListItem::new(artwork.title())
-                }
+                    NOT_CACHED
+                };
+                let star = if !self.saved_view && self.marked.contains(&artwork.id()) {
+                    "* "
+                } else {
+                    ""
+                };
+                ListItem::new(Line::from(vec![
+                    Span::styled(glyph, dim),
+                    Span::raw(" "),
+                    Span::raw(star),
+                    Span::raw(artwork.title()),
+                ]))
             })
             .collect();
         let highlight = Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD);
@@ -207,6 +237,15 @@ mod tests {
     fn renders_the_list_with_the_first_selected() {
         let mut results = results();
         results.focused = true;
+        insta::assert_snapshot!(render(&mut results, 40, 8));
+    }
+
+    #[test]
+    fn rows_say_whether_their_image_is_cached() {
+        let mut results = results();
+        let ids: Vec<u32> = results.artworks().iter().map(Entry::id).collect();
+        results.mark([ids[1]]);
+        results.mark_cached(&HashSet::from([ids[0], ids[1]]));
         insta::assert_snapshot!(render(&mut results, 40, 8));
     }
 

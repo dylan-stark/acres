@@ -14,7 +14,7 @@
       "shift-tab": "FocusPrevious", // Focus the previous pane
       "<n>": "NextArtwork", // Select the next artwork, from any pane
       "<p>": "PreviousArtwork", // Select the previous artwork, from any pane
-      "<space>": "ShowFullImage", // Fetch and show the full image, not the placeholder
+      "<space>": "ShowFullImage", // Fetch and show the full image
       "<o>": "OpenInBrowser", // Open the artwork's page on artic.edu
       "<y>": "CopyLink", // Copy the link to the artwork's page
       "<f>": "OpenFilters", // Filter the search: image, public domain, on view, department, type, years

@@ -37,7 +37,6 @@ fn explorer(cycles: usize, keys: &[Action]) -> Explorer {
         .update(Action::UpdateImage {
             id: 27992,
             image: Decoded::decode(IMAGE).expect("fixture decodes"),
-            full: true,
             timing: Timing::new("image 27992"),
         })
         .unwrap();

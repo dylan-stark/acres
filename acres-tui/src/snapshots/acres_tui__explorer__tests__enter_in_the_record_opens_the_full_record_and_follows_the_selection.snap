@@ -6,11 +6,11 @@ expression: "render(&mut explorer, 100, 24)"
 │/ to search titles                                                                                │
 └────┌ Full record ───────────────────────────────────────────────────────────────────────────┐────┘
 ┌[2] │A Sunday on La Grande Jatte — 1884                                                      │────┐
-│> A │                                                                                        │de  │
-│  Th│id     27992                                                                            │    │
-│  Wa│image  2d484387-2509-5e8e-2c43-22f9981972eb                                             │    │
-│  Th│                                                                                        │    │
-│  Pa│───                                                                                     │    │
+│> ◦ │                                                                                        │de  │
+│  ◦ │id     27992                                                                            │    │
+│  ◦ │image  2d484387-2509-5e8e-2c43-22f9981972eb                                             │    │
+│  ◦ │                                                                                        │    │
+│  ◦ │───                                                                                     │    │
 │    │                                                                                        │2c43│
 │    │Dimensions                                                                              │    │
 │    │207.5 × 308.1 cm                                                                        │    │

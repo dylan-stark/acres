@@ -1,7 +1,7 @@
 //! What the explorer lists: one artwork, and the IIIF server its image is on.
 
 use acres::{ApiConfig, artworks::ArtworkSummary};
-use base64::Engine;
+use iiif::{Format, ImageRequest, Quality, Region, Rotation, Size};
 
 /// The built-in Highlights, the start screen's well-known public-domain works (ADR 0013).
 ///
@@ -13,6 +13,9 @@ pub const HIGHLIGHTS: &str = include_str!("../highlights.json");
 pub fn highlights() -> Vec<u32> {
     serde_json::from_str(HIGHLIGHTS).expect("highlights.json is a list of ids")
 }
+
+/// Width of the full image: the AIC's recommended size, which it serves for every artwork.
+pub const FULL_WIDTH: u32 = 843;
 
 /// One artwork in a list.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -42,13 +45,21 @@ impl Entry {
         self.config.artwork_url(self.summary.id)
     }
 
-    /// The record's `lqip` placeholder, a GIF a few pixels across, decoded from its data URI.
-    ///
-    /// It comes with the list, so showing it costs no request. A saved `Artworks` file has none.
-    pub fn placeholder(&self) -> Option<Vec<u8>> {
-        let uri = self.summary.thumbnail.as_ref()?.lqip.as_deref()?;
-        let (_, data) = uri.split_once(";base64,")?;
-        base64::engine::general_purpose::STANDARD.decode(data).ok()
+    /// The request for the full image, if the artwork has one. It is the one request the TUI
+    /// makes for an image, so it is also what the cache is checked for (ADR 0018).
+    pub fn image_request(&self) -> Option<ImageRequest> {
+        Some(
+            ImageRequest::builder()
+                .base_uri(self.base_uri()?)
+                .region(Region::Full)
+                .size(Size::Width(FULL_WIDTH))
+                .rotation(Rotation::Degrees(
+                    0.0.try_into().expect("0 degrees is a valid setting"),
+                ))
+                .quality(Quality::Default)
+                .format(Format::Jpg)
+                .build(),
+        )
     }
 
     /// The artworks in `text`: a saved list (`saved.json`), or an `Artworks` JSON as
@@ -124,30 +135,15 @@ mod tests {
             entry.base_uri().unwrap().to_string(),
             "https://www.artic.edu/iiif/2/abc"
         );
+        assert_eq!(
+            entry.image_request().unwrap().to_string(),
+            "https://www.artic.edu/iiif/2/abc/full/843,/0/default.jpg"
+        );
         let no_image = Entry {
             summary: ArtworkSummary::default(),
             ..entry
         };
         assert_eq!(no_image.base_uri(), None);
-    }
-
-    #[test]
-    fn placeholder_decodes_the_lqip_data_uri() {
-        let with = |lqip: &str| Entry {
-            summary: ArtworkSummary {
-                thumbnail: Some(acres::artworks::Thumbnail {
-                    lqip: Some(lqip.into()),
-                    ..Default::default()
-                }),
-                ..ArtworkSummary::default()
-            },
-            ..Entry::default()
-        };
-        assert_eq!(
-            with("data:image/gif;base64,R0lGODlh").placeholder(),
-            Some(b"GIF89a".to_vec())
-        );
-        assert_eq!(with("not a data uri").placeholder(), None);
-        assert_eq!(Entry::default().placeholder(), None);
+        assert!(no_image.image_request().is_none());
     }
 }

@@ -5,7 +5,6 @@ expression: "render(&mut help, 60, 50)"
 
 
 
-
   ┌ Keys ────────────────────────────────────────────────┐
   │Results                                               │
   │  enter    show the full image                        │
@@ -47,4 +46,7 @@ expression: "render(&mut help, 60, 50)"
   │  ctrl-c     quit without asking                      │
   │  ctrl-z     suspend                                  │
   │  esc        close                                    │
+  │                                                      │
+  │Marks                                                 │
+  │  • image on disk  ◦ needs a fetch  * saved           │
   └ ? or esc to close ───────────────────────────────────┘
