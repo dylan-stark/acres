@@ -1090,12 +1090,19 @@ mod tests {
         after(&mut home, 60, 20, &actions);
         // At the right edge of a 60x20 frame, then onto a wider one, which shows more of the
         // image at the same zoom, so that center would put the view past the edge.
-        home.update(Action::SetFrame(FrameSize::Custom { cols: 120, rows: 20 }))
-            .unwrap();
+        home.update(Action::SetFrame(FrameSize::Custom {
+            cols: 120,
+            rows: 20,
+        }))
+        .unwrap();
         render(&mut home, 120, 20);
         let drawn = home.rendered_view;
         let middle = drawn.x() + drawn.width() / 2.0;
-        assert!((home.view.center.0 - middle).abs() < 1e-9, "{:?}", home.view);
+        assert!(
+            (home.view.center.0 - middle).abs() < 1e-9,
+            "{:?}",
+            home.view
+        );
         // So a pan moves one cell, not first back to the edge.
         home.update(Action::PanLeft).unwrap();
         render(&mut home, 120, 20);
