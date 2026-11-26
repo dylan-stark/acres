@@ -32,7 +32,7 @@ The art pane shows a **view** of the 843-pixel image we already fetch: a rectang
 
 - **Fit** is today's behavior: the whole image, letterboxed.
 - **Fill** scales the image until it covers the frame and crops the overflow, centered.
-- **Zoom** multiplies the scale by 1.25 a step, about the view's center (keys) or the cell under the pointer (scroll). Zoom out stops at fit. Zoom in keeps going past one image pixel per output pixel, so each image pixel grows into a flat block, and stops when the view is 16 image pixels across.
+- **Zoom** multiplies the scale by 1.25 a step, about the view's center (keys) or the cell under the pointer (scroll). Zoom out stops at fit. Zoom in keeps going past one image pixel per output pixel, so each image pixel grows into a flat block, and stops when the view is 16 image pixels across. Past 1:1 the steps are whole numbers of output pixels per image pixel (1, 2, 3, 4 and so on) rather than 1.25x, so every block is the same size: at a scale such as 2.4x, image pixels would alternate between 2 and 3 output pixels. The mode sets what an output pixel is (a cell in ASCII, half a cell in half blocks, a quarter in quadrants), so changing mode re-snaps the zoom. `View` stays in fractions of the image; only the TUI's choice of zoom levels snaps.
 - **Pan** moves the center, clamped so the view never shows past the image's edge, except along an axis where the whole image already fits.
 - **Zen matches the pane.** If the pane is in fit, zen opens in fit, and a fill or zoom carries over both ways.
 - **Nothing is remembered.** Moving to another artwork goes back to fit. Zooming is play; saved views (below) are the way back to a crop, and saving one never changes the default.
