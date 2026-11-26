@@ -107,6 +107,16 @@ Each is recorded on the M1 Air and the Ryzen 9700X.
 | `tui/frame/zen_pan/{half,quadrant,ascii}` (step 2) | Whole zen frame, panning one step every frame at 4x | Under 8 ms |
 | `tui/frame/zen/*`, `tui/frame/explorer/*` (existing) | Today's frames | No regression in `make bench-compare` against `main` |
 
+Step 1 results, median per render (ascii / half / quadrant):
+
+| Bench | M1 Air | Ryzen 9700X |
+| --- | --- | --- |
+| `charaoke/view/fit` | 0.53 / 0.56 / 0.97 ms | 0.34 / 0.46 / 0.77 ms |
+| `charaoke/view/fill` | 0.46 / 0.50 / 0.96 ms | 0.32 / 0.42 / 0.82 ms |
+| `charaoke/view/zoom4` | 0.12 / 0.15 / 0.44 ms | 0.10 / 0.14 / 0.42 ms |
+
+Against `main`, every `charaoke/*` bench on the Air moved by under 1.5%. The Ryzen moved both ways: `render/843x632` got 6 to 10% faster, while `render_blocks/843x632` got 4 to 31% slower (half at 80 columns is worst, 0.27 to 0.35 ms) and `ansi/*/truecolor` got up to 9% slower. We read the Ryzen swings as code layout, not more work: the `ansi` code did not change at all, and counting instructions with Cachegrind on x86-64 shows the same work per render as `main` (half at 80 columns 0.6% fewer instructions, quadrant 0.7% fewer, ASCII 0.8% more). Every render stays far inside the 8 ms budget.
+
 ### Rollout
 
 Three steps, each its own branch and PR from `main`, squash-merged:
