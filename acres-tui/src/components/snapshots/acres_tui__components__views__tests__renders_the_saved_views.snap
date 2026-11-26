@@ -1,0 +1,10 @@
+---
+source: acres-tui/src/components/views.rs
+expression: "render(&mut list, 60, 8)"
+---
+
+
+  ┌ Views · The Great Wave ──────────────────────────────┐
+  │-Fuji   fill 3.2x · 20x12                             │
+  │ whole  fit                                           │
+  └──────────────────── enter show · e rename · x delete ┘

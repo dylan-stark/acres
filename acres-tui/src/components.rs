@@ -27,6 +27,7 @@ pub mod record;
 pub mod results;
 pub mod search;
 pub mod status;
+pub mod views;
 
 #[cfg(test)]
 pub(crate) mod test_support;

@@ -73,6 +73,9 @@
       "<0>": "FitArt", // Fit the whole image
       "<F>": "FillArt", // Fill the frame, cropping the overflow
       "<S>": "PickFrame", // Pick the frame size: pane, screen, stamp, postcard or custom
+      "<v>": "SaveView", // Save this view under a name, saving the artwork too
+      "<V>": "ListViews", // List the artwork's saved views: show, rename (e) or delete (x)
+      "<X>": "ExportArt", // Export the art as .ans (and .txt in ASCII) to exports/ in the data directory
     },
     "Record": {
       "<d>": "ToggleFullRecord", // Expand the wall label to the full record, or collapse it
@@ -105,7 +108,8 @@
       "left": "PreviousOption",
       "<l>": "NextOption",
       "right": "NextOption",
-      "<Ctrl-u>": "ClearSearch", // Reset the filters, or clear the note
+      "<Ctrl-u>": "ClearSearch", // Reset the filters, or clear the note or view name
+      "<x>": "DeleteView", // Delete the highlighted saved view
     },
   }
 }

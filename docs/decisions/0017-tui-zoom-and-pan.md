@@ -77,7 +77,7 @@ In the `Art` context, which zen also uses:
 
 ### Saved views and export
 
-- `v` saves the current view under a name (a one-line prompt, default `view N`), saving the artwork first if needed. An artwork keeps several named views. `V` lists them, newest first: `enter` jumps to one, `e` renames it, `x` deletes it. The status bar names the view showing, such as `view: Fuji`.
+- `v` saves the current view under a name (a one-line prompt, default `view N`), saving the artwork first if needed. An artwork keeps several named views. `V` lists them, newest first: `enter` jumps to one (fetching the full image if needed), `e` renames it, `x` deletes it. A pan, zoom, fit, fill or new frame clears the name. The status bar names the view showing, such as `view: Fuji`.
 - Each saved entry in `saved.json` gains an optional `views` list, so the file stays at version 1:
 
   ```json
@@ -87,7 +87,7 @@ In the `Art` context, which zen also uses:
   ```
 
   `center` is in fractions of the image and `zoom` is relative to `base` (fit or fill), so a view comes back the same on any terminal size, as closely as the new frame's aspect allows. `frame` is `[cols, rows]` for a custom frame and absent for Pane or Screen.
-- `X` writes exactly the frame's cells, in the current mode and colors, to `exports/<id>-<YYYYMMDDTHHMMSS>.ans` in the data directory with `Cells::write_ansi` or `Blocks::write_ansi`, plus a plain `.txt` in ASCII mode. A Stamp export is a 20 x 12 vignette you can `cat` anywhere. PNG export would need a font rasterizer and is left for later.
+- `X` writes exactly the art drawn on the frame (the whole frame once it is filled or zoomed, and the art without its letterbox bands at fit), in the current mode and colors, to `exports/<id>-<YYYYMMDDTHHMMSS>.ans` in the data directory with `Cells::write_ansi` or `Blocks::write_ansi`, plus a plain `.txt` in ASCII mode. A Stamp export is a 20 x 12 vignette you can `cat` anywhere. PNG export would need a font rasterizer and is left for later.
 
 ### In `charaoke`
 
