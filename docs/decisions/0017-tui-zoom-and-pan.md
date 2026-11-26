@@ -119,6 +119,16 @@ Step 1 results, median per render (ascii / half / quadrant):
 
 Against `main`, every `charaoke/*` bench on the Air moved by under 1.5%. The Ryzen moved both ways: `render/843x632` got 6 to 10% faster, while `render_blocks/843x632` got 4 to 31% slower (half at 80 columns is worst, 0.27 to 0.35 ms) and `ansi/*/truecolor` got up to 9% slower. We read the Ryzen swings as code layout, not more work: the `ansi` code did not change at all, and counting instructions with Cachegrind on x86-64 shows the same work per render as `main` (half at 80 columns 0.6% fewer instructions, quadrant 0.7% fewer, ASCII 0.8% more). Every render stays far inside the 8 ms budget.
 
+Step 2 results, median per frame (half / quadrant / ascii):
+
+| Bench | M1 Air | Ryzen 9700X |
+| --- | --- | --- |
+| `tui/frame/zen_pan` | 0.62 / 0.94 / 0.54 ms | 0.44 / 0.76 / 0.34 ms |
+| `tui/frame/zen` | 0.41 / 0.41 / 0.41 ms | 0.27 / 0.27 / 0.22 ms |
+| `tui/frame/explorer` | 0.36 / 0.36 / 0.36 ms | 0.22 / 0.22 / 0.21 ms |
+
+Panning a zoomed zen frame costs more than a fit because the fill-sized art covers all 200 x 60 cells, and it stays under a ninth of the budget. Against `main`, `zen` is flat or faster on both machines. `explorer` is 1 to 2% slower on the Ryzen and 1 to 6% faster on the Air. `help` is 4 to 6% slower on both, about 13 µs on the Ryzen, which we read as the extra layout work each frame now does (the pane's size for the frames, and centering the art on its frame), not anything help draws.
+
 ### Rollout
 
 Three steps, each its own branch and PR from `main`, squash-merged:
