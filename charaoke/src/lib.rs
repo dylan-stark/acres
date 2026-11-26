@@ -10,7 +10,9 @@
 //! [`Cells`], which can be written as plain text or as ANSI-colored text (see ADR 0010).
 //! [`render_blocks`](Converter::render_blocks) instead splits each cell into pixels and draws half
 //! or quadrant block glyphs in two colors, as [`Blocks`] (see ADR 0014). Re-rendering at a new size
-//! reuses every buffer.
+//! reuses every buffer. [`render_view`](Converter::render_view) and
+//! [`render_blocks_view`](Converter::render_blocks_view) draw only a [`View`] of the image, to crop,
+//! zoom and pan (see ADR 0017).
 //!
 //! ```rust
 //! use std::num::NonZeroU32;
@@ -41,6 +43,7 @@ mod convert;
 mod error;
 mod grid;
 mod ramp;
+mod view;
 
 pub use self::blocks::{Blocks, QUADRANTS};
 pub use self::cells::{Cells, ColorDepth, ansi256};
@@ -48,3 +51,4 @@ pub use self::convert::{BlockMode, Converter, PixelFormat};
 pub use self::error::Error;
 pub use self::grid::{CELL_ASPECT, Grid};
 pub use self::ramp::Ramp;
+pub use self::view::View;

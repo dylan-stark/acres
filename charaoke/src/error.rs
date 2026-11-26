@@ -1,8 +1,8 @@
 use std::fmt;
 
-/// Errors from building a [`Ramp`](crate::Ramp) or loading an image into a
-/// [`Converter`](crate::Converter).
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Errors from building a [`Ramp`](crate::Ramp) or a [`View`](crate::View), or loading an image
+/// into a [`Converter`](crate::Converter).
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Error {
     /// The ramp has no characters.
@@ -18,6 +18,17 @@ pub enum Error {
     },
     /// The image is wider than a row of cells can sum without overflow.
     ImageTooWide(u32),
+    /// A [`View`](crate::View) that is not a finite, non-empty rectangle within the image.
+    InvalidView {
+        /// Left edge, or center for [`View::centered`](crate::View::centered).
+        x: f64,
+        /// Top edge, or center.
+        y: f64,
+        /// Width.
+        width: f64,
+        /// Height.
+        height: f64,
+    },
 }
 
 impl fmt::Display for Error {
@@ -29,6 +40,15 @@ impl fmt::Display for Error {
                 write!(f, "expected {expected} bytes of pixels, got {actual}")
             }
             Error::ImageTooWide(width) => write!(f, "image width {width} is too large"),
+            Error::InvalidView {
+                x,
+                y,
+                width,
+                height,
+            } => write!(
+                f,
+                "view {width} x {height} at {x}, {y} is not a rectangle within the image"
+            ),
         }
     }
 }

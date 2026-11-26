@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use crate::{Blocks, Cells, Error, Grid, Ramp};
+use crate::{Blocks, Cells, Error, Grid, Ramp, View, view::Window};
 
 /// Widest image a converter accepts: a row segment's sum must fit in a `u32`.
 const MAX_WIDTH: u32 = u32::MAX / 255;
@@ -129,6 +129,33 @@ impl Converter {
     /// grid is finer than the image, neighboring cells share pixels. With no image loaded, `cells`
     /// is left empty.
     pub fn render(&mut self, grid: Grid, cells: &mut Cells) {
+        self.render_view(grid, View::FULL, cells);
+    }
+
+    /// Renders `view` of the loaded image onto `grid`, replacing the contents of `cells`.
+    ///
+    /// The view is stretched over the whole grid, so its proportions should match the grid's
+    /// (see [`View::fill`]). Cells average the image pixels under them as in
+    /// [`render`](Self::render). A view narrower than the grid repeats each image pixel across
+    /// neighboring cells, so it draws as flat blocks.
+    ///
+    /// ```rust
+    /// use std::num::NonZeroU32;
+    /// use charaoke::{Cells, Converter, Grid, PixelFormat, View};
+    ///
+    /// let nz = |n| NonZeroU32::new(n).unwrap();
+    /// // A 4x2 image: black on the left half, white on the right.
+    /// let pixels = [0, 0, 255, 255, 0, 0, 255, 255];
+    /// let mut converter = Converter::default();
+    /// converter.set_image(&pixels, nz(4), nz(2), PixelFormat::Luma8).unwrap();
+    ///
+    /// // The right half only, stretched over four cells.
+    /// let view = View::new(0.5, 0.0, 0.5, 1.0).unwrap();
+    /// let mut cells = Cells::default();
+    /// converter.render_view(Grid::fit(nz(4), nz(2), nz(4)), view, &mut cells);
+    /// assert_eq!(cells.chars(), b"@@@@");
+    /// ```
+    pub fn render_view(&mut self, grid: Grid, view: View, cells: &mut Cells) {
         cells.clear();
         if self.rgb.is_empty() {
             return;
@@ -136,12 +163,20 @@ impl Converter {
         let (cols, rows) = (grid.cols() as usize, grid.rows() as usize);
         cells.reserve(cols, rows);
         let ramp = &self.ramp;
-        self.scratch
-            .mean_rows(&self.rgb, self.width, self.height, cols, rows, |means| {
+        let window = view.window(self.width, self.height);
+        self.scratch.mean_rows(
+            &self.rgb,
+            self.width,
+            self.height,
+            window,
+            cols,
+            rows,
+            |means| {
                 for &mean in means {
                     cells.push(ramp.lookup(bt601(&mean)), mean);
                 }
-            });
+            },
+        );
     }
 
     /// Renders the loaded image onto `grid` as block glyphs, replacing the contents of `blocks`.
@@ -169,6 +204,21 @@ impl Converter {
     /// assert_eq!((blocks.foreground()[0], blocks.background()[0]), ([0; 3], [255; 3]));
     /// ```
     pub fn render_blocks(&mut self, grid: Grid, mode: BlockMode, blocks: &mut Blocks) {
+        self.render_blocks_view(grid, View::FULL, mode, blocks);
+    }
+
+    /// Renders `view` of the loaded image onto `grid` as block glyphs, replacing the contents of
+    /// `blocks`.
+    ///
+    /// The view is stretched over the grid as in [`render_view`](Self::render_view), and each
+    /// cell is drawn as in [`render_blocks`](Self::render_blocks).
+    pub fn render_blocks_view(
+        &mut self,
+        grid: Grid,
+        view: View,
+        mode: BlockMode,
+        blocks: &mut Blocks,
+    ) {
         blocks.clear();
         if self.rgb.is_empty() {
             return;
@@ -181,10 +231,12 @@ impl Converter {
         // Two rows of pixels make one row of cells, so keep the top row until its pair arrives.
         let mut top = std::mem::take(&mut self.top);
         top.clear();
+        let window = view.window(self.width, self.height);
         self.scratch.mean_rows(
             &self.rgb,
             self.width,
             self.height,
+            window,
             cols * px_w,
             rows * px_h,
             |means| {
@@ -300,26 +352,31 @@ struct Scratch {
 }
 
 impl Scratch {
-    /// Averages a `width` by `height` RGB image onto `cols` by `rows` cells, passing each row of
-    /// mean colors to `emit`, top to bottom.
+    /// Averages `window` of a `width` by `height` RGB image onto `cols` by `rows` cells, passing
+    /// each row of mean colors to `emit`, top to bottom.
+    #[allow(clippy::too_many_arguments)]
     fn mean_rows(
         &mut self,
         rgb: &[u8],
         w: usize,
         h: usize,
+        window: Window,
         cols: usize,
         rows: usize,
         mut emit: impl FnMut(&[[u8; 3]]),
     ) {
         // Pixel column bounds of each cell column, shared by every row.
         self.col_bounds.clear();
-        self.col_bounds.extend((0..=cols).map(|c| c * w / cols));
+        self.col_bounds
+            .extend((0..=cols).map(|c| Window::bound(window.x, window.width, c, cols).min(w)));
         self.sums.clear();
         self.sums.resize(cols, [0; 3]);
 
         for r in 0..rows {
-            let y0 = r * h / rows;
-            let y1 = ((r + 1) * h / rows).max(y0 + 1).min(h);
+            let y0 = Window::bound(window.y, window.height, r, rows).min(h);
+            let y1 = Window::bound(window.y, window.height, r + 1, rows)
+                .max(y0 + 1)
+                .min(h);
             let y0 = y0.min(y1 - 1);
 
             self.sums.fill([0; 3]);
@@ -513,5 +570,77 @@ mod tests {
                 actual: 5
             }
         );
+    }
+
+    /// A 4x4 grayscale image whose pixel at column `x`, row `y` is `16 * (4 y + x)`.
+    fn ramp4() -> Converter {
+        let pixels: Vec<u8> = (0..16).map(|i| i * 16).collect();
+        let mut converter = Converter::default();
+        converter
+            .set_image(&pixels, nz(4), nz(4), PixelFormat::Luma8)
+            .unwrap();
+        converter
+    }
+
+    #[test]
+    fn full_view_matches_render() {
+        let mut converter = ramp4();
+        let (mut a, mut b) = (Cells::default(), Cells::default());
+        for g in [grid(3, 2), grid(4, 2), grid(7, 5)] {
+            converter.render(g, &mut a);
+            converter.render_view(g, View::FULL, &mut b);
+            assert_eq!(a, b);
+        }
+    }
+
+    #[test]
+    fn a_view_crops_to_its_pixels() {
+        // The bottom-right 2x2 pixels (160, 176, 224, 240) onto one cell of each.
+        let mut converter = ramp4();
+        let view = View::new(0.5, 0.5, 0.5, 0.5).unwrap();
+        let mut cells = Cells::default();
+        converter.render_view(grid(2, 2), view, &mut cells);
+        let colors: Vec<u8> = cells.colors().iter().map(|c| c[0]).collect();
+        assert_eq!(colors, [160, 176, 224, 240]);
+    }
+
+    #[test]
+    fn a_zoomed_view_repeats_pixels_as_blocks() {
+        // One pixel (column 1, row 2: 144) stretched over a 3x2 grid.
+        let mut converter = ramp4();
+        let view = View::new(0.25, 0.5, 0.25, 0.25).unwrap();
+        let mut cells = Cells::default();
+        converter.render_view(grid(3, 2), view, &mut cells);
+        assert!(cells.colors().iter().all(|&c| c == [144; 3]));
+    }
+
+    #[test]
+    fn a_view_between_pixels_moves_in_steps_of_cells() {
+        // Two pixels across, on four cells: shifting by a quarter pixel moves one cell's worth.
+        let mut converter = ramp4();
+        let mut cells = Cells::default();
+        let row = |converter: &mut Converter, cells: &mut Cells, x: f64| {
+            let view = View::new(x, 0.0, 0.5, 0.25).unwrap();
+            converter.render_view(grid(4, 1), view, cells);
+            cells.colors().iter().map(|c| c[0]).collect::<Vec<u8>>()
+        };
+        assert_eq!(row(&mut converter, &mut cells, 0.0), [0, 0, 16, 16]);
+        assert_eq!(row(&mut converter, &mut cells, 0.125), [0, 16, 16, 32]);
+    }
+
+    #[test]
+    fn block_views_crop_too() {
+        let mut converter = ramp4();
+        let mut blocks = Blocks::default();
+        // The right column, top to bottom (48, 112, 176, 240), as two half blocks.
+        let view = View::new(0.75, 0.0, 0.25, 1.0).unwrap();
+        converter.render_blocks_view(grid(1, 2), view, BlockMode::Half, &mut blocks);
+        let fg: Vec<u8> = blocks.foreground().iter().map(|c| c[0]).collect();
+        let bg: Vec<u8> = blocks.background().iter().map(|c| c[0]).collect();
+        assert_eq!((fg, bg), (vec![48, 176], vec![112, 240]));
+        let mut full = Blocks::default();
+        converter.render_blocks(grid(2, 2), BlockMode::Quadrant, &mut full);
+        converter.render_blocks_view(grid(2, 2), View::FULL, BlockMode::Quadrant, &mut blocks);
+        assert_eq!(blocks, full);
     }
 }

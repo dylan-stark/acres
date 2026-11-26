@@ -22,3 +22,4 @@ Short records of non-obvious decisions, so a later reader (human or agent) knows
 | [0013](0013-tui-catalog-explorer.md) | TUI overhaul into a catalog explorer | Accepted |
 | [0014](0014-charaoke-block-modes.md) | `charaoke` adds half-block and quadrant modes | Accepted |
 | [0016](0016-acres-catalog-client.md) | `acres` catalog client | Accepted |
+| [0017](0017-tui-zoom-and-pan.md) | Zoom and pan in the art pane | Accepted |
