@@ -190,7 +190,10 @@ impl ArtView {
     }
 
     /// Keeps the view inside the image, and centered along an axis it already shows whole.
-    fn clamp_center(&mut self, image: Size, frame: Size, mode: Option<BlockMode>) {
+    ///
+    /// A new frame, size or mode changes how much of the image the view shows, so the art pane
+    /// clamps again before each render, and a pan after one starts from where the view is drawn.
+    pub fn clamp_center(&mut self, image: Size, frame: Size, mode: Option<BlockMode>) {
         let ((vw, vh), _) = extent(self.scale(image, frame, mode), image, frame);
         let clamp = |c: f64, size: f64| {
             if size >= 1.0 - EPS {

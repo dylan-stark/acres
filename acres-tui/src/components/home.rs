@@ -329,6 +329,8 @@ impl Home {
         };
         self.last_frame = Some((max_cols, max_rows));
         let image = self.image_size?;
+        self.view
+            .clamp_center(image, (max_cols, max_rows), self.mode);
         let (grid, view) = self.view.layout(image, (max_cols, max_rows), self.mode);
         self.rendered_view = view;
         let start = Instant::now();
@@ -1078,6 +1080,27 @@ mod tests {
         let after = at(home.rendered_view);
         assert!(home.rendered_view.width() < 0.7, "zoomed in");
         assert!((before.0 - after.0).abs() < 1e-9 && (before.1 - after.1).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_new_frame_keeps_the_center_where_the_view_is_drawn() {
+        let mut home = with_image_in(Some(BlockMode::Half));
+        let mut actions = vec![Action::ZoomIn; 8];
+        actions.extend(vec![Action::PanRightFar; 50]);
+        after(&mut home, 60, 20, &actions);
+        // At the right edge of a 60x20 frame, then onto a wider one, which shows more of the
+        // image at the same zoom, so that center would put the view past the edge.
+        home.update(Action::SetFrame(FrameSize::Custom { cols: 120, rows: 20 }))
+            .unwrap();
+        render(&mut home, 120, 20);
+        let drawn = home.rendered_view;
+        let middle = drawn.x() + drawn.width() / 2.0;
+        assert!((home.view.center.0 - middle).abs() < 1e-9, "{:?}", home.view);
+        // So a pan moves one cell, not first back to the edge.
+        home.update(Action::PanLeft).unwrap();
+        render(&mut home, 120, 20);
+        let cell = drawn.width() / 120.0;
+        assert!((drawn.x() - home.rendered_view.x() - cell).abs() < 1e-9);
     }
 
     #[test]
