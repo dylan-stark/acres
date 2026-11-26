@@ -51,7 +51,11 @@ impl App {
             frame_rate,
             components: vec![
                 // The explorer owns the screen and the keys; the others only fetch.
-                Box::new(Explorer::new(source, &config).with_saved(saved)),
+                Box::new(
+                    Explorer::new(source, &config)
+                        .with_saved(saved)
+                        .with_exports(get_data_dir().join("exports")),
+                ),
                 Box::new(Fetcher::new(action_tx.clone(), catalog.clone())),
                 Box::new(Iiif::new(action_tx.clone(), catalog)),
             ],

@@ -100,6 +100,14 @@ pub enum Action {
     FillArt,
     #[strum(message = "pick the frame size")]
     PickFrame,
+    #[strum(message = "save this view")]
+    SaveView,
+    #[strum(message = "list the saved views")]
+    ListViews,
+    #[strum(message = "export the art to a file")]
+    ExportArt,
+    #[strum(message = "delete the saved view")]
+    DeleteView,
     #[strum(message = "pick a ramp")]
     PickRamp,
     #[strum(message = "toggle timings")]

@@ -133,6 +133,8 @@ pub struct Home {
     clipped: bool,
     /// The whole image in half blocks, rendered once when it loads.
     minimap: Blocks,
+    /// The saved view showing, until the view changes.
+    view_name: Option<String>,
     /// When the view last panned or zoomed, so the minimap can fade.
     moved_at: Option<Instant>,
     depth: ColorDepth,
@@ -171,6 +173,7 @@ impl Home {
             clipped: false,
             minimap: Blocks::default(),
             moved_at: None,
+            view_name: None,
             depth,
             action_tx: None,
         }
@@ -199,8 +202,12 @@ impl Home {
             (Some(image), Some(frame)) => self.view.describe(image, frame, self.mode),
             _ => None,
         };
-        let parts: Vec<String> = view
+        let parts: Vec<String> = self
+            .view_name
+            .as_ref()
+            .map(|name| format!("view: {name}"))
             .into_iter()
+            .chain(view)
             .chain(self.frame.map(FrameSize::name))
             .collect();
         (!parts.is_empty()).then(|| parts.join(" · "))
@@ -210,6 +217,7 @@ impl Home {
     fn reset_view(&mut self) {
         self.view = ArtView::default();
         self.frame = None;
+        self.view_name = None;
         self.moved_at = None;
         self.rendered_for = None;
     }
@@ -217,7 +225,43 @@ impl Home {
     /// Re-renders for a view that moved, and shows the minimap for a while.
     fn moved(&mut self) {
         self.rendered_for = None;
+        self.view_name = None;
         self.moved_at = Some(Instant::now());
+    }
+
+    /// The view showing and its frame, to save.
+    pub fn current_view(&self) -> (ArtView, Option<FrameSize>) {
+        (self.view, self.frame)
+    }
+
+    /// Shows the saved view `name` of artwork `id`: `view` on `frame`, or on the default frame
+    /// for `None`. Setting the artwork keeps its image arriving later from resetting the view.
+    pub fn show_view(&mut self, id: u32, view: ArtView, frame: Option<FrameSize>, name: &str) {
+        self.image_id = Some(id);
+        self.view = view;
+        self.frame = frame;
+        self.rendered_for = None;
+        self.moved_at = None;
+        self.view_name = Some(name.to_string());
+    }
+
+    /// The art last drawn as ANSI text in its mode and colors, and as plain text in ASCII mode,
+    /// for `X` (ADR 0017). `None` when no art is showing.
+    pub fn export(&self) -> Option<(String, Option<String>)> {
+        let mut ansi = String::new();
+        match self.mode {
+            Some(_) if !self.blocks.is_empty() => {
+                self.blocks.write_ansi(self.depth, &mut ansi);
+                Some((ansi, None))
+            }
+            None if self.cells.cols() > 0 => {
+                self.cells.write_ansi(self.depth, &mut ansi);
+                let mut plain = String::new();
+                self.cells.write_plain(&mut plain);
+                Some((ansi, Some(plain)))
+            }
+            _ => None,
+        }
     }
 
     /// The image and frame sizes, once something was drawn.
@@ -592,6 +636,7 @@ impl Component for Home {
             Action::PanBy { cols, rows } => self.pan(cols.into(), rows.into()),
             Action::FitArt => {
                 self.view = ArtView::default();
+                self.view_name = None;
                 self.rendered_for = None;
             }
             Action::FillArt => {
@@ -600,6 +645,7 @@ impl Component for Home {
             }
             Action::SetFrame(frame) => {
                 self.frame = Some(frame);
+                self.view_name = None;
                 self.rendered_for = None;
             }
             Action::SetRamp(name) => match Ramp::preset(&name) {

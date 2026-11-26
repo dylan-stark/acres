@@ -13,6 +13,9 @@
 //! Every new list, from a search, a pivot (`A`, `D`) or a surprise (`R`), first pushes the one
 //! showing onto a history that `backspace` pops, with its cursor and pages. `'` swaps the list
 //! for the saved artworks, which `m` adds to and removes from and `e` notes.
+//!
+//! In the art, `v` saves the view under a name (saving the artwork too), `V` lists the saved
+//! views to show, rename or delete, and `X` exports the art to a file (ADR 0017).
 
 use acres::artworks::request::search::MAX_RESULTS;
 use color_eyre::Result;
@@ -42,10 +45,11 @@ use crate::{
         results::Results,
         search::Search,
         status::Status,
+        views::ViewList,
     },
     config::{Config, Context, KeyBindings, key_event_to_string, normalize},
     entry::Entry,
-    saved::SavedList,
+    saved::{SavedList, SavedView, now_rfc3339},
 };
 
 /// Where the list comes from.
@@ -155,6 +159,19 @@ pub enum Overlay {
     Note,
     /// Picks the art's frame size.
     Frames,
+    /// Names a view to save, or renames a saved one.
+    NameView,
+    /// The selected artwork's saved views.
+    Views,
+}
+
+/// What the view name being typed is for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Naming {
+    /// A new view of artwork `id`.
+    New(u32),
+    /// View `at` of artwork `id`, renamed.
+    Rename(u32, usize),
 }
 
 /// Where the last draw put each pane, for mapping mouse events.
@@ -197,6 +214,12 @@ pub struct Explorer {
     history: Vec<Snapshot>,
     saved: SavedList,
     note: NoteEditor,
+    /// Names saved views, with what the name is for.
+    namer: NoteEditor,
+    naming: Option<Naming>,
+    views: ViewList,
+    /// Where `X` writes, or `None` to keep exports off the disk.
+    exports: Option<std::path::PathBuf>,
     /// The state of the random numbers for surprises.
     seed: u64,
     art: Home,
@@ -256,6 +279,10 @@ impl Explorer {
             history: Vec::new(),
             saved: SavedList::in_memory(),
             note: NoteEditor::default(),
+            namer: NoteEditor::labelled("View"),
+            naming: None,
+            views: ViewList::default(),
+            exports: None,
             seed: clock_seed(),
             art,
             record,
@@ -281,6 +308,12 @@ impl Explorer {
     pub fn with_saved(mut self, saved: SavedList) -> Self {
         self.saved = saved;
         self.refresh_saved();
+        self
+    }
+
+    /// Writes exports from `X` into `dir`, created when first needed.
+    pub fn with_exports(mut self, dir: impl Into<std::path::PathBuf>) -> Self {
+        self.exports = Some(dir.into());
         self
     }
 
@@ -384,6 +417,7 @@ impl Explorer {
             (Some(Overlay::Filters), _) => &[],
             (Some(Overlay::Note), _) => &[],
             (Some(Overlay::Frames), _) => &[Action::Select, Action::Cancel],
+            (Some(Overlay::NameView | Overlay::Views), _) => &[],
             (Some(Overlay::Record), _) => &[Action::MoveDown, Action::NextArtwork, Action::Cancel],
             (None, Pane::Search) => &[Action::RunSearch, Action::EarlierQuery, Action::Cancel],
             (None, Pane::Results) if self.view == View::Saved => {
@@ -396,7 +430,7 @@ impl Explorer {
                 Action::ShowFullImage,
                 Action::ZoomIn,
                 Action::FillArt,
-                Action::PickFrame,
+                Action::SaveView,
                 Action::ToggleZen,
             ],
             (None, Pane::Record) => &[
@@ -726,6 +760,162 @@ impl Explorer {
         self.show_record(self.results.selected().cloned());
     }
 
+    /// Opens the editor that names a new view of the selected artwork, `view N` to start.
+    fn name_view(&mut self) {
+        let Some(artwork) = self.results.selected() else {
+            return;
+        };
+        let id = artwork.id();
+        let title = artwork.title().to_string();
+        let name = format!("view {}", self.saved.views(id).len() + 1);
+        self.open_namer(id, &title, &name, Naming::New(id));
+    }
+
+    fn open_namer(&mut self, id: u32, title: &str, name: &str, naming: Naming) {
+        self.namer.open(id, title, Some(name));
+        self.namer.save_keys = self.keys_for(Context::Overlay, &Action::Select);
+        self.namer.cancel_keys = self.keys_for(Context::Overlay, &Action::Cancel);
+        if self.namer.cancel_keys.is_empty() {
+            self.namer.cancel_keys = self.keys_for(Context::Global, &Action::Cancel);
+        }
+        self.naming = Some(naming);
+        self.overlay = Some(Overlay::NameView);
+    }
+
+    /// Saves the view under the name typed, or renames the saved view.
+    fn save_view_name(&mut self) {
+        self.overlay = None;
+        let name = self.namer.text().trim().to_string();
+        match self.naming.take() {
+            Some(Naming::New(id)) => {
+                let Some(artwork) = self.results.selected().cloned() else {
+                    return;
+                };
+                if artwork.id() != id {
+                    return;
+                }
+                let name = if name.is_empty() {
+                    format!("view {}", self.saved.views(id).len() + 1)
+                } else {
+                    name
+                };
+                let (view, frame) = self.art.current_view();
+                match self
+                    .saved
+                    .add_view(&artwork, SavedView::new(&name, view, frame))
+                {
+                    Ok(()) => {
+                        self.art.show_view(id, view, frame, &name);
+                        self.echo = Some(format!("saved view {name}"));
+                    }
+                    Err(error) => self.echo = Some(format!("could not save the view: {error:#}")),
+                }
+                self.refresh_saved();
+            }
+            Some(Naming::Rename(id, at)) => {
+                if let Err(error) = self.saved.rename_view(id, at, &name) {
+                    self.echo = Some(format!("could not rename the view: {error:#}"));
+                }
+                self.list_views();
+            }
+            None => {}
+        }
+    }
+
+    /// Opens the selected artwork's saved views, or says how to save one.
+    fn list_views(&mut self) {
+        let Some(artwork) = self.results.selected() else {
+            return;
+        };
+        let (id, title) = (artwork.id(), artwork.title().to_string());
+        if self.saved.views(id).is_empty() {
+            let save = self
+                .key_for(Context::Art, &Action::SaveView)
+                .unwrap_or_else(|| "v".into());
+            self.echo = Some(format!(
+                "no saved views of this artwork; save one with {save}"
+            ));
+            self.overlay = None;
+            return;
+        }
+        self.views.open(&title, self.saved.views(id));
+        let key = |action| self.key_for(Context::Overlay, action).unwrap_or_default();
+        self.views.keys = format!(
+            "{} show · {} rename · {} delete",
+            key(&Action::Select),
+            key(&Action::EditNote),
+            key(&Action::DeleteView)
+        );
+        self.overlay = Some(Overlay::Views);
+    }
+
+    /// Shows the highlighted saved view, with the full image.
+    fn show_view(&mut self) -> Option<Action> {
+        let id = self.results.selected()?.id();
+        let saved = self.saved.views(id).get(self.views.selected()?)?.clone();
+        let (view, frame) = saved.view();
+        self.art.show_view(id, view, frame, &saved.name);
+        self.overlay = None;
+        Some(Action::ShowFullImage)
+    }
+
+    fn rename_view(&mut self) {
+        let Some(artwork) = self.results.selected() else {
+            return;
+        };
+        let (id, title) = (artwork.id(), artwork.title().to_string());
+        let Some(at) = self.views.selected() else {
+            return;
+        };
+        let Some(name) = self.saved.views(id).get(at).map(|v| v.name.clone()) else {
+            return;
+        };
+        self.open_namer(id, &title, &name, Naming::Rename(id, at));
+    }
+
+    fn delete_view(&mut self) {
+        let (Some(id), Some(at)) = (
+            self.results.selected().map(Entry::id),
+            self.views.selected(),
+        ) else {
+            return;
+        };
+        if let Err(error) = self.saved.delete_view(id, at) {
+            self.echo = Some(format!("could not delete the view: {error:#}"));
+        }
+        self.list_views();
+    }
+
+    /// Writes the art to `exports/<id>-<time>.ans`, and a plain `.txt` beside it in ASCII mode.
+    fn export_art(&mut self) {
+        let Some(id) = self.results.selected().map(Entry::id) else {
+            return;
+        };
+        let Some((ansi, plain)) = self.art.export() else {
+            self.echo = Some("no art to export yet".into());
+            return;
+        };
+        let Some(dir) = self.exports.clone() else {
+            self.echo = Some("exports need a data directory".into());
+            return;
+        };
+        let stamp: String = now_rfc3339()
+            .chars()
+            .filter(|c| !matches!(c, '-' | ':' | 'Z'))
+            .collect();
+        let path = dir.join(format!("{id}-{stamp}.ans"));
+        let written = std::fs::create_dir_all(&dir)
+            .and_then(|()| std::fs::write(&path, ansi))
+            .and_then(|()| match plain {
+                Some(text) => std::fs::write(path.with_extension("txt"), text),
+                None => Ok(()),
+            });
+        self.echo = Some(match written {
+            Ok(()) => format!("exported to {}", path.display()),
+            Err(error) => format!("could not export: {error}"),
+        });
+    }
+
     /// Asks for the next page when the cursor is near the end of a live search's list.
     fn load_more(&mut self) {
         if self.view == View::Saved {
@@ -878,6 +1068,8 @@ impl Explorer {
             (Some(Overlay::Filters), _) => self.filters.step(delta),
             (Some(Overlay::Note), _) => {}
             (Some(Overlay::Frames), _) => self.frames.step(delta),
+            (Some(Overlay::Views), _) => self.views.step(delta),
+            (Some(Overlay::NameView), _) => {}
             (None, Pane::Results) => {
                 let moved = self.results.step(delta);
                 return self.preview(moved);
@@ -954,18 +1146,23 @@ impl Component for Explorer {
                 _ => {}
             }
         }
-        if self.overlay == Some(Overlay::Note) {
-            // The note takes every printable key, like the search bar.
+        if matches!(self.overlay, Some(Overlay::Note | Overlay::NameView)) {
+            // The note and a view's name take every printable key, like the search bar.
+            let editor = if self.overlay == Some(Overlay::Note) {
+                &mut self.note
+            } else {
+                &mut self.namer
+            };
             let plain = !key
                 .modifiers
                 .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
             match key.code {
                 KeyCode::Char(c) if plain => {
-                    self.note.push(c);
+                    editor.push(c);
                     return Ok(None);
                 }
                 KeyCode::Backspace if plain => {
-                    self.note.backspace();
+                    editor.backspace();
                     return Ok(None);
                 }
                 _ => {}
@@ -1037,6 +1234,8 @@ impl Component for Explorer {
                 Overlay::Filters => self.filters.area,
                 Overlay::Note => self.note.area,
                 Overlay::Frames => self.frames.area,
+                Overlay::NameView => self.namer.area,
+                Overlay::Views => self.views.area,
             };
             if delta == 0 && !area.contains(at) {
                 self.overlay = None;
@@ -1108,6 +1307,35 @@ impl Component for Explorer {
             Action::PickFrame => {
                 self.frames.open(self.art.frame(), self.screen);
                 self.overlay = Some(Overlay::Frames);
+                None
+            }
+            Action::SaveView => {
+                self.name_view();
+                None
+            }
+            Action::ListViews => {
+                self.list_views();
+                None
+            }
+            Action::ExportArt => {
+                self.export_art();
+                None
+            }
+            Action::Select if self.overlay == Some(Overlay::NameView) => {
+                self.save_view_name();
+                None
+            }
+            Action::ClearSearch if self.overlay == Some(Overlay::NameView) => {
+                self.namer.clear();
+                None
+            }
+            Action::Select if self.overlay == Some(Overlay::Views) => self.show_view(),
+            Action::EditNote if self.overlay == Some(Overlay::Views) => {
+                self.rename_view();
+                None
+            }
+            Action::DeleteView if self.overlay == Some(Overlay::Views) => {
+                self.delete_view();
                 None
             }
             Action::Select if self.overlay == Some(Overlay::Frames) => {
@@ -1391,6 +1619,8 @@ impl Component for Explorer {
             Some(Overlay::Filters) => self.filters.draw(frame, area)?,
             Some(Overlay::Note) => self.note.draw(frame, area)?,
             Some(Overlay::Frames) => self.frames.draw(frame, area)?,
+            Some(Overlay::NameView) => self.namer.draw(frame, area)?,
+            Some(Overlay::Views) => self.views.draw(frame, area)?,
             None => {}
         }
         Ok(())
@@ -1858,6 +2088,145 @@ mod tests {
         assert_eq!(explorer.overlay(), Some(Overlay::Help), "inside");
         explorer.handle_mouse_event(mouse(click, 0, 0)).unwrap();
         assert_eq!(explorer.overlay(), None);
+    }
+
+    /// An explorer showing La Grande Jatte in the art, drawn once at 100x16.
+    fn with_art_loaded() -> Explorer {
+        const IMAGE: &[u8] = include_bytes!(
+            "../tests/fixtures/iiif/2d484387-2509-5e8e-2c43-22f9981972eb/full/843,/0/default.jpg"
+        );
+        let mut explorer = explorer();
+        let id = explorer.selected().unwrap().id();
+        explorer
+            .update(Action::UpdateImage {
+                id,
+                image: crate::components::home::Decoded::decode(IMAGE).unwrap(),
+                full: true,
+                timing: crate::action::Timing::new("image"),
+            })
+            .unwrap();
+        explorer.update(Action::FocusArt).unwrap();
+        render(&mut explorer, 100, 16);
+        explorer
+    }
+
+    fn type_text(explorer: &mut Explorer, text: &str) {
+        for c in text.chars() {
+            assert_eq!(press(explorer, char(c)), None);
+        }
+    }
+
+    #[test]
+    fn v_names_and_saves_the_view_and_v_lists_them_back() {
+        let mut explorer = with_art_loaded();
+        let id = explorer.selected().unwrap().id();
+        explorer.update(Action::FillArt).unwrap();
+        assert_eq!(
+            explorer.handle_key_event(char('v')).unwrap(),
+            Some(Action::SaveView)
+        );
+        explorer.update(Action::SaveView).unwrap();
+        assert_eq!(explorer.overlay(), Some(Overlay::NameView));
+        assert_eq!(explorer.namer.text(), "view 1");
+        explorer.update(Action::ClearSearch).unwrap();
+        type_text(&mut explorer, "Seine");
+        explorer.update(Action::Select).unwrap();
+        assert_eq!(explorer.overlay(), None);
+        assert!(
+            explorer.saved.contains(id),
+            "saving a view saves the artwork"
+        );
+        assert_eq!(explorer.saved.views(id)[0].name, "Seine");
+        assert_eq!(explorer.echo.as_deref(), Some("saved view Seine"));
+        assert!(render(&mut explorer, 100, 16).contains("view: Seine · fill"));
+
+        // Back to fit, then `V` and `enter` bring the view back, with the full image.
+        explorer.update(Action::FitArt).unwrap();
+        assert!(!render(&mut explorer, 100, 16).contains("view: Seine"));
+        explorer.update(Action::ListViews).unwrap();
+        assert_eq!(explorer.overlay(), Some(Overlay::Views));
+        insta::assert_snapshot!(render(&mut explorer, 100, 16));
+        assert_eq!(
+            explorer.update(Action::Select).unwrap(),
+            Some(Action::ShowFullImage)
+        );
+        assert!(render(&mut explorer, 100, 16).contains("view: Seine · fill"));
+    }
+
+    #[test]
+    fn saved_views_rename_with_e_and_delete_with_x() {
+        let mut explorer = with_art_loaded();
+        let id = explorer.selected().unwrap().id();
+        for _ in 0..2 {
+            explorer.update(Action::SaveView).unwrap();
+            explorer.update(Action::Select).unwrap();
+        }
+        let names = |explorer: &Explorer| -> Vec<String> {
+            explorer
+                .saved
+                .views(id)
+                .iter()
+                .map(|v| v.name.clone())
+                .collect()
+        };
+        assert_eq!(names(&explorer), ["view 2", "view 1"]);
+        explorer.update(Action::ListViews).unwrap();
+        explorer.update(Action::MoveDown).unwrap();
+        let rename = explorer.handle_key_event(char('e')).unwrap();
+        assert_eq!(rename, Some(Action::EditNote));
+        explorer.update(Action::EditNote).unwrap();
+        assert_eq!(explorer.overlay(), Some(Overlay::NameView));
+        type_text(&mut explorer, "!");
+        explorer.update(Action::Select).unwrap();
+        assert_eq!(names(&explorer), ["view 2", "view 1!"]);
+        assert_eq!(explorer.overlay(), Some(Overlay::Views), "back to the list");
+        let delete = explorer.handle_key_event(char('x')).unwrap();
+        assert_eq!(delete, Some(Action::DeleteView));
+        explorer.update(Action::DeleteView).unwrap();
+        explorer.update(Action::DeleteView).unwrap();
+        assert!(names(&explorer).is_empty());
+        assert_eq!(explorer.overlay(), None, "the list closes once empty");
+        explorer.update(Action::ListViews).unwrap();
+        assert_eq!(
+            explorer.echo.as_deref(),
+            Some("no saved views of this artwork; save one with v")
+        );
+    }
+
+    #[test]
+    fn x_exports_the_art_as_ansi_and_plain_text() {
+        let dir = std::env::temp_dir().join(format!("acres-tui-exports-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut explorer = with_art_loaded();
+        explorer.update(Action::ExportArt).unwrap();
+        assert_eq!(
+            explorer.echo.as_deref(),
+            Some("exports need a data directory")
+        );
+        let mut explorer = with_art_loaded().with_exports(&dir);
+        let id = explorer.selected().unwrap().id();
+        // Half blocks write only the `.ans`.
+        explorer.update(Action::ExportArt).unwrap();
+        explorer.update(Action::CycleArtMode).unwrap();
+        explorer.update(Action::CycleArtMode).unwrap();
+        render(&mut explorer, 100, 16);
+        // A second later, so the ASCII export gets its own name.
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        explorer.update(Action::ExportArt).unwrap();
+        let mut names: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        assert_eq!(names.len(), 3, "{names:?}");
+        assert!(names.iter().all(|n| n.starts_with(&format!("{id}-"))));
+        let txt = names.iter().find(|n| n.ends_with(".txt")).unwrap();
+        let plain = std::fs::read_to_string(dir.join(txt)).unwrap();
+        assert!(!plain.contains('\u{1b}'), "plain text has no escapes");
+        let ans = dir.join(txt).with_extension("ans");
+        assert!(std::fs::read_to_string(ans).unwrap().contains("\u{1b}["));
+        assert!(explorer.echo.unwrap().starts_with("exported to "));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

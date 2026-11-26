@@ -9,9 +9,12 @@ use ratatui::{
 
 use super::{ACCENT, Component, centered};
 
-/// The one-line input `e` opens to edit a saved artwork's note, like the search bar.
+/// The one-line input `e` opens to edit a saved artwork's note, like the search bar. It also
+/// names a saved view.
 #[derive(Default)]
 pub struct NoteEditor {
+    /// What is being edited, for the border, or `None` for a note.
+    pub label: Option<&'static str>,
     /// The saved artwork whose note this edits.
     pub id: Option<u32>,
     title: String,
@@ -24,6 +27,14 @@ pub struct NoteEditor {
 }
 
 impl NoteEditor {
+    /// An editor titled `label` instead of Note, such as `View`.
+    pub fn labelled(label: &'static str) -> Self {
+        Self {
+            label: Some(label),
+            ..Self::default()
+        }
+    }
+
     /// Starts editing the note on artwork `id`, titled `title`, from `note`.
     pub fn open(&mut self, id: u32, title: &str, note: Option<&str>) {
         self.id = Some(id);
@@ -63,7 +74,11 @@ impl Component for NoteEditor {
         ]);
         let block = Block::bordered()
             .border_style(Style::new().fg(ACCENT))
-            .title(format!(" Note · {} ", self.title))
+            .title(format!(
+                " {} · {} ",
+                self.label.unwrap_or("Note"),
+                self.title
+            ))
             .title_bottom(hint.right_aligned());
         let inner = block.inner(editor);
         frame.render_widget(Clear, editor);
