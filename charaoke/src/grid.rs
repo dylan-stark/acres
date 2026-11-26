@@ -69,6 +69,21 @@ impl Grid {
         }
     }
 
+    /// A grid of exactly `cols` by `rows` cells, for drawing a [`View`](crate::View) onto a
+    /// frame whose size is already known, such as a whole terminal pane.
+    ///
+    /// ```rust
+    /// use std::num::NonZeroU32;
+    /// use charaoke::Grid;
+    ///
+    /// let nz = |n| NonZeroU32::new(n).unwrap();
+    /// let grid = Grid::new(nz(20), nz(12));
+    /// assert_eq!((grid.cols(), grid.rows()), (20, 12));
+    /// ```
+    pub fn new(cols: NonZeroU32, rows: NonZeroU32) -> Self {
+        Self { cols, rows }
+    }
+
     /// Number of characters per row.
     pub fn cols(&self) -> u32 {
         self.cols.get()
