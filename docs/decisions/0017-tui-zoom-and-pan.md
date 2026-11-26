@@ -7,7 +7,7 @@
 
 The art always fits its pane (`Grid::fit_within`), so a landscape painting in a tall zen screen, or a portrait in a wide one, leaves bands of empty cells. ADR 0013 deferred zoom and pan to their own ADR. What we build on:
 
-- **One image per artwork.** `enter` or `space` fetches the full image at 843 pixels wide (`FULL_WIDTH`), decoded off the loop and kept in a 16-image LRU. Browsing shows the free `lqip` placeholder.
+- **One image per artwork.** `enter` or `space` fetches the full image at 843 pixels wide (`FULL_WIDTH`), decoded off the loop and kept in a 16-image LRU. Browsing shows the free `lqip` placeholder (removed later by [ADR 0018](0018-tui-browse-cached-images.md)).
 - **A shared rate limit.** The catalog allows 60 requests a minute across the API and images, so every extra image request has a cost.
 - **Headroom in the frame budget.** Zen is the worst frame today at 0.42 ms on the M1 Air and 0.27 ms on the Ryzen 9700X, against our 8 ms budget.
 

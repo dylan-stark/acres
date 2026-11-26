@@ -14,13 +14,7 @@
       "title": "Study No. 1",
       "artist_display": "Claude Monet\nFrench, 1840–1926",
       "date_display": "1850",
-      "image_id": "00000000-0000-4000-8000-000000000000",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3000,
-        "height": 2400,
-        "alt_text": "A painting, study number 1."
-      }
+      "image_id": "00000000-0000-4000-8000-000000000000"
     },
     {
       "_score": 118.8,
@@ -28,13 +22,7 @@
       "title": "Study No. 2",
       "artist_display": "Vincent van Gogh\nDutch, 1853–1890",
       "date_display": "1851",
-      "image_id": "00000001-0000-4000-8000-000000000001",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3001,
-        "height": 2401,
-        "alt_text": "A painting, study number 2."
-      }
+      "image_id": "00000001-0000-4000-8000-000000000001"
     },
     {
       "_score": 117.1,
@@ -42,13 +30,7 @@
       "title": "Study No. 3",
       "artist_display": "Katsushika Hokusai\nJapanese, 1760–1849",
       "date_display": "1852",
-      "image_id": "00000002-0000-4000-8000-000000000002",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3002,
-        "height": 2402,
-        "alt_text": "A painting, study number 3."
-      }
+      "image_id": "00000002-0000-4000-8000-000000000002"
     },
     {
       "_score": 115.4,
@@ -56,13 +38,7 @@
       "title": "Study No. 4",
       "artist_display": "Georgia O'Keeffe\nAmerican, 1887–1986",
       "date_display": "1853",
-      "image_id": "00000003-0000-4000-8000-000000000003",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3003,
-        "height": 2403,
-        "alt_text": "A painting, study number 4."
-      }
+      "image_id": "00000003-0000-4000-8000-000000000003"
     },
     {
       "_score": 113.7,
@@ -70,13 +46,7 @@
       "title": "Study No. 5",
       "artist_display": "Mary Cassatt\nAmerican, 1844–1926",
       "date_display": "1854",
-      "image_id": "00000004-0000-4000-8000-000000000004",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3004,
-        "height": 2404,
-        "alt_text": "A painting, study number 5."
-      }
+      "image_id": "00000004-0000-4000-8000-000000000004"
     },
     {
       "_score": 112.0,
@@ -84,13 +54,7 @@
       "title": "Study No. 6",
       "artist_display": "Claude Monet\nFrench, 1840–1926",
       "date_display": "1855",
-      "image_id": "00000005-0000-4000-8000-000000000005",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3005,
-        "height": 2405,
-        "alt_text": "A painting, study number 6."
-      }
+      "image_id": "00000005-0000-4000-8000-000000000005"
     },
     {
       "_score": 110.3,
@@ -98,13 +62,7 @@
       "title": "Study No. 7",
       "artist_display": "Vincent van Gogh\nDutch, 1853–1890",
       "date_display": "1856",
-      "image_id": "00000006-0000-4000-8000-000000000006",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3006,
-        "height": 2406,
-        "alt_text": "A painting, study number 7."
-      }
+      "image_id": "00000006-0000-4000-8000-000000000006"
     },
     {
       "_score": 108.6,
@@ -112,13 +70,7 @@
       "title": "Study No. 8",
       "artist_display": "Katsushika Hokusai\nJapanese, 1760–1849",
       "date_display": "1857",
-      "image_id": "00000007-0000-4000-8000-000000000007",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3007,
-        "height": 2407,
-        "alt_text": "A painting, study number 8."
-      }
+      "image_id": "00000007-0000-4000-8000-000000000007"
     },
     {
       "_score": 106.9,
@@ -126,13 +78,7 @@
       "title": "Study No. 9",
       "artist_display": "Georgia O'Keeffe\nAmerican, 1887–1986",
       "date_display": "1858",
-      "image_id": "00000008-0000-4000-8000-000000000008",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3008,
-        "height": 2408,
-        "alt_text": "A painting, study number 9."
-      }
+      "image_id": "00000008-0000-4000-8000-000000000008"
     },
     {
       "_score": 105.2,
@@ -140,13 +86,7 @@
       "title": "Study No. 10",
       "artist_display": "Mary Cassatt\nAmerican, 1844–1926",
       "date_display": "1859",
-      "image_id": "00000009-0000-4000-8000-000000000009",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3009,
-        "height": 2409,
-        "alt_text": "A painting, study number 10."
-      }
+      "image_id": "00000009-0000-4000-8000-000000000009"
     },
     {
       "_score": 103.5,
@@ -154,13 +94,7 @@
       "title": "Study No. 11",
       "artist_display": "Claude Monet\nFrench, 1840–1926",
       "date_display": "1860",
-      "image_id": "0000000a-0000-4000-8000-00000000000a",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3010,
-        "height": 2410,
-        "alt_text": "A painting, study number 11."
-      }
+      "image_id": "0000000a-0000-4000-8000-00000000000a"
     },
     {
       "_score": 101.8,
@@ -168,13 +102,7 @@
       "title": "Study No. 12",
       "artist_display": "Vincent van Gogh\nDutch, 1853–1890",
       "date_display": "1861",
-      "image_id": "0000000b-0000-4000-8000-00000000000b",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3011,
-        "height": 2411,
-        "alt_text": "A painting, study number 12."
-      }
+      "image_id": "0000000b-0000-4000-8000-00000000000b"
     },
     {
       "_score": 100.1,
@@ -182,13 +110,7 @@
       "title": "Study No. 13",
       "artist_display": "Katsushika Hokusai\nJapanese, 1760–1849",
       "date_display": "1862",
-      "image_id": "0000000c-0000-4000-8000-00000000000c",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3012,
-        "height": 2412,
-        "alt_text": "A painting, study number 13."
-      }
+      "image_id": "0000000c-0000-4000-8000-00000000000c"
     },
     {
       "_score": 98.4,
@@ -196,13 +118,7 @@
       "title": "Study No. 14",
       "artist_display": "Georgia O'Keeffe\nAmerican, 1887–1986",
       "date_display": "1863",
-      "image_id": "0000000d-0000-4000-8000-00000000000d",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3013,
-        "height": 2413,
-        "alt_text": "A painting, study number 14."
-      }
+      "image_id": "0000000d-0000-4000-8000-00000000000d"
     },
     {
       "_score": 96.7,
@@ -210,13 +126,7 @@
       "title": "Study No. 15",
       "artist_display": "Mary Cassatt\nAmerican, 1844–1926",
       "date_display": "1864",
-      "image_id": "0000000e-0000-4000-8000-00000000000e",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3014,
-        "height": 2414,
-        "alt_text": "A painting, study number 15."
-      }
+      "image_id": "0000000e-0000-4000-8000-00000000000e"
     },
     {
       "_score": 95.0,
@@ -224,13 +134,7 @@
       "title": "Study No. 16",
       "artist_display": "Claude Monet\nFrench, 1840–1926",
       "date_display": "1865",
-      "image_id": "0000000f-0000-4000-8000-00000000000f",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3015,
-        "height": 2415,
-        "alt_text": "A painting, study number 16."
-      }
+      "image_id": "0000000f-0000-4000-8000-00000000000f"
     },
     {
       "_score": 93.3,
@@ -238,13 +142,7 @@
       "title": "Study No. 17",
       "artist_display": "Vincent van Gogh\nDutch, 1853–1890",
       "date_display": "1866",
-      "image_id": "00000010-0000-4000-8000-000000000010",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3016,
-        "height": 2416,
-        "alt_text": "A painting, study number 17."
-      }
+      "image_id": "00000010-0000-4000-8000-000000000010"
     },
     {
       "_score": 91.6,
@@ -252,13 +150,7 @@
       "title": "Study No. 18",
       "artist_display": "Katsushika Hokusai\nJapanese, 1760–1849",
       "date_display": "1867",
-      "image_id": "00000011-0000-4000-8000-000000000011",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3017,
-        "height": 2417,
-        "alt_text": "A painting, study number 18."
-      }
+      "image_id": "00000011-0000-4000-8000-000000000011"
     },
     {
       "_score": 89.9,
@@ -266,13 +158,7 @@
       "title": "Study No. 19",
       "artist_display": "Georgia O'Keeffe\nAmerican, 1887–1986",
       "date_display": "1868",
-      "image_id": "00000012-0000-4000-8000-000000000012",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3018,
-        "height": 2418,
-        "alt_text": "A painting, study number 19."
-      }
+      "image_id": "00000012-0000-4000-8000-000000000012"
     },
     {
       "_score": 88.2,
@@ -280,13 +166,7 @@
       "title": "Study No. 20",
       "artist_display": "Mary Cassatt\nAmerican, 1844–1926",
       "date_display": "1869",
-      "image_id": "00000013-0000-4000-8000-000000000013",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3019,
-        "height": 2419,
-        "alt_text": "A painting, study number 20."
-      }
+      "image_id": "00000013-0000-4000-8000-000000000013"
     },
     {
       "_score": 86.5,
@@ -294,13 +174,7 @@
       "title": "Study No. 21",
       "artist_display": "Claude Monet\nFrench, 1840–1926",
       "date_display": "1870",
-      "image_id": "00000014-0000-4000-8000-000000000014",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3020,
-        "height": 2420,
-        "alt_text": "A painting, study number 21."
-      }
+      "image_id": "00000014-0000-4000-8000-000000000014"
     },
     {
       "_score": 84.8,
@@ -308,13 +182,7 @@
       "title": "Study No. 22",
       "artist_display": "Vincent van Gogh\nDutch, 1853–1890",
       "date_display": "1871",
-      "image_id": "00000015-0000-4000-8000-000000000015",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3021,
-        "height": 2421,
-        "alt_text": "A painting, study number 22."
-      }
+      "image_id": "00000015-0000-4000-8000-000000000015"
     },
     {
       "_score": 83.1,
@@ -322,13 +190,7 @@
       "title": "Study No. 23",
       "artist_display": "Katsushika Hokusai\nJapanese, 1760–1849",
       "date_display": "1872",
-      "image_id": "00000016-0000-4000-8000-000000000016",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3022,
-        "height": 2422,
-        "alt_text": "A painting, study number 23."
-      }
+      "image_id": "00000016-0000-4000-8000-000000000016"
     },
     {
       "_score": 81.4,
@@ -336,13 +198,7 @@
       "title": "Study No. 24",
       "artist_display": "Georgia O'Keeffe\nAmerican, 1887–1986",
       "date_display": "1873",
-      "image_id": "00000017-0000-4000-8000-000000000017",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3023,
-        "height": 2423,
-        "alt_text": "A painting, study number 24."
-      }
+      "image_id": "00000017-0000-4000-8000-000000000017"
     },
     {
       "_score": 79.7,
@@ -350,13 +206,7 @@
       "title": "Study No. 25",
       "artist_display": "Mary Cassatt\nAmerican, 1844–1926",
       "date_display": "1874",
-      "image_id": "00000018-0000-4000-8000-000000000018",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3024,
-        "height": 2424,
-        "alt_text": "A painting, study number 25."
-      }
+      "image_id": "00000018-0000-4000-8000-000000000018"
     },
     {
       "_score": 78.0,
@@ -364,13 +214,7 @@
       "title": "Study No. 26",
       "artist_display": "Claude Monet\nFrench, 1840–1926",
       "date_display": "1875",
-      "image_id": "00000019-0000-4000-8000-000000000019",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3025,
-        "height": 2425,
-        "alt_text": "A painting, study number 26."
-      }
+      "image_id": "00000019-0000-4000-8000-000000000019"
     },
     {
       "_score": 76.3,
@@ -378,13 +222,7 @@
       "title": "Study No. 27",
       "artist_display": "Vincent van Gogh\nDutch, 1853–1890",
       "date_display": "1876",
-      "image_id": "0000001a-0000-4000-8000-00000000001a",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3026,
-        "height": 2426,
-        "alt_text": "A painting, study number 27."
-      }
+      "image_id": "0000001a-0000-4000-8000-00000000001a"
     },
     {
       "_score": 74.6,
@@ -392,13 +230,7 @@
       "title": "Study No. 28",
       "artist_display": "Katsushika Hokusai\nJapanese, 1760–1849",
       "date_display": "1877",
-      "image_id": "0000001b-0000-4000-8000-00000000001b",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3027,
-        "height": 2427,
-        "alt_text": "A painting, study number 28."
-      }
+      "image_id": "0000001b-0000-4000-8000-00000000001b"
     },
     {
       "_score": 72.9,
@@ -406,13 +238,7 @@
       "title": "Study No. 29",
       "artist_display": "Georgia O'Keeffe\nAmerican, 1887–1986",
       "date_display": "1878",
-      "image_id": "0000001c-0000-4000-8000-00000000001c",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3028,
-        "height": 2428,
-        "alt_text": "A painting, study number 29."
-      }
+      "image_id": "0000001c-0000-4000-8000-00000000001c"
     },
     {
       "_score": 71.2,
@@ -420,13 +246,7 @@
       "title": "Study No. 30",
       "artist_display": "Mary Cassatt\nAmerican, 1844–1926",
       "date_display": "1879",
-      "image_id": "0000001d-0000-4000-8000-00000000001d",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3029,
-        "height": 2429,
-        "alt_text": "A painting, study number 30."
-      }
+      "image_id": "0000001d-0000-4000-8000-00000000001d"
     },
     {
       "_score": 69.5,
@@ -434,13 +254,7 @@
       "title": "Study No. 31",
       "artist_display": "Claude Monet\nFrench, 1840–1926",
       "date_display": "1880",
-      "image_id": "0000001e-0000-4000-8000-00000000001e",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3030,
-        "height": 2430,
-        "alt_text": "A painting, study number 31."
-      }
+      "image_id": "0000001e-0000-4000-8000-00000000001e"
     },
     {
       "_score": 67.8,
@@ -448,13 +262,7 @@
       "title": "Study No. 32",
       "artist_display": "Vincent van Gogh\nDutch, 1853–1890",
       "date_display": "1881",
-      "image_id": "0000001f-0000-4000-8000-00000000001f",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3031,
-        "height": 2431,
-        "alt_text": "A painting, study number 32."
-      }
+      "image_id": "0000001f-0000-4000-8000-00000000001f"
     },
     {
       "_score": 66.1,
@@ -462,13 +270,7 @@
       "title": "Study No. 33",
       "artist_display": "Katsushika Hokusai\nJapanese, 1760–1849",
       "date_display": "1882",
-      "image_id": "00000020-0000-4000-8000-000000000020",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3032,
-        "height": 2432,
-        "alt_text": "A painting, study number 33."
-      }
+      "image_id": "00000020-0000-4000-8000-000000000020"
     },
     {
       "_score": 64.4,
@@ -476,13 +278,7 @@
       "title": "Study No. 34",
       "artist_display": "Georgia O'Keeffe\nAmerican, 1887–1986",
       "date_display": "1883",
-      "image_id": "00000021-0000-4000-8000-000000000021",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3033,
-        "height": 2433,
-        "alt_text": "A painting, study number 34."
-      }
+      "image_id": "00000021-0000-4000-8000-000000000021"
     },
     {
       "_score": 62.7,
@@ -490,13 +286,7 @@
       "title": "Study No. 35",
       "artist_display": "Mary Cassatt\nAmerican, 1844–1926",
       "date_display": "1884",
-      "image_id": "00000022-0000-4000-8000-000000000022",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3034,
-        "height": 2434,
-        "alt_text": "A painting, study number 35."
-      }
+      "image_id": "00000022-0000-4000-8000-000000000022"
     },
     {
       "_score": 61.0,
@@ -504,13 +294,7 @@
       "title": "Study No. 36",
       "artist_display": "Claude Monet\nFrench, 1840–1926",
       "date_display": "1885",
-      "image_id": "00000023-0000-4000-8000-000000000023",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3035,
-        "height": 2435,
-        "alt_text": "A painting, study number 36."
-      }
+      "image_id": "00000023-0000-4000-8000-000000000023"
     },
     {
       "_score": 59.3,
@@ -518,13 +302,7 @@
       "title": "Study No. 37",
       "artist_display": "Vincent van Gogh\nDutch, 1853–1890",
       "date_display": "1886",
-      "image_id": "00000024-0000-4000-8000-000000000024",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3036,
-        "height": 2436,
-        "alt_text": "A painting, study number 37."
-      }
+      "image_id": "00000024-0000-4000-8000-000000000024"
     },
     {
       "_score": 57.6,
@@ -532,13 +310,7 @@
       "title": "Study No. 38",
       "artist_display": "Katsushika Hokusai\nJapanese, 1760–1849",
       "date_display": "1887",
-      "image_id": "00000025-0000-4000-8000-000000000025",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3037,
-        "height": 2437,
-        "alt_text": "A painting, study number 38."
-      }
+      "image_id": "00000025-0000-4000-8000-000000000025"
     },
     {
       "_score": 55.9,
@@ -546,13 +318,7 @@
       "title": "Study No. 39",
       "artist_display": "Georgia O'Keeffe\nAmerican, 1887–1986",
       "date_display": "1888",
-      "image_id": "00000026-0000-4000-8000-000000000026",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3038,
-        "height": 2438,
-        "alt_text": "A painting, study number 39."
-      }
+      "image_id": "00000026-0000-4000-8000-000000000026"
     },
     {
       "_score": 54.2,
@@ -560,13 +326,7 @@
       "title": "Study No. 40",
       "artist_display": "Mary Cassatt\nAmerican, 1844–1926",
       "date_display": "1889",
-      "image_id": "00000027-0000-4000-8000-000000000027",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3039,
-        "height": 2439,
-        "alt_text": "A painting, study number 40."
-      }
+      "image_id": "00000027-0000-4000-8000-000000000027"
     },
     {
       "_score": 52.5,
@@ -574,13 +334,7 @@
       "title": "Study No. 41",
       "artist_display": "Claude Monet\nFrench, 1840–1926",
       "date_display": "1890",
-      "image_id": "00000028-0000-4000-8000-000000000028",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3040,
-        "height": 2440,
-        "alt_text": "A painting, study number 41."
-      }
+      "image_id": "00000028-0000-4000-8000-000000000028"
     },
     {
       "_score": 50.8,
@@ -588,13 +342,7 @@
       "title": "Study No. 42",
       "artist_display": "Vincent van Gogh\nDutch, 1853–1890",
       "date_display": "1891",
-      "image_id": "00000029-0000-4000-8000-000000000029",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3041,
-        "height": 2441,
-        "alt_text": "A painting, study number 42."
-      }
+      "image_id": "00000029-0000-4000-8000-000000000029"
     },
     {
       "_score": 49.1,
@@ -602,13 +350,7 @@
       "title": "Study No. 43",
       "artist_display": "Katsushika Hokusai\nJapanese, 1760–1849",
       "date_display": "1892",
-      "image_id": "0000002a-0000-4000-8000-00000000002a",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3042,
-        "height": 2442,
-        "alt_text": "A painting, study number 43."
-      }
+      "image_id": "0000002a-0000-4000-8000-00000000002a"
     },
     {
       "_score": 47.4,
@@ -616,13 +358,7 @@
       "title": "Study No. 44",
       "artist_display": "Georgia O'Keeffe\nAmerican, 1887–1986",
       "date_display": "1893",
-      "image_id": "0000002b-0000-4000-8000-00000000002b",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3043,
-        "height": 2443,
-        "alt_text": "A painting, study number 44."
-      }
+      "image_id": "0000002b-0000-4000-8000-00000000002b"
     },
     {
       "_score": 45.7,
@@ -630,13 +366,7 @@
       "title": "Study No. 45",
       "artist_display": "Mary Cassatt\nAmerican, 1844–1926",
       "date_display": "1894",
-      "image_id": "0000002c-0000-4000-8000-00000000002c",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3044,
-        "height": 2444,
-        "alt_text": "A painting, study number 45."
-      }
+      "image_id": "0000002c-0000-4000-8000-00000000002c"
     },
     {
       "_score": 44.0,
@@ -644,13 +374,7 @@
       "title": "Study No. 46",
       "artist_display": "Claude Monet\nFrench, 1840–1926",
       "date_display": "1895",
-      "image_id": "0000002d-0000-4000-8000-00000000002d",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3045,
-        "height": 2445,
-        "alt_text": "A painting, study number 46."
-      }
+      "image_id": "0000002d-0000-4000-8000-00000000002d"
     },
     {
       "_score": 42.3,
@@ -658,13 +382,7 @@
       "title": "Study No. 47",
       "artist_display": "Vincent van Gogh\nDutch, 1853–1890",
       "date_display": "1896",
-      "image_id": "0000002e-0000-4000-8000-00000000002e",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3046,
-        "height": 2446,
-        "alt_text": "A painting, study number 47."
-      }
+      "image_id": "0000002e-0000-4000-8000-00000000002e"
     },
     {
       "_score": 40.6,
@@ -672,13 +390,7 @@
       "title": "Study No. 48",
       "artist_display": "Katsushika Hokusai\nJapanese, 1760–1849",
       "date_display": "1897",
-      "image_id": "0000002f-0000-4000-8000-00000000002f",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3047,
-        "height": 2447,
-        "alt_text": "A painting, study number 48."
-      }
+      "image_id": "0000002f-0000-4000-8000-00000000002f"
     },
     {
       "_score": 38.9,
@@ -686,13 +398,7 @@
       "title": "Study No. 49",
       "artist_display": "Georgia O'Keeffe\nAmerican, 1887–1986",
       "date_display": "1898",
-      "image_id": "00000030-0000-4000-8000-000000000030",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3048,
-        "height": 2448,
-        "alt_text": "A painting, study number 49."
-      }
+      "image_id": "00000030-0000-4000-8000-000000000030"
     },
     {
       "_score": 37.2,
@@ -700,13 +406,7 @@
       "title": "Study No. 50",
       "artist_display": "Mary Cassatt\nAmerican, 1844–1926",
       "date_display": "1899",
-      "image_id": "00000031-0000-4000-8000-000000000031",
-      "thumbnail": {
-        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbmRxdHB2cXd+fH2BgYOJj4mOkoqTmpOYm5ianJ2coqGjo6WqrqyvsbGztLW3ubq8v73AwsPFx8bJzMnM0M3P0dHT1dfZ29zd3+Lj5ejp6+zt7wAAACH5BAAAAAAALAAAAAAFAAUAAAUV4COOZGmeqKqubOu+cCzPdG3feB4CADs=",
-        "width": 3049,
-        "height": 2449,
-        "alt_text": "A painting, study number 50."
-      }
+      "image_id": "00000031-0000-4000-8000-000000000031"
     }
   ],
   "info": {

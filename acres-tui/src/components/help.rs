@@ -9,7 +9,10 @@ use ratatui::{
     widgets::{Block, Clear, Paragraph},
 };
 
-use super::{ACCENT, Component, centered};
+use super::{
+    ACCENT, Component, centered,
+    results::{CACHED, NOT_CACHED},
+};
 use crate::{
     action::{Action, ActionDiscriminants},
     config::{Context, KeyBindings, key_event_to_string},
@@ -60,6 +63,13 @@ impl Help {
                     Span::raw(description),
                 ]));
             }
+        }
+        if context == Context::List {
+            lines.push(Line::default());
+            lines.push(Line::from("Marks").bold().fg(ACCENT));
+            lines.push(Line::from(format!(
+                "  {CACHED} image on disk  {NOT_CACHED} needs a fetch  * saved"
+            )));
         }
         self.lines = lines;
         self.scroll = 0;

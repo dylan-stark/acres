@@ -10,7 +10,7 @@ mod search;
 pub use artwork::ArtworkInfo;
 pub use collection::Artworks;
 
-pub use crate::model::{Artwork, ArtworkSummary, Thumbnail};
+pub use crate::model::{Artwork, ArtworkSummary};
 
 /// Modules for requesting items from the [Artworks Collection].
 ///

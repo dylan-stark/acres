@@ -17,6 +17,8 @@
 //! In the art, `v` saves the view under a name (saving the artwork too), `V` lists the saved
 //! views to show, rename or delete, and `X` exports the art to a file (ADR 0017).
 
+use std::collections::HashSet;
+
 use acres::artworks::request::search::MAX_RESULTS;
 use color_eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
@@ -242,6 +244,9 @@ pub struct Explorer {
     screen: (u16, u16),
     /// Set when the list comes from the catalog.
     live: Option<Live>,
+    /// Ids whose image is in the disk cache, and ids already checked for it (ADR 0018).
+    cached: HashSet<u32>,
+    checked: HashSet<u32>,
     action_tx: Option<UnboundedSender<Action>>,
 }
 
@@ -300,6 +305,8 @@ impl Explorer {
             areas: Areas::default(),
             screen: (0, 0),
             live,
+            cached: HashSet::new(),
+            checked: HashSet::new(),
             action_tx: None,
         }
     }
@@ -307,7 +314,7 @@ impl Explorer {
     /// Keeps saved artworks in `saved` instead of in memory.
     pub fn with_saved(mut self, saved: SavedList) -> Self {
         self.saved = saved;
-        self.refresh_saved();
+        self.refresh_marks();
         self
     }
 
@@ -483,12 +490,35 @@ impl Explorer {
         self.record.note = id.and_then(|id| self.saved.note(id)).map(String::from);
     }
 
-    /// Marks the saved artworks in both lists and shows the selected one's note.
-    fn refresh_saved(&mut self) {
+    /// Marks the saved and cached artworks in both lists, asks about rows not yet checked
+    /// against the cache, and shows the selected one's note.
+    fn refresh_marks(&mut self) {
         let ids: Vec<u32> = self.saved.entries().iter().map(Entry::id).collect();
         self.results.mark(ids.iter().copied());
         self.other.mark(ids);
+        self.check_cached();
+        self.results.mark_cached(&self.cached);
+        self.other.mark_cached(&self.cached);
         self.show_record(self.results.selected().cloned());
+    }
+
+    /// Asks which listed artworks not yet checked have their image cached. Before the action
+    /// channel is set up nothing is asked, so those rows are checked on a later refresh.
+    fn check_cached(&mut self) {
+        if self.action_tx.is_none() {
+            return;
+        }
+        let unchecked: Vec<Entry> = self
+            .results
+            .artworks()
+            .iter()
+            .chain(self.other.artworks())
+            .filter(|entry| entry.summary.image_id.is_some() && self.checked.insert(entry.id()))
+            .cloned()
+            .collect();
+        if !unchecked.is_empty() {
+            self.send(Action::CheckCached(unchecked));
+        }
     }
 
     /// A random number for the next surprise (xorshift64*).
@@ -659,7 +689,7 @@ impl Explorer {
         live.surprise = snapshot.surprise;
         self.search.set(&live.settings.text);
         self.results = snapshot.results;
-        self.refresh_saved();
+        self.refresh_marks();
         let selected = self.results.selected().cloned();
         self.preview(selected)
     }
@@ -687,7 +717,7 @@ impl Explorer {
         };
         self.view = showing;
         self.focus = Pane::Results;
-        self.refresh_saved();
+        self.refresh_marks();
         let selected = self.results.selected().cloned();
         match selected {
             Some(artwork) => self.preview(Some(artwork)),
@@ -713,14 +743,14 @@ impl Explorer {
             // Unsaving takes it off the saved list, and the next one is selected.
             self.results.replace(self.saved.entries());
             let selected = self.results.reselect(Some(artwork.id()), row);
-            self.refresh_saved();
+            self.refresh_marks();
             return match selected {
                 Some(next) if next.id() != artwork.id() => self.preview(Some(next)),
                 Some(_) => None,
                 None => Some(Action::ClearImage),
             };
         }
-        self.refresh_saved();
+        self.refresh_marks();
         None
     }
 
@@ -810,7 +840,7 @@ impl Explorer {
                     }
                     Err(error) => self.echo = Some(format!("could not save the view: {error:#}")),
                 }
-                self.refresh_saved();
+                self.refresh_marks();
             }
             Some(Naming::Rename(id, at)) => {
                 if let Err(error) = self.saved.rename_view(id, at, &name) {
@@ -983,7 +1013,7 @@ impl Explorer {
             if hidden {
                 return None;
             }
-            self.refresh_saved();
+            self.refresh_marks();
             let next = match selected {
                 Some(artwork) => Some(Action::ShowArtwork(artwork)),
                 None => Some(Action::ClearImage),
@@ -993,7 +1023,7 @@ impl Explorer {
         } else {
             live.next_page += 1;
             list.append(entries);
-            self.refresh_saved();
+            self.refresh_marks();
             self.load_more();
             None
         }
@@ -1099,6 +1129,7 @@ impl Component for Explorer {
     }
 
     fn init(&mut self, _area: ratatui::layout::Size) -> Result<()> {
+        self.check_cached();
         if self.live.is_some() {
             self.search_live(String::new());
         } else if let Some(artwork) = self.results.selected() {
@@ -1422,6 +1453,12 @@ impl Component for Explorer {
                 }
             }
             Action::Loaded(loaded) => self.loaded(loaded.clone()),
+            Action::Cached(ids) => {
+                self.cached.extend(ids);
+                self.results.mark_cached(&self.cached);
+                self.other.mark_cached(&self.cached);
+                None
+            }
             Action::ToggleFullRecord => self.record.toggle_expanded().map(Action::FetchRecord),
             Action::OpenRecord => {
                 self.full_record.show(self.results.selected().cloned());
@@ -1656,6 +1693,7 @@ mod tests {
     use super::*;
     use crate::components::{
         art_view::FrameSize,
+        results::CACHED,
         test_support::{ARTWORKS_FIXTURE, render},
     };
 
@@ -1685,6 +1723,34 @@ mod tests {
 
     fn selected_title(explorer: &Explorer) -> Option<String> {
         explorer.selected().map(|a| a.title().to_string())
+    }
+
+    #[test]
+    fn rows_are_checked_against_the_cache_once_and_marked() {
+        let mut explorer = explorer();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        explorer.register_action_handler(tx).unwrap();
+        explorer.init(ratatui::layout::Size::new(100, 30)).unwrap();
+        let mut asked = Vec::new();
+        while let Ok(action) = rx.try_recv() {
+            if let Action::CheckCached(entries) = action {
+                asked.extend(entries.iter().map(Entry::id));
+            }
+        }
+        let ids: Vec<u32> = explorer.results.artworks().iter().map(Entry::id).collect();
+        assert_eq!(asked, ids, "every row is asked about at the start");
+
+        explorer.update(Action::Cached(vec![ids[0]])).unwrap();
+        let shown = render(&mut explorer, 100, 30);
+        assert!(shown.contains(&format!("{CACHED} A Sunday")), "{shown}");
+
+        // Showing the saved list and coming back asks about nothing new.
+        press(&mut explorer, char('\''));
+        press(&mut explorer, char('\''));
+        assert!(
+            std::iter::from_fn(|| rx.try_recv().ok())
+                .all(|action| !matches!(action, Action::CheckCached(_)))
+        );
     }
 
     #[test]
@@ -2101,7 +2167,6 @@ mod tests {
             .update(Action::UpdateImage {
                 id,
                 image: crate::components::home::Decoded::decode(IMAGE).unwrap(),
-                full: true,
                 timing: crate::action::Timing::new("image"),
             })
             .unwrap();

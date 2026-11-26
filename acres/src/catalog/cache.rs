@@ -44,13 +44,9 @@ impl Cache {
             .map(|dir| dir.join(kind).join(format!("{key:016x}")))
     }
 
-    /// The cached body for `endpoint`, unless there is none or it is older than the resource's
-    /// lifetime. Offline, the lifetime is ignored.
-    pub(crate) fn load(
-        &self,
-        endpoint: &str,
-        resource: Resource,
-    ) -> Result<Option<Bytes>, CacheError> {
+    /// The path of a fresh entry for `endpoint`, unless there is none or it is older than the
+    /// resource's lifetime. Offline, the lifetime is ignored.
+    fn fresh(&self, endpoint: &str, resource: Resource) -> Result<Option<PathBuf>, CacheError> {
         let Some(path) = self.path(endpoint, resource) else {
             return Ok(None);
         };
@@ -76,7 +72,28 @@ impl Cache {
                 return Ok(None);
             }
         }
-        let data = std::fs::read(&path).map_err(io)?;
+        Ok(Some(path))
+    }
+
+    /// Whether a fresh entry for `endpoint` is cached, which costs one `stat` and no read.
+    pub(crate) fn contains(&self, endpoint: &str, resource: Resource) -> Result<bool, CacheError> {
+        Ok(self.fresh(endpoint, resource)?.is_some())
+    }
+
+    /// The cached body for `endpoint`, unless there is none or it is older than the resource's
+    /// lifetime. Offline, the lifetime is ignored.
+    pub(crate) fn load(
+        &self,
+        endpoint: &str,
+        resource: Resource,
+    ) -> Result<Option<Bytes>, CacheError> {
+        let Some(path) = self.fresh(endpoint, resource)? else {
+            return Ok(None);
+        };
+        let data = std::fs::read(&path).map_err(|source| CacheError::Io {
+            path: path.clone(),
+            source,
+        })?;
         tracing::debug!(endpoint, path = %path.display(), "loaded from cache");
         Ok(Some(data.into()))
     }
@@ -192,6 +209,24 @@ pub(crate) mod tests {
     fn a_missing_entry_is_a_miss() {
         let cache = Cache::new(Some(temp_dir("missing")), false);
         assert_eq!(cache.load(URL, Resource::Record).unwrap(), None);
+        assert!(!cache.contains(URL, Resource::Record).unwrap());
+    }
+
+    #[test]
+    fn contains_matches_load() {
+        let cache = Cache::new(Some(temp_dir("contains")), false);
+        cache
+            .store(URL, Resource::Record, &Bytes::from_static(b"{}"))
+            .unwrap();
+        assert!(cache.contains(URL, Resource::Record).unwrap());
+        assert!(!cache.contains(URL, Resource::Image).unwrap());
+        age_entry(&cache, URL, Resource::Record, 8 * DAY);
+        assert!(!cache.contains(URL, Resource::Record).unwrap(), "expired");
+        assert!(
+            !Cache::new(None, false)
+                .contains(URL, Resource::Record)
+                .unwrap()
+        );
     }
 
     #[test]

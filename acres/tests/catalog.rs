@@ -81,7 +81,7 @@ async fn search_parses_a_page_of_summaries() {
             .unwrap()
             .starts_with("Claude Monet")
     );
-    assert!(first.thumbnail.as_ref().unwrap().lqip.is_some());
+    assert!(first.image_id.is_some());
     assert_eq!(page.value.config.iiif_url, "https://www.artic.edu/iiif/2");
 }
 

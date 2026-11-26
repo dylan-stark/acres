@@ -6,11 +6,11 @@ expression: "render(&mut explorer, 100, 40)"
 │/ to search titles   │Results                                               │                     │
 └─────────────────────│  enter    show the full image                        │─────────────────────┘
 ┌[2] Results──────────│  j, down  move down                                  │] Record─────────────┐
-│> A Sunday on La Gran│  k, up    move up                                    │Sunday on La Grande  │
-│  The Bedroom        │  g        top                                        │tte — 1884           │
-│  Water Lilies       │  G        bottom                                     │                     │
-│  The Great Wave     │  ctrl-d   half a page down                           │     27992           │
-│  Paris Street; Rainy│  ctrl-u   half a page up                             │age                  │
+│> ◦ A Sunday on La Gr│  k, up    move up                                    │Sunday on La Grande  │
+│  ◦ The Bedroom      │  g        top                                        │tte — 1884           │
+│  ◦ Water Lilies     │  G        bottom                                     │                     │
+│  ◦ The Great Wave   │  ctrl-d   half a page down                           │     27992           │
+│  ◦ Paris Street; Rai│  ctrl-u   half a page up                             │age                  │
 │                     │                                                      │484387-2509-5e8e-2c43│
 │                     │Anywhere                                              │2f9981972eb          │
 │                     │  ?          toggle help                              │                     │

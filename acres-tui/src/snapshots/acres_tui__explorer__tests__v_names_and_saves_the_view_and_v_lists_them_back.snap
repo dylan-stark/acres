@@ -6,11 +6,11 @@ expression: "render(&mut explorer, 100, 16)"
 │/ to search titles                                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ┌[2] Results────────────┐┌[3] Art─────────────────────────────────────────┐┌[4] Record─────────────┐
-│> * A Sunday on La Gran││          ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀         ││A Sunday on La Grande  │
-│  The Bedroom          ││          ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀         ││Jatte — 1884           │
-│  Water Lilies         ││          ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀         ││                       │
-│  The Great Wave     ┌ Views · A Sunday on La Grande Jatte — 1884 ──────────┐     27992           │
-│  Paris Street; Rainy│-Seine  fill                                          │age                  │
+│> ◦ * A Sunday on La Gr││          ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀         ││A Sunday on La Grande  │
+│  ◦ The Bedroom        ││          ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀         ││Jatte — 1884           │
+│  ◦ Water Lilies       ││          ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀         ││                       │
+│  ◦ The Great Wave   ┌ Views · A Sunday on La Grande Jatte — 1884 ──────────┐     27992           │
+│  ◦ Paris Street; Rai│-Seine  fill                                          │age                  │
 │                     └──────────────────── enter show · e rename · x delete ┘484387-2509-5e8e-2c43│
 │                       ││          ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀         ││-22f9981972eb          │
 │                       ││          ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀         ││                       │

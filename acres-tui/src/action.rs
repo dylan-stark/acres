@@ -159,14 +159,12 @@ pub enum Action {
     Error(String),
     /// Draws with the named ramp preset.
     SetRamp(String),
-    /// A decoded image for artwork `id`, and the HUD timing of its fetch and decode. `full` is
-    /// false for the `lqip` placeholder shown while browsing, which came with the list.
-    #[strum(to_string = "UpdateImage(id: {id}, full: {full})")]
+    /// A decoded image for artwork `id`, and the HUD timing of its fetch and decode.
+    #[strum(to_string = "UpdateImage(id: {id})")]
     #[serde(skip)]
     UpdateImage {
         id: u32,
         image: Decoded,
-        full: bool,
         timing: Timing,
     },
     /// Stage durations for the timing HUD.
@@ -189,9 +187,18 @@ pub enum Action {
     },
     /// Draws the art on a frame of this size.
     SetFrame(FrameSize),
-    /// Empties the art pane, for an artwork with no placeholder.
+    /// Empties the art pane, for an artwork whose image is not at hand.
     ClearImage,
-    /// Shows this artwork: its placeholder replaces the art after a short debounce.
+    /// Asks which of these artworks have their image in the disk cache (ADR 0018).
+    #[strum(to_string = "CheckCached")]
+    #[serde(skip)]
+    CheckCached(Vec<Entry>),
+    /// These artworks have their image in the disk cache, so their rows can say so.
+    #[strum(to_string = "Cached")]
+    #[serde(skip)]
+    Cached(Vec<u32>),
+    /// Shows this artwork: its image if it was seen recently or is cached, else nothing until
+    /// the full image is asked for.
     #[strum(to_string = "ShowArtwork")]
     #[serde(skip)]
     ShowArtwork(Entry),

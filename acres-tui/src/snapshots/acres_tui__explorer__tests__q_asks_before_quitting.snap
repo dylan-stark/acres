@@ -6,11 +6,11 @@ expression: "render(&mut explorer, 100, 16)"
 │/ to search titles                                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ┌[2] Results────────────┐┌[3] Art─────────────────────────────────────────┐┌[4] Record─────────────┐
-│> A Sunday on La Grande││                                                ││A Sunday on La Grande  │
-│  The Bedroom          ││                                                ││Jatte — 1884           │
-│  Water Lilies         ││          ┌──────────────────────────┐          ││                       │
-│  The Great Wave       ││          │        Quit acres?       │          ││id     27992           │
-│  Paris Street; Rainy D││          │                          │          ││image                  │
+│> ◦ A Sunday on La Gran││                                                ││A Sunday on La Grande  │
+│  ◦ The Bedroom        ││                                                ││Jatte — 1884           │
+│  ◦ Water Lilies       ││          ┌──────────────────────────┐          ││                       │
+│  ◦ The Great Wave     ││          │        Quit acres?       │          ││id     27992           │
+│  ◦ Paris Street; Rainy││          │                          │          ││image                  │
 │                       ││          │ q, enter quit · esc stay │          ││2d484387-2509-5e8e-2c43│
 │                       ││          └──────────────────────────┘          ││-22f9981972eb          │
 │                       ││                                                ││                       │

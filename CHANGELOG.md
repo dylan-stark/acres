@@ -42,6 +42,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `tui/frame/explorer`, `tui/frame/zen` and `tui/frame/help` benches of whole TUI frames in each art mode, run by `make bench`.
 - `acres-tui` searches the collection live (ADR 0013, step 2): `enter` in the search bar runs a search for artworks with images, the next page of 50 loads as the cursor nears the end of the list, and a newer search cancels the one in flight. It starts on Highlights, a built-in list of public-domain artworks that the `highlights` config setting overrides, and falls back to recently updated public-domain works if none of them can be shown. The status bar counts the results and says when the rate limit is holding a search up. `--offline` answers only from the cache.
 - `acres::Catalog::is_rate_limited` and `acres::artworks::search::Builder::descending`.
+- `acres::Catalog::cached_image` and `has_cached_image` answer from the disk cache alone, with no request and no rate-limit cost.
 - The weekly canary workflow checks that the Highlights ids are still public domain with images.
 - `acres-tui` asks before quitting: `q` opens a prompt, and `q` or `enter` confirms. `ctrl-c` still quits at once.
 
@@ -58,7 +59,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 
 - `acres::artworks::ArtworkSummary` carries `medium_display`, `credit_line` and `main_reference_number`, moved from `Artwork` (which still has them through `summary`), so a results list has everything a wall label needs. It also carries `artist_id`, `artist_title`, `department_id` and `department_title` (the first three moved from `Artwork`), for pivots.
-- `acres-tui` previews artworks with the `lqip` placeholder that comes with each search result, a few pixels scaled up into a soft blur, so browsing downloads no images. The full image is fetched only on `enter` or `space`. `enter` in the results no longer focuses the art. A saved file has no placeholders, so its art is blank until fetched.
+- `acres-tui` browses without previews: moving through a list shows an artwork's image only when it was fetched before and sits in the disk cache, read 150 ms after the cursor stops, and otherwise leaves the art empty until `enter` or `space` fetches it. Each row starts with a dim `•` when its image is cached and `◦` when it needs a fetch, so `--offline` shows which artworks will draw (see [ADR 0018](docs/decisions/0018-tui-browse-cached-images.md)). `enter` in the results no longer focuses the art.
 - The `acres-tui` log (`L`) slides out over the left of the art like the timing HUD, instead of squeezing the art aside.
 - `acres-tui` reads a file of artworks with `--from-file <FILE>` (or `-` for stdin) instead of a positional argument, and searches the collection when no file is given. The record pane shows the artist and date when the list has them.
 - `acres-tui` keys are bound per focus context (`Global`, `List`, `Art`, `Record`, `Search`, `Overlay`) instead of per mode. `esc` no longer opens the list, `a` (ramps) is now `r`, `l` (logs) is now `L`, and `ctrl-d` pages instead of quitting. Single-character keys keep their case, so `G` and `g` are different keys.
@@ -92,6 +93,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Removed
 
+- `acres::artworks::Thumbnail` and `ArtworkSummary::thumbnail`: lists no longer ask for the `thumbnail` field, whose `lqip` placeholder `acres-tui` no longer shows.
 - `acres::Api`, `ApiBuilder`, `Cached` and the free `acres::fetch()`: use `acres::Catalog`. The untyped `artworks::Search` and `artworks::Manifest` responses are removed too: use `Page<ArtworkSummary>`, or `Catalog::raw` for the JSON as sent.
 - `acres-cli ascii-art` no longer takes `--alphabet` (use `--ramp`), `--font`, `--metric` or `--conversion-algorithm`, which only applied to glyph matching.
 - `acres-tui` no longer has the font (`f`), metric (`m`) or conversion algorithm (`c`) lists.
