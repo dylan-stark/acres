@@ -1,0 +1,13 @@
+---
+source: acres-tui/src/components/frames.rs
+expression: "render(&mut frames, 40, 10)"
+---
+
+
+   ┌ Frame size ────────────────────┐
+   │ Pane                           │
+   │ Screen                         │
+   │-Stamp    20 x 12               │
+   │ Postcard 60 x 20               │
+   │ Custom   cols x rows           │
+   └────────────────────────────────┘

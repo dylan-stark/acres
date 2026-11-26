@@ -3,6 +3,9 @@
 //! Each iteration alternates the terminal between 200x60 and 199x60, so the art re-renders every
 //! frame, the worst case and the one the 8 ms budget is about. The list holds the five fixture
 //! artworks, and the art is La Grande Jatte (843x565).
+//!
+//! `zen_pan` holds the terminal at 200x60 instead and pans one cell every frame, left and right,
+//! with zen zoomed in six steps (about 3.8x), so every frame renders a new view (ADR 0017).
 
 use acres_tui::{
     action::{Action, Timing},
@@ -67,6 +70,39 @@ fn bench_frames(c: &mut Criterion, name: &str, keys: &[Action], modes: &[(&str, 
     group.finish();
 }
 
+/// Zen zoomed in, panning one cell each frame.
+fn bench_pan(c: &mut Criterion, modes: &[(&str, usize)]) {
+    let mut group = c.benchmark_group("tui/frame/zen_pan");
+    let zoom = vec![Action::ZoomIn; 6];
+    for &(mode, cycles) in modes {
+        let mut explorer = explorer(cycles, &[Action::ToggleZen]);
+        let mut terminal = Terminal::new(TestBackend::new(200, 60)).unwrap();
+        // The first draw sets the frame that zooms are worked out against.
+        terminal
+            .draw(|frame| explorer.draw(frame, frame.area()).unwrap())
+            .unwrap();
+        for action in &zoom {
+            explorer.update(action.clone()).unwrap();
+        }
+        let mut right = true;
+        group.bench_function(mode, |b| {
+            b.iter(|| {
+                right = !right;
+                let pan = if right {
+                    Action::PanRight
+                } else {
+                    Action::PanLeft
+                };
+                explorer.update(pan).unwrap();
+                terminal
+                    .draw(|frame| explorer.draw(frame, frame.area()).unwrap())
+                    .unwrap();
+            })
+        });
+    }
+    group.finish();
+}
+
 /// Half blocks are the default, then each cycle steps to quadrant blocks and ASCII.
 const MODES: &[(&str, usize)] = &[("half", 0), ("quadrant", 1), ("ascii", 2)];
 
@@ -74,6 +110,7 @@ fn frames(c: &mut Criterion) {
     bench_frames(c, "explorer", &[], MODES);
     bench_frames(c, "zen", &[Action::ToggleZen], MODES);
     bench_frames(c, "help", &[Action::ToggleHelp], &[("ascii", 2)]);
+    bench_pan(c, MODES);
 }
 
 criterion_group!(benches, frames);

@@ -32,7 +32,7 @@ The art pane shows a **view** of the 843-pixel image we already fetch: a rectang
 
 - **Fit** is today's behavior: the whole image, letterboxed.
 - **Fill** scales the image until it covers the frame and crops the overflow, centered.
-- **Zoom** multiplies the scale by 1.25 a step, about the view's center (keys) or the cell under the pointer (scroll). Zoom out stops at fit. Zoom in keeps going past one image pixel per output pixel, so each image pixel grows into a flat block, and stops when the view is 16 image pixels across. Past 1:1 the steps are whole numbers of output pixels per image pixel (1, 2, 3, 4 and so on) rather than 1.25x, so every block is the same size: at a scale such as 2.4x, image pixels would alternate between 2 and 3 output pixels. The mode sets what an output pixel is (a cell in ASCII, half a cell in half blocks, a quarter in quadrants), so changing mode re-snaps the zoom. `View` stays in fractions of the image; only the TUI's choice of zoom levels snaps.
+- **Zoom** multiplies the scale by 1.25 a step, about the view's center (keys) or the cell under the pointer (scroll). Zoom out stops at fit. Zoom in keeps going past one image pixel per output pixel, so each image pixel grows into a flat block, and stops when the view's longer side is 16 image pixels. Past 1:1 the steps are whole numbers of output pixels per image pixel (1, 2, 3, 4 and so on) rather than 1.25x, so every block is the same size: at a scale such as 2.4x, image pixels would alternate between 2 and 3 output pixels. The mode sets what an output pixel is (a cell in ASCII, half a cell in half blocks, a quarter in quadrants), so changing mode re-snaps the zoom. Output pixels in ASCII and quadrants are twice as tall as they are wide, so there the first whole step is an image pixel one output pixel tall and two wide (two cells by one in ASCII), and the steps go up in those. `View` stays in fractions of the image; only the TUI's choice of zoom levels snaps.
 - **Pan** moves the center, clamped so the view never shows past the image's edge, except along an axis where the whole image already fits.
 - **Zen matches the pane.** If the pane is in fit, zen opens in fit, and a fill or zoom carries over both ways.
 - **Nothing is remembered.** Moving to another artwork goes back to fit. Zooming is play; saved views (below) are the way back to a crop, and saving one never changes the default.
@@ -70,6 +70,8 @@ In the `Art` context, which zen also uses:
 | `v` | Save this view under a name |
 | `V` | List the saved views |
 | `X` | Export the rendered art to a file |
+
+`L` pans in the `Art` context, so in the art pane and in zen it no longer toggles logs, which stays on `L` from the other panes.
 | Scroll | Zoom about the cell under the pointer |
 | Drag | Pan |
 
@@ -104,7 +106,7 @@ Each is recorded on the M1 Air and the Ryzen 9700X.
 | Bench | What it measures | Bar on the Air |
 | --- | --- | --- |
 | `charaoke/view/{fit,fill,zoom4}/{ascii,half,quadrant}` | One render of a view on a 200 x 60 grid from the 843-pixel input: the whole image fitted, the fill view, and that view zoomed 4x | Under 1.5 ms (today's quadrant drag is 1.43 ms) |
-| `tui/frame/zen_pan/{half,quadrant,ascii}` (step 2) | Whole zen frame, panning one step every frame at 4x | Under 8 ms |
+| `tui/frame/zen_pan/{half,quadrant,ascii}` (step 2) | Whole zen frame at 200 x 60, zoomed in six steps (about 3.8x, since steps are 1.25x), panning one cell every frame | Under 8 ms |
 | `tui/frame/zen/*`, `tui/frame/explorer/*` (existing) | Today's frames | No regression in `make bench-compare` against `main` |
 
 Step 1 results, median per render (ascii / half / quadrant):

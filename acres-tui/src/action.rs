@@ -5,6 +5,7 @@ use strum::{Display, EnumDiscriminants, EnumMessage};
 
 use crate::{
     components::{
+        art_view::FrameSize,
         catalog::{Load, Loaded},
         filters::Facets,
         home::Decoded,
@@ -73,6 +74,32 @@ pub enum Action {
     ToggleZen,
     #[strum(message = "cycle art mode")]
     CycleArtMode,
+    #[strum(message = "zoom in")]
+    ZoomIn,
+    #[strum(message = "zoom out")]
+    ZoomOut,
+    #[strum(message = "pan left a cell")]
+    PanLeft,
+    #[strum(message = "pan down a cell")]
+    PanDown,
+    #[strum(message = "pan up a cell")]
+    PanUp,
+    #[strum(message = "pan right a cell")]
+    PanRight,
+    #[strum(message = "pan left a tenth")]
+    PanLeftFar,
+    #[strum(message = "pan down a tenth")]
+    PanDownFar,
+    #[strum(message = "pan up a tenth")]
+    PanUpFar,
+    #[strum(message = "pan right a tenth")]
+    PanRightFar,
+    #[strum(message = "fit the whole image")]
+    FitArt,
+    #[strum(message = "fill the frame")]
+    FillArt,
+    #[strum(message = "pick the frame size")]
+    PickFrame,
     #[strum(message = "pick a ramp")]
     PickRamp,
     #[strum(message = "toggle timings")]
@@ -140,6 +167,20 @@ pub enum Action {
     /// How long the last whole `terminal.draw` took.
     #[strum(to_string = "FrameTime([...])")]
     FrameTime(Duration),
+    /// Zooms by `steps`, in if positive, about the cell at `column`, `row` on the screen, as a
+    /// mouse scroll over the art does.
+    ZoomAt {
+        column: u16,
+        row: u16,
+        steps: i8,
+    },
+    /// Pans the art by this many cells, as a mouse drag does.
+    PanBy {
+        cols: i32,
+        rows: i32,
+    },
+    /// Draws the art on a frame of this size.
+    SetFrame(FrameSize),
     /// Empties the art pane, for an artwork with no placeholder.
     ClearImage,
     /// Shows this artwork: its placeholder replaces the art after a short debounce.

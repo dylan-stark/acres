@@ -29,6 +29,7 @@ use crate::{
         Component,
         catalog::{Listing, Load, Loaded, Query, Sort, default_filters},
         filters::FilterPanel,
+        frames::Frames,
         help::Help,
         home::Home,
         hud::Hud,
@@ -152,6 +153,8 @@ pub enum Overlay {
     Filters,
     /// Edits a saved artwork's note.
     Note,
+    /// Picks the art's frame size.
+    Frames,
 }
 
 /// Where the last draw put each pane, for mapping mouse events.
@@ -205,10 +208,15 @@ pub struct Explorer {
     hud: Hud,
     logs: Logs,
     ramps: Ramps,
+    frames: Frames,
+    /// Where a drag over the art last was, while one is under way.
+    drag: Option<Position>,
     quit: QuitPrompt,
     help: Help,
     status: Status,
     areas: Areas,
+    /// The terminal's size at the last draw.
+    screen: (u16, u16),
     /// Set when the list comes from the catalog.
     live: Option<Live>,
     action_tx: Option<UnboundedSender<Action>>,
@@ -257,10 +265,13 @@ impl Explorer {
             hud: Hud::new(),
             logs: Logs::new(),
             ramps: Ramps::new(),
+            frames: Frames::default(),
+            drag: None,
             quit: QuitPrompt::default(),
             help: Help::default(),
             status: Status::default(),
             areas: Areas::default(),
+            screen: (0, 0),
             live,
             action_tx: None,
         }
@@ -298,7 +309,16 @@ impl Explorer {
     fn context(&self) -> Context {
         match self.overlay {
             Some(_) => Context::Overlay,
-            None => self.focus.context(),
+            None => self.pane_context(),
+        }
+    }
+
+    /// The context of the focused pane, or the art in zen, which shows only the art.
+    fn pane_context(&self) -> Context {
+        if self.zen {
+            Context::Art
+        } else {
+            self.focus.context()
         }
     }
 
@@ -363,6 +383,7 @@ impl Explorer {
             (Some(Overlay::Quit), _) => &[],
             (Some(Overlay::Filters), _) => &[],
             (Some(Overlay::Note), _) => &[],
+            (Some(Overlay::Frames), _) => &[Action::Select, Action::Cancel],
             (Some(Overlay::Record), _) => &[Action::MoveDown, Action::NextArtwork, Action::Cancel],
             (None, Pane::Search) => &[Action::RunSearch, Action::EarlierQuery, Action::Cancel],
             (None, Pane::Results) if self.view == View::Saved => {
@@ -373,7 +394,9 @@ impl Explorer {
             }
             (None, Pane::Art) => &[
                 Action::ShowFullImage,
-                Action::CycleArtMode,
+                Action::ZoomIn,
+                Action::FillArt,
+                Action::PickFrame,
                 Action::ToggleZen,
             ],
             (None, Pane::Record) => &[
@@ -854,6 +877,7 @@ impl Explorer {
             (Some(Overlay::Record), _) => self.full_record.scroll(delta),
             (Some(Overlay::Filters), _) => self.filters.step(delta),
             (Some(Overlay::Note), _) => {}
+            (Some(Overlay::Frames), _) => self.frames.step(delta),
             (None, Pane::Results) => {
                 let moved = self.results.step(delta);
                 return self.preview(moved);
@@ -911,6 +935,25 @@ impl Component for Explorer {
                 _ => {}
             }
         }
+        if self.overlay == Some(Overlay::Frames) && self.frames.is_typing() {
+            // The custom size takes digits, `x` and spaces, before any key they are bound to.
+            let plain = !key
+                .modifiers
+                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
+            match key.code {
+                KeyCode::Char(c)
+                    if plain && (c.is_ascii_digit() || matches!(c, 'x' | 'X' | ' ')) =>
+                {
+                    self.frames.push(c);
+                    return Ok(None);
+                }
+                KeyCode::Backspace if plain => {
+                    self.frames.backspace();
+                    return Ok(None);
+                }
+                _ => {}
+            }
+        }
         if self.overlay == Some(Overlay::Note) {
             // The note takes every printable key, like the search bar.
             let plain = !key
@@ -957,12 +1000,34 @@ impl Component for Explorer {
 
     fn handle_mouse_event(&mut self, mouse: MouseEvent) -> Result<Option<Action>> {
         let at = Position::new(mouse.column, mouse.row);
+        match mouse.kind {
+            MouseEventKind::Drag(MouseButton::Left) => {
+                // Dragging the art moves the image with the pointer.
+                let Some(from) = self.drag.replace(at) else {
+                    return Ok(None);
+                };
+                let (cols, rows) = (
+                    i32::from(from.x) - i32::from(at.x),
+                    i32::from(from.y) - i32::from(at.y),
+                );
+                return Ok(((cols, rows) != (0, 0)).then_some(Action::PanBy { cols, rows }));
+            }
+            MouseEventKind::Up(MouseButton::Left) => {
+                self.drag = None;
+                return Ok(None);
+            }
+            _ => {}
+        }
         let delta = match mouse.kind {
             MouseEventKind::ScrollDown => 1,
             MouseEventKind::ScrollUp => -1,
             MouseEventKind::Down(MouseButton::Left) => 0,
             _ => return Ok(None),
         };
+        if delta == 0 {
+            // A press starts a drag only over the art, below.
+            self.drag = None;
+        }
         if let Some(overlay) = self.overlay {
             let area = match overlay {
                 Overlay::Help => self.help.area,
@@ -971,6 +1036,7 @@ impl Component for Explorer {
                 Overlay::Record => self.full_record.area,
                 Overlay::Filters => self.filters.area,
                 Overlay::Note => self.note.area,
+                Overlay::Frames => self.frames.area,
             };
             if delta == 0 && !area.contains(at) {
                 self.overlay = None;
@@ -979,12 +1045,29 @@ impl Component for Explorer {
             }
             return Ok(None);
         }
-        if self.zen {
-            return Ok(None);
-        }
-        let Some(pane) = self.areas.pane_at(at) else {
+        let pane = if self.zen {
+            Some(Pane::Art)
+        } else {
+            self.areas.pane_at(at)
+        };
+        let Some(pane) = pane else {
             return Ok(None);
         };
+        if pane == Pane::Art {
+            if delta == 0 {
+                self.drag = Some(at);
+                if !self.zen {
+                    self.focus = pane;
+                }
+                return Ok(None);
+            }
+            // Scrolling up zooms in, about the cell under the pointer.
+            return Ok(Some(Action::ZoomAt {
+                column: at.x,
+                row: at.y,
+                steps: if delta < 0 { 1 } else { -1 },
+            }));
+        }
         Ok(match (pane, delta) {
             (Pane::Results, 0) => {
                 self.focus = pane;
@@ -995,7 +1078,7 @@ impl Component for Explorer {
                 let moved = self.results.step(delta);
                 self.preview(moved)
             }
-            (Pane::Record, 0) | (Pane::Search, 0) | (Pane::Art, 0) => {
+            (Pane::Record, 0) | (Pane::Search, 0) | (Pane::Art, _) => {
                 self.focus = pane;
                 None
             }
@@ -1003,8 +1086,7 @@ impl Component for Explorer {
                 self.record.scroll(delta);
                 None
             }
-            // Scrolling over the art is kept for zooming (ADR 0013).
-            (Pane::Search | Pane::Art, _) => None,
+            (Pane::Search, _) => None,
         })
     }
 
@@ -1014,7 +1096,7 @@ impl Component for Explorer {
                 if self.overlay == Some(Overlay::Help) {
                     self.overlay = None;
                 } else {
-                    self.help.open(&self.keybindings, self.focus.context());
+                    self.help.open(&self.keybindings, self.pane_context());
                     self.overlay = Some(Overlay::Help);
                 }
                 None
@@ -1022,6 +1104,18 @@ impl Component for Explorer {
             Action::PickRamp => {
                 self.overlay = Some(Overlay::Ramps);
                 None
+            }
+            Action::PickFrame => {
+                self.frames.open(self.art.frame(), self.screen);
+                self.overlay = Some(Overlay::Frames);
+                None
+            }
+            Action::Select if self.overlay == Some(Overlay::Frames) => {
+                let chosen = self.frames.choose();
+                if chosen.is_some() {
+                    self.overlay = None;
+                }
+                chosen
             }
             Action::Cancel => {
                 if self.overlay.take().is_none() {
@@ -1234,24 +1328,28 @@ impl Component for Explorer {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
+        let [search, middle, status] = Layout::vertical([
+            Constraint::Length(3),
+            Constraint::Fill(1),
+            Constraint::Length(1),
+        ])
+        .areas(area);
+        let [results, art, record] = Layout::horizontal([
+            Constraint::Ratio(1, 4),
+            Constraint::Fill(1),
+            Constraint::Ratio(1, 4),
+        ])
+        .areas(middle);
+        // The Pane and Screen frames mean the same sizes in zen and out of it.
+        let pane = pane_block(3, "Art", false).inner(art);
+        self.screen = (area.width, area.height);
+        self.art.set_sizes((pane.width, pane.height), self.screen);
         if self.zen {
             self.areas = Areas::default();
             self.art.draw(frame, area)?;
             self.hud.draw(frame, area)?;
             self.logs.draw(frame, area)?;
         } else {
-            let [search, middle, status] = Layout::vertical([
-                Constraint::Length(3),
-                Constraint::Fill(1),
-                Constraint::Length(1),
-            ])
-            .areas(area);
-            let [results, art, record] = Layout::horizontal([
-                Constraint::Ratio(1, 4),
-                Constraint::Fill(1),
-                Constraint::Ratio(1, 4),
-            ])
-            .areas(middle);
             self.areas = Areas {
                 search,
                 results,
@@ -1274,6 +1372,13 @@ impl Component for Explorer {
             self.logs.draw(frame, inner)?;
 
             self.status.counts = self.counts();
+            if let Some(view) = self.art.describe() {
+                self.status.counts.push_str(" · ");
+                self.status.counts.push_str(&view);
+                if self.art.clipped() {
+                    self.status.counts.push_str(" (clipped; z shows all)");
+                }
+            }
             self.status.hints = self.hints();
             self.status.echo = self.echo.clone();
             self.status.draw(frame, status)?;
@@ -1285,6 +1390,7 @@ impl Component for Explorer {
             Some(Overlay::Record) => self.full_record.draw(frame, area)?,
             Some(Overlay::Filters) => self.filters.draw(frame, area)?,
             Some(Overlay::Note) => self.note.draw(frame, area)?,
+            Some(Overlay::Frames) => self.frames.draw(frame, area)?,
             None => {}
         }
         Ok(())
@@ -1318,7 +1424,10 @@ mod tests {
     use charaoke::ColorDepth;
 
     use super::*;
-    use crate::components::test_support::{ARTWORKS_FIXTURE, render};
+    use crate::components::{
+        art_view::FrameSize,
+        test_support::{ARTWORKS_FIXTURE, render},
+    };
 
     fn explorer() -> Explorer {
         let config = Config::new().expect("default config");
@@ -1660,7 +1769,83 @@ mod tests {
         let art = explorer
             .handle_mouse_event(mouse(MouseEventKind::ScrollDown, 50, 8))
             .unwrap();
-        assert_eq!(art, None, "scrolling over the art is kept for zoom");
+        assert_eq!(
+            art,
+            Some(Action::ZoomAt {
+                column: 50,
+                row: 8,
+                steps: -1
+            }),
+            "scrolling down over the art zooms out"
+        );
+    }
+
+    #[test]
+    fn dragging_the_art_pans_it_and_dragging_elsewhere_does_not() {
+        let mut explorer = explorer();
+        render(&mut explorer, 100, 16);
+        let press = MouseEventKind::Down(MouseButton::Left);
+        let drag = MouseEventKind::Drag(MouseButton::Left);
+        explorer.handle_mouse_event(mouse(press, 50, 8)).unwrap();
+        assert_eq!(explorer.focus(), Pane::Art);
+        let panned = explorer.handle_mouse_event(mouse(drag, 47, 9)).unwrap();
+        assert_eq!(panned, Some(Action::PanBy { cols: 3, rows: -1 }));
+        explorer
+            .handle_mouse_event(mouse(MouseEventKind::Up(MouseButton::Left), 47, 9))
+            .unwrap();
+        explorer.handle_mouse_event(mouse(press, 5, 6)).unwrap();
+        assert_eq!(
+            explorer.handle_mouse_event(mouse(drag, 8, 7)).unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn zen_takes_the_art_keys() {
+        let mut explorer = explorer();
+        let bound = |explorer: &mut Explorer, c| explorer.handle_key_event(char(c)).unwrap();
+        press(&mut explorer, char('z'));
+        assert_eq!(bound(&mut explorer, 'j'), Some(Action::PanDown));
+        assert_eq!(bound(&mut explorer, '+'), Some(Action::ZoomIn));
+        assert_eq!(bound(&mut explorer, 'n'), Some(Action::NextArtwork));
+        press(&mut explorer, key(KeyCode::Esc));
+        assert_eq!(bound(&mut explorer, 'j'), Some(Action::MoveDown));
+    }
+
+    #[test]
+    fn s_picks_a_frame_and_the_status_bar_names_it() {
+        let mut explorer = explorer();
+        explorer.update(Action::FocusArt).unwrap();
+        render(&mut explorer, 100, 16);
+        let pick = explorer.handle_key_event(char('S')).unwrap();
+        assert_eq!(pick, Some(Action::PickFrame));
+        explorer.update(Action::PickFrame).unwrap();
+        assert_eq!(explorer.overlay(), Some(Overlay::Frames));
+        explorer.update(Action::MoveDown).unwrap();
+        explorer.update(Action::MoveDown).unwrap();
+        let chosen = explorer.update(Action::Select).unwrap();
+        assert_eq!(
+            chosen,
+            Some(Action::SetFrame(FrameSize::Custom { cols: 20, rows: 12 }))
+        );
+        assert_eq!(explorer.overlay(), None);
+        explorer.update(chosen.unwrap()).unwrap();
+        assert!(render(&mut explorer, 100, 16).contains("stamp 20x12"));
+    }
+
+    #[test]
+    fn a_custom_frame_types_its_size_in_the_picker() {
+        let mut explorer = explorer();
+        render(&mut explorer, 100, 16);
+        explorer.update(Action::PickFrame).unwrap();
+        explorer.update(Action::Bottom).unwrap();
+        for c in "30x9".chars() {
+            assert_eq!(press(&mut explorer, char(c)), None);
+        }
+        assert_eq!(
+            explorer.update(Action::Select).unwrap(),
+            Some(Action::SetFrame(FrameSize::Custom { cols: 30, rows: 9 }))
+        );
     }
 
     #[test]

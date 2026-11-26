@@ -48,7 +48,31 @@
       "enter": "ShowFullImage", // Fetch and show the full image
     },
     "Art": {
+      // Zen uses these too. `h j k l` and the arrows pan by a cell, with shift by a tenth of
+      // the view, so `L` pans here instead of toggling logs.
       "enter": "ShowFullImage", // Fetch and show the full image
+      "<+>": "ZoomIn", // Zoom in, by 1.25x and then by whole pixels
+      "<=>": "ZoomIn",
+      "<->": "ZoomOut", // Zoom out, down to fit
+      "<h>": "PanLeft",
+      "left": "PanLeft",
+      "<j>": "PanDown",
+      "down": "PanDown",
+      "<k>": "PanUp",
+      "up": "PanUp",
+      "<l>": "PanRight",
+      "right": "PanRight",
+      "<H>": "PanLeftFar",
+      "shift-left": "PanLeftFar",
+      "<J>": "PanDownFar",
+      "shift-down": "PanDownFar",
+      "<K>": "PanUpFar",
+      "shift-up": "PanUpFar",
+      "<L>": "PanRightFar",
+      "shift-right": "PanRightFar",
+      "<0>": "FitArt", // Fit the whole image
+      "<F>": "FillArt", // Fill the frame, cropping the overflow
+      "<S>": "PickFrame", // Pick the frame size: pane, screen, stamp, postcard or custom
     },
     "Record": {
       "<d>": "ToggleFullRecord", // Expand the wall label to the full record, or collapse it
@@ -76,7 +100,7 @@
       "up": "MoveUp",
       "<g>": "Top",
       "<G>": "Bottom",
-      "enter": "Select", // Choose a ramp, apply the filters, save a note, or quit from the quit prompt
+      "enter": "Select", // Choose a ramp or a frame size, apply the filters, save a note, or quit from the quit prompt
       "<h>": "PreviousOption", // Change the highlighted filter
       "left": "PreviousOption",
       "<l>": "NextOption",
