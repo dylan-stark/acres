@@ -9,6 +9,10 @@
 //! - `charaoke/render`: [`Converter::render`] into [`Cells`] at each width, paid on every resize.
 //! - `charaoke/render_blocks`: [`Converter::render_blocks`] into [`Blocks`] at each width, in
 //!   half and quadrant modes (ADR 0014).
+//! - `charaoke/view`: [`Converter::render_view`] and [`Converter::render_blocks_view`] on a
+//!   200x60 zen-sized grid from the 843-pixel input, per mode: the whole image fitted (`fit`),
+//!   cropped to cover the grid (`fill`, [`View::fill`]) and that view zoomed 4x (`zoom4`), as in
+//!   ADR 0017.
 //! - `charaoke/ansi`: [`Cells::write_ansi`] at each width and color depth, the CLI's output step,
 //!   comparable to `baseline/color`.
 //! - `charaoke/ansi_blocks`: [`Blocks::write_ansi`] at each width and color depth, for quadrant
@@ -20,7 +24,7 @@ mod common;
 
 use std::hint::black_box;
 
-use charaoke::{BlockMode, Blocks, Cells, ColorDepth, Converter, Grid, PixelFormat};
+use charaoke::{BlockMode, Blocks, Cells, ColorDepth, Converter, Grid, PixelFormat, View};
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use image::{DynamicImage, ImageFormat};
 
@@ -106,6 +110,51 @@ fn render_blocks(c: &mut Criterion) {
                     b.iter(|| converter.render_blocks(black_box(grid), mode, &mut blocks))
                 });
             }
+        }
+    }
+    group.finish();
+}
+
+fn view(c: &mut Criterion) {
+    let mut group = c.benchmark_group("charaoke/view");
+    let mut converter = Converter::default();
+    let mut cells = Cells::default();
+    let mut blocks = Blocks::default();
+    let (_, bytes) = inputs().pop().expect("the 843-pixel input");
+    let image = decode_rgb(&bytes);
+    let (w, h) = dimensions(&image);
+    converter
+        .set_image(&image, w, h, PixelFormat::Rgb8)
+        .expect("loads");
+    let (frame_cols, frame_rows) = (cols(200), cols(60));
+    let frame = Grid::fit(frame_cols, cols(120), frame_cols);
+    let filled = View::fill(w, h, frame);
+    let zoomed = View::centered(0.5, 0.5, filled.width() / 4.0, filled.height() / 4.0)
+        .expect("a valid view");
+    let views = [
+        (
+            "fit",
+            Grid::fit_within(w, h, frame_cols, frame_rows),
+            View::FULL,
+        ),
+        ("fill", frame, filled),
+        ("zoom4", frame, zoomed),
+    ];
+    let modes = [
+        ("ascii", None),
+        ("half", Some(BlockMode::Half)),
+        ("quadrant", Some(BlockMode::Quadrant)),
+    ];
+    for (view_name, grid, view) in views {
+        group.throughput(Throughput::Elements(grid.cells()));
+        for (mode_name, mode) in modes {
+            let id = BenchmarkId::new(view_name, mode_name);
+            group.bench_with_input(id, &(grid, view), |b, &(grid, view)| match mode {
+                None => b.iter(|| converter.render_view(black_box(grid), view, &mut cells)),
+                Some(mode) => b.iter(|| {
+                    converter.render_blocks_view(black_box(grid), view, mode, &mut blocks)
+                }),
+            });
         }
     }
     group.finish();
@@ -199,6 +248,7 @@ criterion_group!(
     load,
     render,
     render_blocks,
+    view,
     ansi,
     ansi_blocks,
     end_to_end
