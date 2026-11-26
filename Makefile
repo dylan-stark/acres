@@ -42,7 +42,8 @@ coverage:
 # (ADR 0016) and whole TUI frames (ADR 0013).
 # Every run is compared with the previous one. To compare against a fixed point instead, save a
 # named baseline once (`make bench-save`, default name `main`) and compare later runs with
-# `make bench-compare`, which leaves the saved baseline untouched. `FILTER` narrows any of them to
+# `make bench-compare`, which leaves the saved baseline untouched. Benches the baseline doesn't have
+# yet, such as ones added on a branch, run without a comparison. `FILTER` narrows any of them to
 # matching benchmark names, e.g. `make bench-compare FILTER=charaoke/`.
 BENCH = cargo bench --locked --bench '*' -p charaoke -p image-to-ascii-builder -p acres -p acres-tui
 BASELINE ?= main
@@ -57,7 +58,7 @@ bench-save:
 .PHONY: bench-save
 
 bench-compare:
-	$(BENCH) -- --baseline $(BASELINE) $(FILTER)
+	$(BENCH) -- --baseline-lenient $(BASELINE) $(FILTER)
 .PHONY: bench-compare
 
 docs:
