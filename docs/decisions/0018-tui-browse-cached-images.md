@@ -57,11 +57,21 @@ With the cache turned off, both report nothing cached. Only the exact request th
 
 | Bench | M1 Air | Ryzen 9700X |
 | --- | --- | --- |
-| `tui/browse/check_page` | TBD | TBD |
-| `tui/browse/cached` | TBD | TBD |
-| `tui/frame/*` worst | TBD | TBD |
+| `tui/browse/check_page` (50 rows) | 161 µs | 74.6 µs |
+| `tui/browse/cached` | 6.67 ms | 5.34 ms |
 
-For reference, the cloud dev container measured `check_page` at 98 µs (about 2 µs a row, building the URL and one `stat`) and `cached` at 8.3 ms, nearly all JPEG decoding.
+Frame benches (half / quadrant / ASCII):
+
+| Bench | M1 Air | Ryzen 9700X |
+| --- | --- | --- |
+| `tui/frame/zen_pan` | 0.70 / 1.02 / 0.54 ms | 0.45 / 0.77 / 0.34 ms |
+| `tui/frame/zen` | 0.48 / 0.48 / 0.42 ms | 0.27 / 0.27 / 0.22 ms |
+| `tui/frame/explorer` | 0.39 / 0.39 / 0.36 ms | 0.22 / 0.22 / 0.20 ms |
+| `tui/frame/help` (ASCII) | 0.42 ms | 0.24 ms |
+
+**The cached read is not a frame.** `cached` is about 5 to 7 ms, nearly all JPEG decoding, which the full image fetch on `enter` already paid before this change. It runs on a blocking thread after the debounce, so it delays when the art appears (about 155 ms after the cursor stops) but never holds up a frame: the loop only loads the decoded pixels (about 0.04 ms, ADR 0013). The 8 ms budget is for frames. `check_page` is about 1.5 to 3 µs a row, also off the loop.
+
+**Frames do the same work as before.** Against [ADR 0017](0017-tui-zoom-and-pan.md)'s numbers, the Ryzen is flat everywhere, and on the Air ASCII is flat while half and quadrant `zen` are about 18% slower and `zen_pan` 9 to 15% slower. Nothing on a zen frame's path changed: zen draws no list, and neither `charaoke` nor the art view's drawing was touched. Only the `image` crate's GIF feature was dropped, which rebuilds `charaoke` (it depends on `image`) and can move its code around. Counting instructions with Cachegrind on x86-64 over 50 zen frames at 200 x 60, the branch does the same work per frame as `main`: half +0.08%, quadrant −0.16%, ASCII −0.08% (about 6.7, 6.7 and 5.5 million instructions a frame). As with the Ryzen swings in ADR 0017, we read the Air's change as code layout or machine state, not more work. The worst frame, `zen_pan/quadrant` on the Air at 1.02 ms, is under an eighth of the 8 ms budget.
 
 ## Consequences
 
