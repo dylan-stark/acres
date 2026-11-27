@@ -9,7 +9,7 @@ Errors themselves are covered in [ERROR-HANDLING.md](ERROR-HANDLING.md).
 | Level | Use it for | Examples |
 | --- | --- | --- |
 | ERROR | A failure the app can't report any other way | The TUI can't restore the terminal while shutting down |
-| WARN | Degraded but continuing work the caller can't otherwise see | The shared rate limit can't be used, so it is per process. A response can't be cached |
+| WARN | Degraded but continuing work, such as a TUI failure the app carries on after | The shared rate limit can't be used, so it is per process. A response can't be cached. A TUI image fetch fails |
 | INFO | Notable state changes | A retry after a 429, the TUI starting |
 | DEBUG | One line per unit of work | A request's `fetched` / `request failed` event, a cache hit |
 | TRACE | Detail inside a unit of work | Each HTTP response in a retry loop, a built image URI |
@@ -65,8 +65,8 @@ Errors themselves are covered in [ERROR-HANDLING.md](ERROR-HANDLING.md).
 - The file is appended to across runs. It is moved to `acres-tui.log.1` once it passes 5 MB.
 - Each run starts with an `acres-tui started` line giving the version and pid.
 - The default level is INFO. `ACRES_TUI_LOGLEVEL` or `RUST_LOG` changes it.
-- `L` shows the in-app log drawer. That is a separate list of messages for the user, not the
-  log file.
+- Each failure is logged once at WARN as `failed`, with `kind` and `error`, whether or not it also
+  reached the status bar (see ERROR-HANDLING.md).
 
 ## Tests
 

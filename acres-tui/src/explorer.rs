@@ -20,7 +20,7 @@
 use std::collections::HashSet;
 
 use acres::artworks::request::search::MAX_RESULTS;
-use color_eyre::Result;
+use color_eyre::{Result, eyre};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
@@ -38,7 +38,6 @@ use crate::{
         help::Help,
         home::Home,
         hud::Hud,
-        logs::Logs,
         note::NoteEditor,
         pane_block,
         quit::QuitPrompt,
@@ -51,6 +50,7 @@ use crate::{
     },
     config::{Config, Context, KeyBindings, key_event_to_string, normalize},
     entry::Entry,
+    failure,
     saved::{SavedList, SavedView, now_rfc3339},
 };
 
@@ -207,6 +207,8 @@ pub struct Explorer {
     zen: bool,
     /// The last key and what it did, for the status bar.
     echo: Option<String>,
+    /// The last failure of something asked for, with its hint, until the next key.
+    alert: Option<String>,
     search: Search,
     /// The list showing, and the other one: the results while the saved list shows, or the
     /// other way around.
@@ -231,7 +233,6 @@ pub struct Explorer {
     /// Whether the departments and types were asked for.
     facets_requested: bool,
     hud: Hud,
-    logs: Logs,
     ramps: Ramps,
     frames: Frames,
     /// Where a drag over the art last was, while one is under way.
@@ -277,6 +278,7 @@ impl Explorer {
             overlay: None,
             zen: false,
             echo: None,
+            alert: None,
             search: Search::default(),
             results,
             other: Results::default(),
@@ -295,7 +297,6 @@ impl Explorer {
             filters: FilterPanel::default(),
             facets_requested: false,
             hud: Hud::new(),
-            logs: Logs::new(),
             ramps: Ramps::new(),
             frames: Frames::default(),
             drag: None,
@@ -460,6 +461,7 @@ impl Explorer {
     }
 
     fn set_echo(&mut self, key: KeyEvent, action: Option<&Action>) {
+        self.alert = None;
         if !self.show_keys {
             return;
         }
@@ -467,6 +469,11 @@ impl Explorer {
             .and_then(Action::description)
             .unwrap_or("not mapped here");
         self.echo = Some(format!("{} · {description}", key_event_to_string(&key)));
+    }
+
+    /// Logs `error` and shows it, with its hint, in the status bar until the next key.
+    fn fail(&mut self, error: eyre::Report) {
+        self.alert = Some(failure::line(&failure::failed(error.as_ref())));
     }
 
     /// Shows `artwork` if the selection moved to it, and asks for its image. Near the end of a
@@ -735,7 +742,7 @@ impl Explorer {
                 self.echo = Some(format!("{done} · {}", artwork.title()));
             }
             Err(error) => {
-                self.echo = Some(format!("could not save: {error:#}"));
+                self.fail(error.wrap_err("could not save"));
                 return None;
             }
         }
@@ -785,7 +792,7 @@ impl Explorer {
         let Some(id) = self.note.id else { return };
         match self.saved.set_note(id, self.note.text()) {
             Ok(()) => self.echo = Some("note saved".into()),
-            Err(error) => self.echo = Some(format!("could not save the note: {error:#}")),
+            Err(error) => self.fail(error.wrap_err("could not save the note")),
         }
         self.show_record(self.results.selected().cloned());
     }
@@ -838,13 +845,13 @@ impl Explorer {
                         self.art.show_view(id, view, frame, &name);
                         self.echo = Some(format!("saved view {name}"));
                     }
-                    Err(error) => self.echo = Some(format!("could not save the view: {error:#}")),
+                    Err(error) => self.fail(error.wrap_err("could not save the view")),
                 }
                 self.refresh_marks();
             }
             Some(Naming::Rename(id, at)) => {
                 if let Err(error) = self.saved.rename_view(id, at, &name) {
-                    self.echo = Some(format!("could not rename the view: {error:#}"));
+                    self.fail(error.wrap_err("could not rename the view"));
                 }
                 self.list_views();
             }
@@ -911,7 +918,7 @@ impl Explorer {
             return;
         };
         if let Err(error) = self.saved.delete_view(id, at) {
-            self.echo = Some(format!("could not delete the view: {error:#}"));
+            self.fail(error.wrap_err("could not delete the view"));
         }
         self.list_views();
     }
@@ -940,10 +947,13 @@ impl Explorer {
                 Some(text) => std::fs::write(path.with_extension("txt"), text),
                 None => Ok(()),
             });
-        self.echo = Some(match written {
-            Ok(()) => format!("exported to {}", path.display()),
-            Err(error) => format!("could not export: {error}"),
-        });
+        match written {
+            Ok(()) => self.echo = Some(format!("exported to {}", path.display())),
+            Err(error) => self.fail(
+                eyre::Report::new(error)
+                    .wrap_err(format!("could not export to {}", path.display())),
+            ),
+        }
     }
 
     /// Asks for the next page when the cursor is near the end of a live search's list.
@@ -989,7 +999,7 @@ impl Explorer {
             Ok(listing) => listing,
             Err(error) => {
                 // Keep what is listed, and say why nothing changed.
-                live.error = Some(error);
+                live.error = Some(failure::line(&error));
                 return None;
             }
         };
@@ -1483,6 +1493,10 @@ impl Component for Explorer {
                 }
                 None
             }
+            Action::Failed(failure) => {
+                self.alert = Some(failure::line(failure));
+                None
+            }
             Action::FacetsLoaded(facets) => {
                 self.filters.set_facets(facets.clone());
                 if facets.is_err() {
@@ -1585,10 +1599,9 @@ impl Component for Explorer {
             }
             _ => None,
         };
-        // The log records every action, and the HUD collects timings.
+        // The HUD collects timings.
         self.art.update(action.clone())?;
-        self.hud.update(action.clone())?;
-        self.logs.update(action)?;
+        self.hud.update(action)?;
         Ok(next)
     }
 
@@ -1613,7 +1626,6 @@ impl Component for Explorer {
             self.areas = Areas::default();
             self.art.draw(frame, area)?;
             self.hud.draw(frame, area)?;
-            self.logs.draw(frame, area)?;
         } else {
             self.areas = Areas {
                 search,
@@ -1634,7 +1646,6 @@ impl Component for Explorer {
             frame.render_widget(block, art);
             self.art.draw(frame, inner)?;
             self.hud.draw(frame, inner)?;
-            self.logs.draw(frame, inner)?;
 
             self.status.counts = self.counts();
             if let Some(view) = self.art.describe() {
@@ -1646,6 +1657,7 @@ impl Component for Explorer {
             }
             self.status.hints = self.hints();
             self.status.echo = self.echo.clone();
+            self.status.alert = self.alert.clone();
             self.status.draw(frame, status)?;
         }
         match self.overlay {
@@ -1694,7 +1706,7 @@ mod tests {
     use crate::components::{
         art_view::FrameSize,
         results::CACHED,
-        test_support::{ARTWORKS_FIXTURE, render},
+        test_support::{ARTWORKS_FIXTURE, offline, render},
     };
 
     fn explorer() -> Explorer {
@@ -1992,6 +2004,28 @@ mod tests {
         press(&mut explorer, char('x'));
         assert_eq!(explorer.echo.as_deref(), Some("x · not mapped here"));
         let text = render(&mut explorer, 100, 16);
+        assert!(
+            text.lines()
+                .last()
+                .unwrap()
+                .ends_with("x · not mapped here")
+        );
+    }
+
+    #[test]
+    fn a_failure_shows_in_the_status_bar_until_the_next_key() {
+        let mut explorer = explorer();
+        press(&mut explorer, char('n'));
+        explorer.update(Action::Failed(offline())).unwrap();
+        let text = render(&mut explorer, 200, 16);
+        let status = text.lines().last().unwrap();
+        assert!(
+            status.ends_with("error: not cached while offline: https://api.artic.edu/api/v1/artworks · go online (unset ACRES_OFFLINE, or drop --offline) to fetch it once"),
+            "{status}"
+        );
+        press(&mut explorer, char('x'));
+        assert_eq!(explorer.alert, None);
+        let text = render(&mut explorer, 200, 16);
         assert!(
             text.lines()
                 .last()
@@ -2406,7 +2440,10 @@ mod tests {
             }
         }
 
-        fn listing(ids: std::ops::Range<u32>, total: u64) -> Result<Listing, String> {
+        fn listing(
+            ids: std::ops::Range<u32>,
+            total: u64,
+        ) -> Result<Listing, crate::failure::Failure> {
             Ok(Listing {
                 entries: ids.map(entry).collect(),
                 total,
@@ -2442,7 +2479,7 @@ mod tests {
             explorer: &mut Explorer,
             generation: u64,
             load: Load,
-            result: Result<Listing, String>,
+            result: Result<Listing, crate::failure::Failure>,
         ) -> Option<Action> {
             explorer
                 .update(Action::Loaded(Loaded {
@@ -2621,9 +2658,15 @@ mod tests {
                 query: Query::text("monet"),
                 page: 1,
             };
-            deliver(&mut explorer, 2, failed, Err("the API is down".into()));
+            deliver(&mut explorer, 2, failed, Err(offline()));
             assert_eq!(explorer.results.counts(), (2, 2));
-            assert!(explorer.counts().ends_with("the API is down"));
+            assert!(
+                explorer
+                    .counts()
+                    .ends_with("not cached while offline: https://api.artic.edu/api/v1/artworks · go online (unset ACRES_OFFLINE, or drop --offline) to fetch it once"),
+                "{}",
+                explorer.counts()
+            );
         }
 
         #[test]

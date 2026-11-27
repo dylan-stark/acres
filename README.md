@@ -44,10 +44,10 @@ Hit `?` for every key, listed for the focused pane first, and `esc` to close it.
 - `b` cycles the art from half blocks to quadrant blocks to ASCII, and `r` picks a different ramp, the characters ASCII mode draws with.
 - `z` shows the art alone, full screen, until `esc` or `z` again.
 - With the art focused, or in zen, `+` and `-` zoom (scrolling over the art zooms about the pointer), `h j k l` or the arrows pan by a cell (shifted, by a tenth of the view, and dragging pans too), `F` fills the frame with no letterbox and `0` fits the whole image again. Up close the 843-pixel image turns into even blocks of color. A minimap shows where you are while you move. `S` picks the frame the art is drawn on: the pane, the whole screen, a 20 x 12 Stamp, a 60 x 20 Postcard or any size up to the terminal's. `v` saves the view under a name (saving the artwork too), `V` lists the saved views to show, rename (`e`) or delete (`x`), and `X` exports the art as an `.ans` file you can `cat` (plus `.txt` in ASCII mode) to `exports/` in the data directory.
-- `t` slides out a HUD over the right of the art with how long each fetch, decode, render and frame took, and `L` slides the log out over the left. The full log is `acres-tui.log` in the data directory (`acres-tui --version` prints where that is). It is kept across runs, and `ACRES_TUI_LOGLEVEL=debug` adds each request's outcome.
+- `t` slides out a HUD over the right of the art with how long each fetch, decode, render and frame took. The log is `acres-tui.log` in the data directory (`acres-tui --version` prints where that is). It is kept across runs, and `ACRES_TUI_LOGLEVEL=debug` adds each request's outcome.
 - The mouse works too: scroll the list or the record, click a row to select it, and click a pane to focus it. Set `mouse: false` in the config to keep your terminal's own text selection.
 
-The status bar counts the results, says when the rate limit is holding a search up, shows a few useful keys for the focused pane and echoes the last key you pressed with what it did, or `not mapped here` when it did nothing there (`show_keys: false` turns that off).
+The status bar counts the results, says when the rate limit is holding a search up, shows a few useful keys for the focused pane and echoes the last key you pressed with what it did, or `not mapped here` when it did nothing there (`show_keys: false` turns that off). When something you asked for fails, such as fetching the full image, it says so in red with a hint on what to do next, until your next key.
 Keys are set in `acres-tui/.config/config.json5`, per pane, and your own config can override any of them.
 
 When you're done, hit `q`, then `q` or `enter` again to confirm (`esc` stays). `ctrl-c` quits without asking.
@@ -79,7 +79,7 @@ For scripts and agents, `--error-format json` (or `ACRES_ERROR_FORMAT=json`) wri
 {"kind":"cache.missing","message":"not cached while offline: https://api.artic.edu/api/v1/artworks/27992","causes":[],"hint":"go online (unset ACRES_OFFLINE, or drop --offline) to fetch it once","exit_code":4}
 ```
 
-The exit code says what kind of failure it was: 1 other, 2 usage, 3 not found, 4 offline and not cached, 5 transient (rate limited, network trouble or an API server error, so try again later), 6 invalid input, 7 environment (config, cache directory or files) and 8 a response acres can't read. `acres-cli --help` lists them, and [`docs/ERROR-HANDLING.md`](docs/ERROR-HANDLING.md) has the details.
+The exit code says what kind of failure it was: 1 other, 2 usage, 3 not found, 4 offline and not cached, 5 transient (rate limited, network trouble or an API server error, so try again later), 6 invalid input, 7 environment (config, cache directory or files) and 8 a response acres can't read. `acres-cli --help` lists them, and [`docs/ERROR-HANDLING.md`](docs/ERROR-HANDLING.md) has the details. `acres-tui` reports a failure that stops it, such as a bad config file, the same way and with the same exit codes.
 
 ### Working with the Artworks Collection
 

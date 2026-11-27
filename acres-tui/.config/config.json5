@@ -30,7 +30,6 @@
       "<b>": "CycleArtMode", // Cycle half blocks, quadrant blocks and ASCII
       "<r>": "PickRamp", // Pick a ramp (ASCII mode)
       "<t>": "ToggleHud", // Toggle the timing HUD
-      "<L>": "ToggleLogs", // Toggle logs
       "esc": "Cancel", // Close an overlay or leave zen
       "<q>": "AskQuit", // Quit, after asking (q again or enter to confirm)
       "<Ctrl-c>": "Quit", // Quit without asking
@@ -49,7 +48,7 @@
     },
     "Art": {
       // Zen uses these too. `h j k l` and the arrows pan by a cell, with shift by a tenth of
-      // the view, so `L` pans here instead of toggling logs.
+      // the view.
       "enter": "ShowFullImage", // Fetch and show the full image
       "<+>": "ZoomIn", // Zoom in, by 1.25x and then by whole pixels
       "<=>": "ZoomIn",

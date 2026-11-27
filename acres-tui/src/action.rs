@@ -11,6 +11,7 @@ use crate::{
         home::Decoded,
     },
     entry::Entry,
+    failure::Failure,
 };
 
 /// Everything the TUI can be asked to do, from a key, the mouse, or another component.
@@ -112,8 +113,6 @@ pub enum Action {
     PickRamp,
     #[strum(message = "toggle timings")]
     ToggleHud,
-    #[strum(message = "toggle logs")]
-    ToggleLogs,
     #[strum(message = "quit, after asking")]
     AskQuit,
     #[strum(message = "quit without asking")]
@@ -150,13 +149,15 @@ pub enum Action {
     Cancel,
 
     // Actions components send each other.
-    Log(String),
     Tick,
     Render,
     Resize(u16, u16),
     Resume,
     ClearScreen,
-    Error(String),
+    /// Something the user asked for failed: shows it in the status bar.
+    #[strum(to_string = "Failed")]
+    #[serde(skip)]
+    Failed(Failure),
     /// Draws with the named ramp preset.
     SetRamp(String),
     /// A decoded image for artwork `id`, and the HUD timing of its fetch and decode.
@@ -220,14 +221,14 @@ pub enum Action {
     #[serde(skip)]
     RecordLoaded {
         id: u32,
-        result: Result<acres::artworks::Artwork, String>,
+        result: Result<acres::artworks::Artwork, Failure>,
     },
     /// Lists the departments and artwork types for the filters.
     FetchFacets,
     /// The departments and artwork types came back, or why they didn't.
     #[strum(to_string = "FacetsLoaded")]
     #[serde(skip)]
-    FacetsLoaded(Result<Facets, String>),
+    FacetsLoaded(Result<Facets, Failure>),
     /// Opens this link in the browser.
     OpenUrl(String),
     /// Puts this text on the clipboard.

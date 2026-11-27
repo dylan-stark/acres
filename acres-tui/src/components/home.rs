@@ -19,7 +19,10 @@ use super::{
     centered,
     ramps::DEFAULT_RAMP,
 };
-use crate::action::{Action, Timing};
+use crate::{
+    action::{Action, Timing},
+    failure::failed,
+};
 
 /// An image decoded to RGB, ready to load into the art view.
 ///
@@ -313,12 +316,6 @@ impl Home {
         }
     }
 
-    /// Puts `message` in the log drawer.
-    fn log(&self, message: String) {
-        tracing::warn!("{message}");
-        self.send(Action::Log(message));
-    }
-
     /// Loads a decoded image, adding the load time to `timing` for the HUD.
     fn set_image(&mut self, image: &Decoded, timing: Timing) -> Result<()> {
         let start = Instant::now();
@@ -474,7 +471,7 @@ fn next_mode(mode: Option<BlockMode>) -> Option<BlockMode> {
     }
 }
 
-/// How the HUD and logs name an art mode.
+/// How the HUD names an art mode.
 fn mode_name(mode: Option<BlockMode>) -> &'static str {
     match mode {
         None => "ascii",
@@ -589,8 +586,12 @@ impl Component for Home {
                     self.image_id = Some(id);
                     self.reset_view();
                 }
-                if let Err(err) = self.set_image(&image, timing) {
-                    self.log(format!("failed to load image {id}: {err}"));
+                if let Err(error) = self.set_image(&image, timing) {
+                    failed(
+                        error
+                            .wrap_err(format!("could not load the image of {id}"))
+                            .as_ref(),
+                    );
                 }
             }
             Action::ClearImage => {
@@ -637,7 +638,7 @@ impl Component for Home {
                     self.converter.set_ramp(ramp);
                     self.rendered_for = None;
                 }
-                None => self.log(format!("no ramp named {name}")),
+                None => tracing::warn!(ramp = %name, "no such ramp"),
             },
             Action::CycleArtMode => {
                 self.mode = next_mode(self.mode);

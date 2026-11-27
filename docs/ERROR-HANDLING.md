@@ -1,7 +1,7 @@
 # Error handling
 
 How errors are built, named, worded and reported across the workspace.
-The reasoning behind the main choices is in [ADR 0006](decisions/0006-iiif-error-naming.md) (naming and layers) and [ADR 0019](decisions/0019-error-kinds-and-exit-codes.md) (kinds, hints and exit codes).
+The reasoning behind the main choices is in [ADR 0006](decisions/0006-iiif-error-naming.md) (naming and layers), [ADR 0019](decisions/0019-error-kinds-and-exit-codes.md) (kinds, hints and exit codes) and [ADR 0021](decisions/0021-shared-error-reporting.md) (reporting shared by both apps).
 What gets logged about errors, and at which level, is in [LOGGING.md](LOGGING.md).
 
 ## Libraries (`iiif`, `acres`, `charaoke`)
@@ -65,8 +65,13 @@ alone doesn't say it. For example, `cache.missing` says to go online.
 - Use `color_eyre::Result` and add context with `wrap_err` / `with_context` where it helps the
   reader: `could not open artworks.json`. Context is lowercase, says what was being done to what,
   and doesn't repeat the cause.
-- Prefer a library error with a kind over a new string. If the CLI meets a new class of failure,
-  give it a kind in `acres-cli/src/report.rs`.
+- Prefer a library error with a kind over a new string.
+- **Classify and write failures through `acres-report`.** It turns an error chain into a
+  `Failure` (kind, message, causes, hint, exit code) and writes it as text or JSON. A new class of
+  failure that both apps can meet gets its kind there. One only an app meets, such as
+  `clap_stdin`'s errors, is passed in with `classify_with` from that app.
+- Exit codes are app policy, so they live in `acres-report`, not in the libraries. The apps never
+  depend on each other.
 
 ### CLI reporting
 
@@ -108,12 +113,17 @@ alone doesn't say it. For example, `cache.missing` says to go online.
 
 ### TUI reporting
 
-- Failures from something the user asked for (a search, a save, an export, an image fetch) show in
-  the status bar, as well as in the log. Failures in background work (cache reads while browsing)
-  go only to the log (`L`). Image fetch failures still reach only the log for now. Fixing that is
-  planned.
-- A bad config file or keybinding stops startup with a message naming the key and the file. It is
-  not a panic and isn't reported as a bug.
+- Failures from something the user asked for (a full image fetch, opening or copying a link, a
+  save, a note, a view, an export) show in red in the status bar, with their hint, until the next
+  key. Send them as `Action::Failed`. A failed search shows in the status bar's counts, and a
+  failed record or filter list in its own pane, each with the hint.
+- Failures in background work (cache reads while browsing) go only to the log file.
+- Classify every failure with `acres_tui::failure::failed`, which logs it once at WARN with its
+  `kind`.
+- A failure that stops the TUI, such as a bad config file or keybinding, is written to stderr
+  as the CLI writes it (`error:`, `caused by:`, `hint:`) once the terminal is restored, and the
+  TUI exits with the CLI's code for it: 7 for configuration. It is not a panic and isn't reported
+  as a bug.
 - A real panic restores the terminal, writes the report to the log file, and asks the user to
   report it.
 

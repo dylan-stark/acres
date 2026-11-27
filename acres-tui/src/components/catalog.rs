@@ -26,6 +26,7 @@ use crate::{
     components::Component,
     components::filters::Facets,
     entry::Entry,
+    failure::{Failure, failed},
 };
 
 /// Records per page of results.
@@ -187,7 +188,7 @@ pub enum Load {
 pub struct Loaded {
     pub generation: u64,
     pub load: Load,
-    pub result: Result<Listing, String>,
+    pub result: Result<Listing, Failure>,
 }
 
 /// Records from one request, and how many there are in all.
@@ -244,7 +245,9 @@ impl Fetcher {
         let catalog = self.catalog.clone();
         let tx = self.action_tx.clone();
         self.pending = Some(tokio::spawn(async move {
-            let result = fetch(&catalog, &load, &tx).await.map_err(|e| e.to_string());
+            let result = fetch(&catalog, &load, &tx)
+                .await
+                .map_err(|e| failed(e.as_ref()));
             let _ = tx.send(Action::Loaded(Loaded {
                 generation,
                 load,
@@ -270,7 +273,7 @@ impl Fetcher {
         let catalog = self.catalog.clone();
         let tx = self.action_tx.clone();
         tokio::spawn(async move {
-            let result = facets(&catalog).await.map_err(|e| e.to_string());
+            let result = facets(&catalog).await.map_err(|e| failed(e.as_ref()));
             let _ = tx.send(Action::FacetsLoaded(result));
         });
     }
@@ -296,7 +299,7 @@ impl Fetcher {
                     let _ = tx.send(Action::Timing(timing));
                     Ok(fetched.value.data)
                 }
-                Err(e) => Err(e.to_string()),
+                Err(e) => Err(failed(&e)),
             };
             let _ = tx.send(Action::RecordLoaded { id, result });
         }));

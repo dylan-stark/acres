@@ -30,6 +30,7 @@ name = "acres-cli"
 version = "0.1.0"
 dependencies = [
  "acres",
+ "acres-report",
  "assert_cmd",
  "assert_fs",
  "bytes",
@@ -43,7 +44,6 @@ dependencies = [
  "image 0.25.10",
  "predicates",
  "reqwest",
- "serde",
  "serde_json",
  "tokio",
  "tracing",
@@ -53,10 +53,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "acres-report"
+version = "0.1.0"
+dependencies = [
+ "acres",
+ "charaoke",
+ "eyre",
+ "iiif",
+ "image 0.25.10",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "acres-tui"
 version = "0.1.0"
 dependencies = [
  "acres",
+ "acres-report",
  "anyhow",
  "base64 0.22.1",
  "better-panic",

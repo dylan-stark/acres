@@ -9,7 +9,10 @@ use ratatui::{
 };
 
 use super::{ACCENT, Component, centered, pane_block};
-use crate::entry::Entry;
+use crate::{
+    entry::Entry,
+    failure::{self, Failure},
+};
 
 /// The full record of the artwork shown, once asked for.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,13 +94,13 @@ impl Record {
     }
 
     /// Takes in the full record for `id`, if it is still the one shown.
-    pub fn loaded(&mut self, id: u32, result: &Result<Artwork, String>) {
+    pub fn loaded(&mut self, id: u32, result: &Result<Artwork, Failure>) {
         if self.artwork.as_ref().map(Entry::id) != Some(id) {
             return;
         }
         self.full = Some(match result {
             Ok(artwork) => Full::Loaded(Box::new(artwork.clone())),
-            Err(error) => Full::Failed(error.clone()),
+            Err(failure) => Full::Failed(failure::line(failure)),
         });
     }
 
@@ -394,7 +397,7 @@ mod tests {
         let mut overlay = Record::overlay();
         overlay.show(Some(jatte()));
         assert_eq!(overlay.wants_full(), Some(27992));
-        overlay.loaded(27992, &Err("offline".into()));
+        overlay.loaded(27992, &Err(crate::components::test_support::offline()));
         insta::assert_snapshot!(render(&mut overlay, 60, 22));
     }
 

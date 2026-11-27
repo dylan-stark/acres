@@ -8,6 +8,7 @@ use crate::{
     config::{Config, get_data_dir},
     entry::{Entry, highlights},
     explorer::{Explorer, Source},
+    failure::failed,
     saved::{self, SavedList},
     tui::{Event, Tui},
 };
@@ -129,8 +130,20 @@ impl App {
                 Action::Suspend => self.should_suspend = true,
                 Action::Resume => self.should_suspend = false,
                 Action::ClearScreen => tui.terminal.clear()?,
-                Action::OpenUrl(ref url) => open_url(url),
-                Action::CopyText(ref text) => copy_text(text),
+                Action::OpenUrl(ref url) => {
+                    if let Err(error) = open_url(url) {
+                        let error = error.wrap_err(format!("could not open {url}"));
+                        self.action_tx
+                            .send(Action::Failed(failed(error.as_ref())))?;
+                    }
+                }
+                Action::CopyText(ref text) => {
+                    if let Err(error) = copy_text(text) {
+                        let error = error.wrap_err("could not copy the link");
+                        self.action_tx
+                            .send(Action::Failed(failed(error.as_ref())))?;
+                    }
+                }
                 Action::Resize(w, h) => self.handle_resize(tui, w, h)?,
                 Action::Render => self.render(tui)?,
                 _ => {}
@@ -154,10 +167,9 @@ impl App {
         let start = std::time::Instant::now();
         tui.draw(|frame| {
             for component in self.components.iter_mut() {
-                if let Err(err) = component.draw(frame, frame.area()) {
-                    let _ = self
-                        .action_tx
-                        .send(Action::Error(format!("Failed to draw: {:?}", err)));
+                if let Err(error) = component.draw(frame, frame.area()) {
+                    let error = error.wrap_err("could not draw");
+                    let _ = self.action_tx.send(Action::Failed(failed(error.as_ref())));
                 }
             }
         })?;
@@ -166,8 +178,8 @@ impl App {
     }
 }
 
-/// Opens `url` with the platform's opener, in the background, logging a failure.
-fn open_url(url: &str) {
+/// Opens `url` with the platform's opener, in the background.
+fn open_url(url: &str) -> Result<()> {
     let mut command = if cfg!(target_os = "macos") {
         std::process::Command::new("open")
     } else if cfg!(windows) {
@@ -177,29 +189,24 @@ fn open_url(url: &str) {
     } else {
         std::process::Command::new("xdg-open")
     };
-    let spawned = command
+    command
         .arg(url)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn();
-    if let Err(e) = spawned {
-        tracing::warn!("could not open {url}: {e}");
-    }
+        .spawn()?;
+    Ok(())
 }
 
 /// Puts `text` on the clipboard with an OSC 52 escape, which most terminals support and which
 /// works over SSH too, with no clipboard library.
-fn copy_text(text: &str) {
+fn copy_text(text: &str) -> Result<()> {
     use std::io::Write;
     let sequence = osc52(text);
     let mut stdout = std::io::stdout();
-    if let Err(e) = stdout
-        .write_all(sequence.as_bytes())
-        .and_then(|()| stdout.flush())
-    {
-        tracing::warn!("could not copy: {e}");
-    }
+    stdout.write_all(sequence.as_bytes())?;
+    stdout.flush()?;
+    Ok(())
 }
 
 /// The OSC 52 sequence that sets the clipboard to `text`.
