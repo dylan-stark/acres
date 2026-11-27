@@ -1,9 +1,8 @@
 # Logging
 
 What gets logged, at which level and with which fields, and where each binary writes its log.
-It is written for people, and coding agents follow it too (CLAUDE.md links here). The reasoning
-behind the main choices is in [ADR 0020](decisions/0020-log-levels-and-fields.md). Errors
-themselves are covered in [ERROR-HANDLING.md](ERROR-HANDLING.md).
+The reasoning behind the main choices is in [ADR 0020](decisions/0020-log-levels-and-fields.md).
+Errors themselves are covered in [ERROR-HANDLING.md](ERROR-HANDLING.md).
 
 ## Levels
 
