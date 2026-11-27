@@ -28,8 +28,8 @@ impl Config {
         let state_dir = get_acres_state_dir();
         let builder = config::Config::builder()
             .set_default("use_cache", true)?
-            .set_default("cache_dir", cache_dir.to_str().expect("path is valid"))?
-            .set_default("state_dir", state_dir.to_str().expect("path is valid"))?
+            .set_default("cache_dir", utf8(&cache_dir, "cache")?)?
+            .set_default("state_dir", utf8(&state_dir, "state")?)?
             .set_default("base_uri", DEFAULT_BASE_URI.to_string())?
             .set_default("offline", false)?
             .add_source(config::Environment::with_prefix("ACRES"));
@@ -37,6 +37,17 @@ impl Config {
         tracing::debug!(?cfg);
         Ok(cfg)
     }
+}
+
+/// `path` as a string for the config defaults, or an error naming the directory when it is not
+/// valid UTF-8 (the `ACRES_*_DIR` variables can still point elsewhere).
+fn utf8<'a>(path: &'a std::path::Path, what: &str) -> Result<&'a str, config::ConfigError> {
+    path.to_str().ok_or_else(|| {
+        config::ConfigError::Message(format!(
+            "the default {what} directory is not valid UTF-8: {}",
+            path.display()
+        ))
+    })
 }
 
 /// The app's cache directory: `$XDG_CACHE_HOME/acres` on Linux, `~/Library/Caches` on macOS

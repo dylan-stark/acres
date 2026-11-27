@@ -1,6 +1,11 @@
-//! Errors, split by layer as in ADR 0006: [`RequestError`] for building a request,
-//! [`ResponseError`] for talking to the API, [`CacheError`] for the on-disk cache and
-//! [`ParseError`] for reading a response. [`Error`] wraps any of them.
+//! Errors, split by layer as in ADR 0006: [`ConfigError`] for the `ACRES_*` environment,
+//! [`RequestError`] for building a request, [`ResponseError`] for talking to the API,
+//! [`CacheError`] for the on-disk cache and [`ParseError`] for reading a response. [`Error`]
+//! wraps any of them.
+//!
+//! Every error has a stable [`kind`](Error::kind), such as `cache.missing`, for programs and
+//! agents to match on, and some have a [`hint`](Error::hint) saying what to do next (see ADR 0019
+//! and `docs/ERROR-HANDLING.md`).
 //!
 //! Variant names say what is wrong. Messages are lowercase with no trailing punctuation, and a
 //! variant with a `source()` leaves the source out of its own message, so reporters that walk the
@@ -32,6 +37,65 @@ pub enum Error {
     /// A response could not be read.
     #[error(transparent)]
     Parse(#[from] ParseError),
+    /// The `ACRES_*` environment could not be read.
+    #[error(transparent)]
+    Config(#[from] ConfigError),
+}
+
+impl Error {
+    /// A stable, dotted name for what went wrong, such as `response.status` or `cache.missing`.
+    ///
+    /// Kinds are part of the API: a kind is never renamed or reused for something else, so
+    /// programs can match on it instead of on the message.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Error::Request(e) => e.kind(),
+            Error::Response(e) => e.kind(),
+            Error::Cache(e) => e.kind(),
+            Error::Parse(e) => e.kind(),
+            Error::Config(e) => e.kind(),
+        }
+    }
+
+    /// What the caller can do about it, when there is something to say beyond the message.
+    pub fn hint(&self) -> Option<&'static str> {
+        match self {
+            Error::Request(e) => e.hint(),
+            Error::Response(e) => e.hint(),
+            Error::Cache(e) => e.hint(),
+            Error::Parse(e) => e.hint(),
+            Error::Config(e) => e.hint(),
+        }
+    }
+}
+
+/// The `ACRES_*` environment variables could not be read.
+#[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
+pub enum ConfigError {
+    /// A variable holds a value of the wrong type, such as `ACRES_OFFLINE=maybe`, or a default
+    /// directory is not valid UTF-8. Holds the reason, naming the setting.
+    #[error("invalid configuration: {0}")]
+    Invalid(String),
+}
+
+impl ConfigError {
+    /// See [`Error::kind`].
+    pub fn kind(&self) -> &'static str {
+        match self {
+            ConfigError::Invalid(_) => "config.invalid",
+        }
+    }
+
+    /// See [`Error::hint`].
+    pub fn hint(&self) -> Option<&'static str> {
+        match self {
+            ConfigError::Invalid(_) => Some(
+                "check the ACRES_* environment variables: booleans are true or false, and \
+                 directories must be valid UTF-8 paths",
+            ),
+        }
+    }
 }
 
 /// A request that cannot be built. Nothing was sent.
@@ -64,6 +128,36 @@ pub enum RequestError {
     /// A IIIF URL was rejected by the `iiif` crate.
     #[error("invalid IIIF URL")]
     Iiif(#[from] iiif::Error),
+}
+
+impl RequestError {
+    /// See [`Error::kind`]. A rejected IIIF URL takes the `iiif` crate's kind, such as
+    /// `iiif.base_uri.invalid_char`.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            RequestError::InvalidQuery(_) => "request.invalid_query",
+            RequestError::OutOfRange { .. } => "request.out_of_range",
+            RequestError::InvalidImageUrl { .. } => "request.invalid_image_url",
+            RequestError::InvalidContact(_) => "request.invalid_contact",
+            RequestError::Iiif(e) => e.kind(),
+        }
+    }
+
+    /// See [`Error::hint`].
+    pub fn hint(&self) -> Option<&'static str> {
+        match self {
+            RequestError::OutOfRange {
+                name: "page" | "from",
+                ..
+            } => Some(
+                "the API serves only the first 1,000 results of a search; narrow it with filters",
+            ),
+            RequestError::InvalidContact(_) => {
+                Some("ACRES_CONTACT must fit on one line, such as an email address")
+            }
+            _ => None,
+        }
+    }
 }
 
 /// The API could not be reached, or answered with something other than success.
@@ -105,6 +199,55 @@ pub enum ResponseError {
     },
 }
 
+impl ResponseError {
+    /// See [`Error::kind`]. An error status is `response.not_found` for 404 and
+    /// `response.status` for any other; the status itself is in the message.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            ResponseError::Status { status: 404, .. } => "response.not_found",
+            ResponseError::Status { .. } => "response.status",
+            ResponseError::Expired { .. } => "response.expired",
+            ResponseError::TooManyRequests { .. } => "response.too_many_requests",
+            ResponseError::Transport { .. } => "response.transport",
+        }
+    }
+
+    /// See [`Error::hint`].
+    pub fn hint(&self) -> Option<&'static str> {
+        match self {
+            ResponseError::Status { status: 404, .. } => Some("check the id"),
+            ResponseError::Status { status: 403, .. } => Some(
+                "the API refuses pages past the first 1,000 results of a search; narrow it with \
+                 filters",
+            ),
+            ResponseError::Status { status, .. } if *status >= 500 => {
+                Some("the API is having trouble; try again later")
+            }
+            ResponseError::Status { .. } => None,
+            ResponseError::Expired { .. } => Some(
+                "the shared rate limit (60 requests a minute) held the request too long; try \
+                 again in a minute",
+            ),
+            ResponseError::TooManyRequests { .. } => {
+                Some("the API is limiting requests; wait a minute and try again")
+            }
+            ResponseError::Transport { .. } => Some(
+                "check the network connection, or work offline from the cache (ACRES_OFFLINE=true)",
+            ),
+        }
+    }
+
+    /// Whether the same request may succeed if tried again later.
+    pub fn is_transient(&self) -> bool {
+        match self {
+            ResponseError::Status { status, .. } => *status == 429 || *status >= 500,
+            ResponseError::Expired { .. }
+            | ResponseError::TooManyRequests { .. }
+            | ResponseError::Transport { .. } => true,
+        }
+    }
+}
+
 /// The cache could not answer.
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
@@ -126,6 +269,29 @@ pub enum CacheError {
     },
 }
 
+impl CacheError {
+    /// See [`Error::kind`].
+    pub fn kind(&self) -> &'static str {
+        match self {
+            CacheError::Missing { .. } => "cache.missing",
+            CacheError::Io { .. } => "cache.io",
+        }
+    }
+
+    /// See [`Error::hint`].
+    pub fn hint(&self) -> Option<&'static str> {
+        match self {
+            CacheError::Missing { .. } => {
+                Some("go online (unset ACRES_OFFLINE, or drop --offline) to fetch it once")
+            }
+            CacheError::Io { .. } => Some(
+                "check that the cache directory is writable; ACRES_CACHE_DIR moves it, and \
+                 everything in it can be fetched again",
+            ),
+        }
+    }
+}
+
 /// A response body that cannot be read as the expected type.
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
@@ -142,6 +308,27 @@ pub enum ParseError {
 }
 
 impl ParseError {
+    /// See [`Error::kind`].
+    pub fn kind(&self) -> &'static str {
+        match self {
+            ParseError::InvalidBody { .. } => "parse.invalid_body",
+        }
+    }
+
+    /// See [`Error::hint`].
+    pub fn hint(&self) -> Option<&'static str> {
+        match self {
+            ParseError::InvalidBody { input, .. } if input.starts_with("http") => Some(concat!(
+                "the API answered in a shape acres does not expect; please report it at ",
+                env!("CARGO_PKG_REPOSITORY"),
+                "/issues"
+            )),
+            ParseError::InvalidBody { .. } => {
+                Some("check that the input is JSON as the API or acres-cli writes it")
+            }
+        }
+    }
+
     /// Wraps a parse failure for `input`.
     pub(crate) fn body(input: impl Into<String>, source: impl Into<BoxError>) -> Self {
         Self::InvalidBody {
@@ -190,6 +377,106 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "404 from https://example.com/a: Not found: No such artwork"
+        );
+    }
+
+    #[test]
+    fn kinds_are_dotted_snake_case_and_reach_through_the_wrapper() {
+        let errors: Vec<Error> = vec![
+            ConfigError::Invalid("x".into()).into(),
+            RequestError::InvalidQuery("x".into()).into(),
+            RequestError::OutOfRange {
+                name: "limit",
+                value: 101,
+            }
+            .into(),
+            RequestError::InvalidContact("x".into()).into(),
+            ResponseError::Status {
+                endpoint: "e".into(),
+                status: 404,
+                error: String::new(),
+                detail: String::new(),
+            }
+            .into(),
+            ResponseError::Status {
+                endpoint: "e".into(),
+                status: 500,
+                error: String::new(),
+                detail: String::new(),
+            }
+            .into(),
+            ResponseError::Expired {
+                endpoint: "e".into(),
+            }
+            .into(),
+            ResponseError::TooManyRequests {
+                endpoint: "e".into(),
+            }
+            .into(),
+            CacheError::Missing {
+                endpoint: "e".into(),
+            }
+            .into(),
+            ParseError::body("e", "bad").into(),
+        ];
+        let kinds: Vec<&str> = errors.iter().map(Error::kind).collect();
+        assert_eq!(
+            kinds,
+            [
+                "config.invalid",
+                "request.invalid_query",
+                "request.out_of_range",
+                "request.invalid_contact",
+                "response.not_found",
+                "response.status",
+                "response.expired",
+                "response.too_many_requests",
+                "cache.missing",
+                "parse.invalid_body",
+            ]
+        );
+        for kind in kinds {
+            assert!(
+                kind.split('.').count() >= 2
+                    && kind
+                        .chars()
+                        .all(|c| c.is_ascii_lowercase() || c == '_' || c == '.'),
+                "{kind}"
+            );
+        }
+    }
+
+    #[test]
+    fn iiif_errors_keep_their_own_kind() {
+        let iiif = "https://example.org/a b"
+            .parse::<iiif::BaseUri>()
+            .unwrap_err();
+        let kind = iiif.kind();
+        let error: Error = RequestError::Iiif(iiif.into()).into();
+        assert!(kind.starts_with("iiif."), "{kind}");
+        assert_eq!(error.kind(), kind);
+    }
+
+    #[test]
+    fn hints_say_what_to_do_next() {
+        let missing: Error = CacheError::Missing {
+            endpoint: "e".into(),
+        }
+        .into();
+        assert!(missing.hint().unwrap().contains("offline"));
+        let forbidden = ResponseError::Status {
+            endpoint: "e".into(),
+            status: 403,
+            error: String::new(),
+            detail: String::new(),
+        };
+        assert!(forbidden.hint().unwrap().contains("1,000"));
+        assert!(!forbidden.is_transient());
+        assert!(
+            ResponseError::TooManyRequests {
+                endpoint: "e".into()
+            }
+            .is_transient()
         );
     }
 

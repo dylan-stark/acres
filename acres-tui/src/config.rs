@@ -98,12 +98,13 @@ lazy_static! {
 
 impl Config {
     pub fn new() -> Result<Self, config::ConfigError> {
-        let default_config: Config = json5::from_str(CONFIG).unwrap();
+        let default_config: Config =
+            json5::from_str(CONFIG).expect("the built-in config.json5 is valid, as tests check");
         let data_dir = get_data_dir();
         let config_dir = get_config_dir();
         let mut builder = config::Config::builder()
-            .set_default("data_dir", data_dir.to_str().unwrap())?
-            .set_default("config_dir", config_dir.to_str().unwrap())?;
+            .set_default("data_dir", utf8(&data_dir, "data")?)?
+            .set_default("config_dir", utf8(&config_dir, "config")?)?;
 
         let config_files = [
             ("config.json5", config::FileFormat::Json5),
@@ -167,6 +168,17 @@ pub fn get_config_dir() -> PathBuf {
     }
 }
 
+/// `path` as a string for the config defaults, or an error naming the directory when it is not
+/// valid UTF-8 (`ACRES_TUI_DATA` and `ACRES_TUI_CONFIG` can point elsewhere).
+fn utf8<'a>(path: &'a std::path::Path, what: &str) -> Result<&'a str, config::ConfigError> {
+    path.to_str().ok_or_else(|| {
+        config::ConfigError::Message(format!(
+            "the {what} directory is not valid UTF-8: {}",
+            path.display()
+        ))
+    })
+}
+
 fn project_directory() -> Option<ProjectDirs> {
     ProjectDirs::from("com", "aic", env!("CARGO_PKG_NAME"))
 }
@@ -181,16 +193,19 @@ impl<'de> Deserialize<'de> for KeyBindings {
     {
         let parsed_map = HashMap::<Context, HashMap<String, Action>>::deserialize(deserializer)?;
 
-        let keybindings = parsed_map
-            .into_iter()
-            .map(|(context, inner_map)| {
-                let converted_inner_map = inner_map
-                    .into_iter()
-                    .map(|(key_str, cmd)| (parse_key_sequence(&key_str).unwrap(), cmd))
-                    .collect();
-                (context, converted_inner_map)
-            })
-            .collect();
+        let mut keybindings = HashMap::new();
+        for (context, inner_map) in parsed_map {
+            let mut converted = HashMap::new();
+            for (key_str, cmd) in inner_map {
+                let keys = parse_key_sequence(&key_str).map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "invalid key {key_str:?} in the {context:?} keybindings: {e}"
+                    ))
+                })?;
+                converted.insert(keys, cmd);
+            }
+            keybindings.insert(context, converted);
+        }
 
         Ok(KeyBindings(keybindings))
     }
@@ -280,7 +295,7 @@ fn parse_key_code_with_modifiers(raw: &str, modifiers: KeyModifiers) -> Result<K
         "minus" => KeyCode::Char('-'),
         "tab" => KeyCode::Tab,
         c if c.len() == 1 => {
-            let mut c = c.chars().next().unwrap();
+            let mut c = c.chars().next().expect("a one-byte string has one char");
             if modifiers.contains(KeyModifiers::SHIFT) {
                 c = c.to_ascii_uppercase();
             }
@@ -514,6 +529,22 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    #[test]
+    fn the_built_in_config_parses() {
+        json5::from_str::<Config>(CONFIG).unwrap();
+    }
+
+    #[test]
+    fn a_bad_key_is_an_error_naming_it_not_a_panic() {
+        let error = json5::from_str::<KeyBindings>(r#"{"Global": {"<ctrl-qq>": "Quit"}}"#)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("ctrl-qq") && error.contains("Global"),
+            "{error}"
+        );
+    }
 
     #[test]
     fn test_parse_style_default() {

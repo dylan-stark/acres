@@ -33,6 +33,7 @@ Library crates never depend on their consumers: `iiif`, `image-to-ascii-builder`
 - Update `CHANGELOG.md` (under `[Unreleased]`, Keep a Changelog format) in the same commit as any user-visible change.
 - `scratch/` is gitignored working space for temporary files that should stay in the repo tree (notes, probes, drafts). Read and write there freely, but never commit anything in it except `scratch/README.md`.
 - Never read, modify, or commit `target/`.
+- Errors follow `docs/ERROR-HANDLING.md`: `thiserror` enums per layer in libraries, a stable `kind()` for every error, hints for what to do next, no panics on user input, config or API responses, and the CLI's exit codes and `--error-format json` contract (ADR 0019).
 - Tests must mock the network. Never hit the live AIC API from tests.
 - TUI keybindings live in `acres-tui/.config/config.json5`.
 

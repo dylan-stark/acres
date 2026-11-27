@@ -158,3 +158,107 @@ pub enum RequestError {
     #[error("missing info.json in information request: {0}")]
     MissingInfoJson(String),
 }
+
+impl Error {
+    /// A stable, dotted name for what is wrong, such as `iiif.base_uri.invalid_char`.
+    ///
+    /// Kinds are part of the API: one is never renamed or reused, so programs can match on it
+    /// instead of on the message.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Error::InvalidBaseUri(e) => e.kind(),
+            Error::InvalidParameter(e) => e.kind(),
+            Error::InvalidRequest(e) => e.kind(),
+        }
+    }
+}
+
+impl BaseUriError {
+    /// A stable, dotted name for what is wrong, such as `iiif.base_uri.unexpected_fragment`.
+    ///
+    /// Kinds are part of the API: one is never renamed or reused, so programs can match on it
+    /// instead of on the message.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            BaseUriError::Malformed { .. } => "iiif.base_uri.malformed",
+            BaseUriError::InvalidChar(_) => "iiif.base_uri.invalid_char",
+            BaseUriError::InvalidEscape(_) => "iiif.base_uri.invalid_escape",
+            BaseUriError::InvalidScheme(_) => "iiif.base_uri.invalid_scheme",
+            BaseUriError::BadSlashes(_) => "iiif.base_uri.bad_slashes",
+            BaseUriError::UnexpectedUserInfo(_) => "iiif.base_uri.unexpected_user_info",
+            BaseUriError::MissingServer(_) => "iiif.base_uri.missing_server",
+            BaseUriError::InvalidPrefix(_) => "iiif.base_uri.invalid_prefix",
+            BaseUriError::InvalidIdentifier(_) => "iiif.base_uri.invalid_identifier",
+            BaseUriError::MissingIdentifier(_) => "iiif.base_uri.missing_identifier",
+            BaseUriError::TrailingSlash(_) => "iiif.base_uri.trailing_slash",
+            BaseUriError::UnexpectedQuery(_) => "iiif.base_uri.unexpected_query",
+            BaseUriError::UnexpectedFragment(_) => "iiif.base_uri.unexpected_fragment",
+        }
+    }
+}
+
+impl ParameterError {
+    /// A stable, dotted name for what is wrong, such as `iiif.parameter.degrees_out_of_range`.
+    ///
+    /// Kinds are part of the API: one is never renamed or reused, so programs can match on it
+    /// instead of on the message.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            ParameterError::InvalidRegion(_) => "iiif.parameter.invalid_region",
+            ParameterError::InvalidSize(_) => "iiif.parameter.invalid_size",
+            ParameterError::InvalidRotation(_) => "iiif.parameter.invalid_rotation",
+            ParameterError::InvalidQuality(_) => "iiif.parameter.invalid_quality",
+            ParameterError::InvalidFormat(_) => "iiif.parameter.invalid_format",
+            ParameterError::InvalidPercentage { .. } => "iiif.parameter.invalid_percentage",
+            ParameterError::PercentageOutOfRange(_) => "iiif.parameter.percentage_out_of_range",
+            ParameterError::InvalidDegrees { .. } => "iiif.parameter.invalid_degrees",
+            ParameterError::DegreesOutOfRange(_) => "iiif.parameter.degrees_out_of_range",
+        }
+    }
+}
+
+impl RequestError {
+    /// A stable, dotted name for what is wrong, such as `iiif.request.missing_info_json`.
+    ///
+    /// Kinds are part of the API: one is never renamed or reused, so programs can match on it
+    /// instead of on the message.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            RequestError::InvalidBaseUri(e) => e.kind(),
+            RequestError::InvalidParameter(e) => e.kind(),
+            RequestError::MissingBaseUri(_) => "iiif.request.missing_base_uri",
+            RequestError::MissingRegion(_) => "iiif.request.missing_region",
+            RequestError::MissingSize(_) => "iiif.request.missing_size",
+            RequestError::MissingRotation(_) => "iiif.request.missing_rotation",
+            RequestError::MissingFormat(_) => "iiif.request.missing_format",
+            RequestError::MissingInfoJson(_) => "iiif.request.missing_info_json",
+        }
+    }
+}
+
+#[cfg(test)]
+mod kind_tests {
+    use crate::{BaseUri, ImageRequest, Region};
+
+    #[test]
+    fn kinds_name_the_layer_and_reach_through_wrappers() {
+        let base = "https://example.org/a b".parse::<BaseUri>().unwrap_err();
+        assert_eq!(base.kind(), "iiif.base_uri.invalid_char");
+        assert_eq!(
+            crate::Error::from(base).kind(),
+            "iiif.base_uri.invalid_char"
+        );
+
+        let region = "nope".parse::<Region>().unwrap_err();
+        assert_eq!(region.kind(), "iiif.parameter.invalid_region");
+
+        let request = "https://example.org/images/1/full"
+            .parse::<ImageRequest>()
+            .unwrap_err();
+        assert!(
+            request.kind().starts_with("iiif.request."),
+            "{}",
+            request.kind()
+        );
+    }
+}

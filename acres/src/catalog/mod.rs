@@ -20,7 +20,8 @@ use limiter::Limiter;
 use shared::SharedBucket;
 
 use crate::{
-    ArtworkType, Department, Error, Item, Page, ParseError, RequestError, ResponseError,
+    ArtworkType, ConfigError, Department, Error, Item, Page, ParseError, RequestError,
+    ResponseError,
     artworks::{
         Artwork, ArtworkSummary,
         request::{artworks, search},
@@ -409,11 +410,16 @@ pub struct CatalogBuilder {
     per_minute: u32,
     burst: u32,
     retries: u32,
+    /// Why the `ACRES_*` environment could not be read, reported by [`CatalogBuilder::build`].
+    config_error: Option<String>,
 }
 
 impl Default for CatalogBuilder {
     fn default() -> Self {
-        let config = Config::new().ok();
+        let (config, config_error) = match Config::new() {
+            Ok(config) => (Some(config), None),
+            Err(e) => (None, Some(e.to_string())),
+        };
         let (base_uri, cache_dir, state_dir, offline, contact) = match config {
             Some(config) => (
                 config.base_uri,
@@ -440,6 +446,7 @@ impl Default for CatalogBuilder {
             per_minute: 60,
             burst: 5,
             retries: 3,
+            config_error,
         }
     }
 }
@@ -510,7 +517,13 @@ impl CatalogBuilder {
     }
 
     /// Builds the catalog.
+    ///
+    /// Fails with [`ConfigError`] when an `ACRES_*` variable can't be read, such as
+    /// `ACRES_OFFLINE=maybe`, rather than silently using the defaults.
     pub fn build(self) -> Result<Catalog, Error> {
+        if let Some(message) = self.config_error {
+            return Err(ConfigError::Invalid(message).into());
+        }
         let mut limiter = Limiter::new(self.per_minute, self.burst);
         if let Some(path) = self.rate_limit_file {
             limiter = limiter.shared(SharedBucket::new(path));
@@ -531,6 +544,17 @@ impl CatalogBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_bad_environment_fails_the_build() {
+        let builder = CatalogBuilder {
+            config_error: Some("invalid type for key `offline`".into()),
+            ..CatalogBuilder::default()
+        };
+        let error = builder.build().unwrap_err();
+        assert_eq!(error.kind(), "config.invalid");
+        assert!(error.to_string().contains("offline"), "{error}");
+    }
 
     #[test]
     fn retry_after_reads_seconds() {

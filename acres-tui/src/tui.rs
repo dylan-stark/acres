@@ -230,6 +230,9 @@ impl DerefMut for Tui {
 
 impl Drop for Tui {
     fn drop(&mut self) {
-        self.exit().unwrap();
+        // Panicking here would abort an unwind already in progress and hide its message.
+        if let Err(e) = self.exit() {
+            tracing::error!("could not restore the terminal: {e}");
+        }
     }
 }
