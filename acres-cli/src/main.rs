@@ -4,7 +4,10 @@
 //!
 //! [public APIs]: https://api.artic.edu/docs/#introduction
 
-use std::io::{self, IsTerminal, Write};
+use std::{
+    io::{self, IsTerminal, Write},
+    process::ExitCode,
+};
 
 use acres::{
     Catalog, Resource,
@@ -20,6 +23,10 @@ use color_eyre::{
 mod ascii_art;
 #[doc(hidden)]
 mod logging;
+#[doc(hidden)]
+mod report;
+
+use report::{ErrorFormat, Outcome};
 
 #[doc(hidden)]
 #[derive(clap::ValueEnum, Clone, Default)]
@@ -33,13 +40,60 @@ enum IiifTo {
 
 #[doc(hidden)]
 #[tokio::main]
-async fn main() -> Result<(), Report> {
-    crate::logging::init()?;
-    color_eyre::install()?;
+async fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().collect();
+    let format =
+        ErrorFormat::from_args_and_env(&args, std::env::var("ACRES_ERROR_FORMAT").ok().as_deref());
+    let setup = crate::logging::init().and_then(|()| color_eyre::install());
+    if let Err(report) = setup {
+        return fail(&report, format);
+    }
 
-    let matches = command!()
+    let matches = match cli().try_get_matches_from(&args) {
+        Ok(matches) => matches,
+        // `--help` and `--version` also come back as errors, written to stdout.
+        Err(error) if !error.use_stderr() || format == ErrorFormat::Text => {
+            let _ = error.print();
+            return ExitCode::from(u8::try_from(error.exit_code()).unwrap_or(report::exit::USAGE));
+        }
+        Err(error) => return report::emit(&report::usage(&error), format),
+    };
+    match run(matches).await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(report) => fail(&report, format),
+    }
+}
+
+/// Reports `report` on stderr and picks the exit code (see [`report`]).
+#[doc(hidden)]
+fn fail(report: &Report, format: ErrorFormat) -> ExitCode {
+    match report::classify(report) {
+        Outcome::BrokenPipe => ExitCode::SUCCESS,
+        Outcome::Failed(failure) => {
+            let backtrace = std::env::var("RUST_BACKTRACE").is_ok_and(|v| v != "0");
+            if backtrace && format == ErrorFormat::Text {
+                eprintln!("{report:?}\n");
+            }
+            report::emit(&failure, format)
+        }
+    }
+}
+
+/// The command line.
+#[doc(hidden)]
+fn cli() -> Command {
+    command!()
         .propagate_version(true)
         .subcommand_required(true)
+        .after_help(EXIT_CODES)
+        .arg(
+            Arg::new("error-format")
+                .long("error-format")
+                .global(true)
+                .value_name("FORMAT")
+                .value_parser(value_parser!(ErrorFormat))
+                .help("how errors are written to stderr: text, or one line of JSON for programs (also ACRES_ERROR_FORMAT)"),
+        )
         .arg(
             Arg::new("offline")
                 .long("offline")
@@ -257,8 +311,25 @@ async fn main() -> Result<(), Report> {
                 .arg(Arg::new("to").long("to").help("type of output").default_value("url").value_parser(value_parser!(IiifTo)))
                 .subcommand(Command::new("info").about("Retrieve image information.")),
         )
-        .get_matches();
+}
 
+/// The exit codes, listed under `--help`.
+#[doc(hidden)]
+const EXIT_CODES: &str = "\
+Exit codes:
+  0  success
+  1  other failure
+  2  usage: the command line could not be parsed
+  3  not found: the API has no such record
+  4  offline miss: offline, and the cache has no entry
+  5  transient: rate limited, network trouble or an API server error; try again later
+  6  invalid input: a bad request, IIIF parameter or input file
+  7  environment: configuration, the cache directory, or reading and writing files
+  8  bad response: the API answered with something acres can't read";
+
+/// Runs the parsed command.
+#[doc(hidden)]
+async fn run(matches: clap::ArgMatches) -> Result<()> {
     let mut catalog = Catalog::builder();
     if matches.get_flag("offline") {
         catalog = catalog.offline(true);
@@ -305,7 +376,7 @@ async fn main() -> Result<(), Report> {
                 .build()
             {
                 Ok(request) => print_body(&catalog.raw(request, Resource::Page).await?.value)?,
-                Err(error) => return Err(error).wrap_err("We couldn't get that list ..."),
+                Err(error) => return Err(error).wrap_err("could not build the artworks request"),
             }
         }
         Some(("artworks-search", matches)) => {
@@ -324,16 +395,15 @@ async fn main() -> Result<(), Report> {
                 .build()
             {
                 Ok(request) => print_body(&catalog.raw(request, Resource::Page).await?.value)?,
-                Err(error) => return Err(error).wrap_err("We couldn't complete that search ..."),
+                Err(error) => return Err(error).wrap_err("could not build the search request"),
             }
         }
         Some(("ascii-art", matches)) => {
-            let image_reader = matches
-                .get_one::<FileOrStdin>("image")
-                .expect("clap ensures we get the bytes")
-                .clone()
-                .into_reader()
-                .context("failed to clone file-or-stdin")?;
+            let image_reader = open_input(
+                matches
+                    .get_one::<FileOrStdin>("image")
+                    .expect("clap ensures we get the bytes"),
+            )?;
             let ramp = matches
                 .get_one::<charaoke::Ramp>("ramp")
                 .cloned()
@@ -363,13 +433,11 @@ async fn main() -> Result<(), Report> {
             ascii_art::run(image_reader, &mut io::stdout().lock(), options)?;
         }
         Some(("iiif", matches)) => {
-            let artwork = artworks::ArtworkInfo::load(
+            let artwork = artworks::ArtworkInfo::load(open_input(
                 matches
                     .get_one::<FileOrStdin>("artwork")
-                    .expect("clap ensures this is a string")
-                    .clone()
-                    .into_reader()?,
-            )?;
+                    .expect("clap ensures this is a string"),
+            )?)?;
             let base_uri: iiif::BaseUri = artwork.try_into()?;
             let image_request = iiif::ImageRequest::builder()
                 .base_uri(base_uri)
@@ -405,7 +473,9 @@ async fn main() -> Result<(), Report> {
                 )
                 .build();
             match matches.get_one::<IiifTo>("to") {
-                Some(IiifTo::Url) => println!("{}", image_request),
+                Some(IiifTo::Url) => {
+                    writeln!(io::stdout(), "{image_request}").context("failed to write the URL")?
+                }
                 Some(IiifTo::Bytes) => {
                     let image = catalog.image(&image_request).await?.value;
                     io::stdout()
@@ -416,13 +486,11 @@ async fn main() -> Result<(), Report> {
             }
         }
         Some(("iiif-info", matches)) => {
-            let artwork = artworks::ArtworkInfo::load(
+            let artwork = artworks::ArtworkInfo::load(open_input(
                 matches
                     .get_one::<FileOrStdin>("artwork")
-                    .expect("clap ensures this is a string")
-                    .clone()
-                    .into_reader()?,
-            )?;
+                    .expect("clap ensures this is a string"),
+            )?)?;
             let request: iiif::InformationRequest = iiif::BaseUri::try_from(artwork)?.into();
             print_body(&catalog.raw(request, Resource::Record).await?.value)?;
         }
@@ -430,6 +498,20 @@ async fn main() -> Result<(), Report> {
     };
 
     Ok(())
+}
+
+/// Opens a file argument, or stdin for `-`, naming it if that fails.
+#[doc(hidden)]
+fn open_input(input: &FileOrStdin) -> Result<impl io::Read> {
+    let name = if input.is_stdin() {
+        "stdin".to_string()
+    } else {
+        input.filename().to_string()
+    };
+    input
+        .clone()
+        .into_reader()
+        .with_context(|| format!("could not open {name}"))
 }
 
 /// Writes a JSON body to stdout as the API sent it, ending with a newline.

@@ -61,6 +61,24 @@ When you're done, hit `q`, then `q` or `enter` again to confirm (`esc` stays). `
 
 Every command goes through one rate-limited client (60 requests a minute, as the API asks, shared by every run and the TUI) and an on-disk cache: images are kept for good, records for 7 days and search or listing pages for 24 hours. Pass `--offline` (or set `ACRES_OFFLINE=true`) to answer only from the cache, and set `ACRES_CONTACT` to add a contact to the `AIC-User-Agent` header the API asks for.
 
+### Errors and exit codes
+
+Errors go to stderr, so stdout only ever holds data. Each one says what went wrong and, where it can, what to do next:
+
+```console
+$ acres-cli --offline artwork 27992
+error: not cached while offline: https://api.artic.edu/api/v1/artworks/27992
+hint: go online (unset ACRES_OFFLINE, or drop --offline) to fetch it once
+```
+
+For scripts and agents, `--error-format json` (or `ACRES_ERROR_FORMAT=json`) writes one line of JSON instead, with a stable `kind` to match on:
+
+```json
+{"kind":"cache.missing","message":"not cached while offline: https://api.artic.edu/api/v1/artworks/27992","causes":[],"hint":"go online (unset ACRES_OFFLINE, or drop --offline) to fetch it once","exit_code":4}
+```
+
+The exit code says what kind of failure it was: 1 other, 2 usage, 3 not found, 4 offline and not cached, 5 transient (rate limited, network trouble or an API server error, so try again later), 6 invalid input, 7 environment (config, cache directory or files) and 8 a response acres can't read. `acres-cli --help` lists them, and [`docs/ERROR-HANDLING.md`](docs/ERROR-HANDLING.md) has the details.
+
 ### Working with the Artworks Collection
 
 List artworks with

@@ -54,3 +54,17 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+impl Error {
+    /// A stable, dotted name for what is wrong, such as `charaoke.empty_ramp`. Kinds are never
+    /// renamed or reused, so programs can match on them instead of on the message.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Error::EmptyRamp => "charaoke.empty_ramp",
+            Error::InvalidRampChar(_) => "charaoke.invalid_ramp_char",
+            Error::PixelCountMismatch { .. } => "charaoke.pixel_count_mismatch",
+            Error::ImageTooWide(_) => "charaoke.image_too_wide",
+            Error::InvalidView { .. } => "charaoke.invalid_view",
+        }
+    }
+}

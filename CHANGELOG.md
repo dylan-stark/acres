@@ -45,6 +45,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `acres::Catalog::cached_image` and `has_cached_image` answer from the disk cache alone, with no request and no rate-limit cost.
 - The weekly canary workflow checks that the Highlights ids are still public domain with images.
 - `acres-tui` asks before quitting: `q` opens a prompt, and `q` or `enter` confirms. `ctrl-c` still quits at once.
+- `acres-cli` reports errors for people and programs (see [ADR 0019](docs/decisions/0019-error-kinds-and-exit-codes.md)): a short `error:` line with its causes and a `hint:` on what to do next, or with `--error-format json` (or `ACRES_ERROR_FORMAT=json`) one line of JSON with a stable `kind`. Exit codes now say what failed: 1 other, 2 usage, 3 not found, 4 offline and not cached, 5 transient, 6 invalid input, 7 environment and 8 an unreadable response. `--help` lists them.
+- Every `iiif`, `acres` and `charaoke` error has a stable `kind()`, such as `cache.missing` or `iiif.parameter.invalid_region`. `acres` errors also have `hint()`, and `acres::ResponseError::is_transient` says whether trying again may work.
+- `acres::ConfigError` (`config.invalid`): `CatalogBuilder::build` fails on an unreadable `ACRES_*` variable, such as `ACRES_OFFLINE=maybe`, instead of quietly using the defaults.
+- `docs/ERROR-HANDLING.md`, the conventions for errors across the workspace.
 
 - The `acres-tui` record pane is a wall label (ADR 0013, step 3): artist, title and date, medium, credit line and reference number, all from the results list. `d` expands it in place to the full record (dimensions, place of origin, department, gallery and the description), fetched when asked for, and `enter` opens the full record in a large overlay that follows `n`/`p`. `o` opens the artwork on artic.edu and `y` copies its link (through OSC 52, so it works over SSH).
 - `acres-tui` decodes images on a blocking thread, off the app loop, and keeps the last 16 full images decoded, so going back to one shows it at once with no fetch.
@@ -102,6 +106,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- A bad key in an `acres-tui` keybinding is a startup error naming the key and its context, instead of a panic reported as a bug.
+- `acres` and `acres-tui` no longer panic when a default directory isn't valid UTF-8, and `acres-tui` no longer panics if it can't restore the terminal while shutting down.
+- `acres-cli` exits quietly when stdout is closed early, as by `| head`, and prints the IIIF URL without panicking in that case.
 - `acres::artworks::search::MAX_RESULTS` is 1,000, not 10,000: the API answers 403 for any search page that ends past the 1,000th record, although its documentation says 10,000. The TUI's list stops there and asks for a narrower search.
 - `acres::Page` parses listings by `ids`, which come without `pagination`.
 - `acres-tui` builds in release mode again: the panic hook no longer uses `human-panic`, which was never a dependency.
