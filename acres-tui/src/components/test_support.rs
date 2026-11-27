@@ -26,3 +26,10 @@ pub fn render(component: &mut impl Component, width: u16, height: u16) -> String
         .collect::<Vec<_>>()
         .join("\n")
 }
+
+/// A failure as the catalog would report it while offline, with its hint.
+pub fn offline() -> crate::failure::Failure {
+    crate::failure::Failure::from_error(&acres::CacheError::Missing {
+        endpoint: "https://api.artic.edu/api/v1/artworks".into(),
+    })
+}

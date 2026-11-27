@@ -19,7 +19,6 @@ pub mod help;
 pub mod home;
 pub mod hud;
 pub mod iiif;
-pub mod logs;
 pub mod note;
 pub mod quit;
 pub mod ramps;

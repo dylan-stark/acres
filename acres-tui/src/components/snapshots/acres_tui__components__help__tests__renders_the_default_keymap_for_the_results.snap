@@ -41,7 +41,7 @@ expression: "render(&mut help, 60, 50)"
   │  b          cycle art mode                           │
   │  r          pick a ramp                              │
   │  t          toggle timings                           │
-  │  L          toggle logs                              │
+  │  !          show the last failure                    │
   │  q          quit, after asking                       │
   │  ctrl-c     quit without asking                      │
   │  ctrl-z     suspend                                  │

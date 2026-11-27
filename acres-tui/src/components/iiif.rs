@@ -5,7 +5,7 @@ use std::{
 };
 
 use acres::Catalog;
-use color_eyre::eyre::{self};
+use color_eyre::eyre;
 use iiif::ImageRequest;
 use ratatui::{Frame, prelude::Rect};
 use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
@@ -15,6 +15,7 @@ use crate::{
     action::{Action, Timing},
     components::{Component, home::Decoded},
     entry::Entry,
+    failure::failed,
 };
 
 /// How long the selection must rest on an artwork before its cached image is read and decoded,
@@ -119,7 +120,8 @@ impl Iiif {
                     Ok(Some(bytes)) => bytes,
                     Ok(None) => return,
                     Err(e) => {
-                        let _ = tx.send(Action::Log(format!("cached image {id}: {e}")));
+                        // A background read: the log is the only place to say so.
+                        failed(&e);
                         return;
                     }
                 };
@@ -133,7 +135,7 @@ impl Iiif {
                         let _ = tx.send(Action::UpdateImage { id, image, timing });
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::Log(format!("cached image {id}: {e}")));
+                        failed(e.as_ref());
                     }
                 }
             }
@@ -156,7 +158,9 @@ impl Iiif {
                 let fetched = match catalog.image(&image_request).await {
                     Ok(fetched) => fetched,
                     Err(e) => {
-                        let _ = tx.send(Action::Log(format!("image {id}: {e}")));
+                        let report = eyre::Report::new(e)
+                            .wrap_err(format!("could not fetch the image of {id}"));
+                        let _ = tx.send(Action::Failed(failed(report.as_ref())));
                         return;
                     }
                 };
@@ -179,7 +183,8 @@ impl Iiif {
                         let _ = tx.send(Action::UpdateImage { id, image, timing });
                     }
                     Err(e) => {
-                        let _ = tx.send(Action::Log(format!("image {id}: {e}")));
+                        let report = e.wrap_err(format!("could not decode the image of {id}"));
+                        let _ = tx.send(Action::Failed(failed(report.as_ref())));
                     }
                 }
             }
@@ -445,6 +450,29 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(cached, [1]);
+    }
+
+    #[tokio::test]
+    async fn a_failed_full_image_is_reported_for_the_status_bar() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+        let (mut iiif, mut rx) = iiif(&server);
+        show(&mut iiif, entry(&server, 1));
+        iiif.update(Action::ShowFullImage).unwrap();
+        let failure = tokio::time::timeout(Duration::from_millis(600), async {
+            loop {
+                if let Some(Action::Failed(failure)) = rx.recv().await {
+                    return failure;
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(failure.kind, "response.not_found");
+        assert_eq!(failure.message, "could not fetch the image of 1");
     }
 
     #[tokio::test]

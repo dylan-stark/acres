@@ -1,9 +1,0 @@
----
-source: acres-tui/src/components/logs.rs
-expression: "render(&mut logs, 40, 5)"
----
-┌ logs ────────────────────────────────┐
-│action: CycleArtMode                  │
-│error: no image                       │
-│last                                  │
-└──────────────────────────────────────┘

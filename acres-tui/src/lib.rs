@@ -14,6 +14,7 @@ pub mod config;
 pub mod entry;
 pub mod errors;
 pub mod explorer;
+pub mod failure;
 pub mod logging;
 pub mod saved;
 pub mod tui;

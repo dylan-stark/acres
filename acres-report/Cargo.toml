@@ -1,0 +1,19 @@
+[package]
+name = "acres-report"
+version = "0.1.0"
+edition = "2024"
+description = "How the acres apps classify and report a failure: a kind, a hint and an exit code."
+repository = "https://github.com/dylan-stark/acres"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+acres = { path = "../acres" }
+charaoke = { path = "../charaoke" }
+iiif = { path = "../iiif" }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+
+[dev-dependencies]
+eyre = "0.6.12"

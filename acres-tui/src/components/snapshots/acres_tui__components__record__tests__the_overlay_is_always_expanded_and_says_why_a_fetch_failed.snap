@@ -18,7 +18,7 @@ expression: "render(&mut overlay, 60, 22)"
     │                                                  │
     │───                                               │
     │                                                  │
-    │Could not load the full record: offline           │
-    │                                                  │
-    │                                                  │
+    │Could not load the full record: not cached while  │
+    │offline: https://api.artic.edu/api/v1/artworks ·  │
+    │go online (unset ACRES_OFFLINE, or drop --offline)│
     └──────────────────────────────────────────────────┘

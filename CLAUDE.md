@@ -19,10 +19,11 @@ Rust workspace of tools for the [Art Institute of Chicago API](https://api.artic
 - `image-to-ascii-builder` — builder wrapper around `image-to-ascii`, kept only for the baseline benches (no workspace deps; see ADR 0011)
 - `charaoke` — from-scratch, performance-focused image-to-ASCII engine used by the CLI and TUI (no workspace deps; see ADRs 0008 and 0011)
 - `acres` — AIC API library; depends on `iiif`
-- `acres-cli` — Clap CLI; depends on `acres`, `iiif`, `charaoke`
-- `acres-tui` — Ratatui TUI; depends on `acres`, `iiif`, `charaoke`
+- `acres-report` — internal (`publish = false`) failure classification (kind, hint, exit code) and text/JSON rendering shared by the apps; depends on `acres`, `iiif`, `charaoke` (see ADR 0021)
+- `acres-cli` — Clap CLI; depends on `acres`, `acres-report`, `iiif`, `charaoke`
+- `acres-tui` — Ratatui TUI; depends on `acres`, `acres-report`, `iiif`, `charaoke`
 
-Library crates never depend on their consumers: `iiif`, `image-to-ascii-builder` and `charaoke` depend on nothing in the workspace, `acres` may depend only on `iiif`, and `acres-cli`/`acres-tui` may depend on `acres`, `iiif`, `charaoke` and `image-to-ascii-builder`. Never add a dependency in the other direction.
+Library crates never depend on their consumers: `iiif`, `image-to-ascii-builder` and `charaoke` depend on nothing in the workspace, `acres` may depend only on `iiif`, `acres-report` may depend only on `acres`, `iiif` and `charaoke`, and `acres-cli`/`acres-tui` may depend on `acres`, `acres-report`, `iiif`, `charaoke` and `image-to-ascii-builder`. The apps never depend on each other. Never add a dependency in the other direction.
 
 ## Conventions
 
@@ -33,7 +34,7 @@ Library crates never depend on their consumers: `iiif`, `image-to-ascii-builder`
 - Update `CHANGELOG.md` (under `[Unreleased]`, Keep a Changelog format) in the same commit as any user-visible change.
 - `scratch/` is gitignored working space for temporary files that should stay in the repo tree (notes, probes, drafts). Read and write there freely, but never commit anything in it except `scratch/README.md`.
 - Never read, modify, or commit `target/`.
-- Errors follow `docs/ERROR-HANDLING.md`: `thiserror` enums per layer in libraries, a stable `kind()` for every error, hints for what to do next, no panics on user input, config or API responses, and the CLI's exit codes and `--error-format json` contract (ADR 0019).
+- Errors follow `docs/ERROR-HANDLING.md`: `thiserror` enums per layer in libraries, a stable `kind()` for every error, hints for what to do next, no panics on user input, config or API responses, and the CLI's exit codes and `--error-format json` contract (ADR 0019). Both apps classify and write failures through `acres-report` (ADR 0021).
 - Logging follows `docs/LOGGING.md`: libraries return errors rather than logging them above DEBUG, one span and one closing event per unit of work, WARN only for degraded-but-continuing conditions, stable snake_case fields with durations as `*_ms` (ADR 0020).
 - Tests must mock the network. Never hit the live AIC API from tests.
 - TUI keybindings live in `acres-tui/.config/config.json5`.

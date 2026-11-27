@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 acres = { path = "../acres" }
+acres-report = { path = "../acres-report" }
 bytes = { version = "1.10.1", features = ["serde"] }
 charaoke = { path = "../charaoke" }
 clap = { version = "4.5.37", features = ["cargo", "derive", "string"] }
@@ -15,8 +16,6 @@ eyre = "0.6.12"
 iiif = { path = "../iiif" }
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 reqwest = "0.12.23"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
 tokio = { version = "1.44.2", features = ["rt", "macros", "full"] }
 tracing = "0.1.41"
 tracing-error = "0.2.1"

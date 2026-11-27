@@ -9,6 +9,7 @@ use ratatui::{
 };
 
 use super::{ACCENT, Component, catalog::DATED_YEARS, centered};
+use crate::failure::{self, Failure};
 
 /// The departments and artwork types the API lists, to choose from.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -100,7 +101,7 @@ impl FilterPanel {
         self.facets.is_some()
     }
 
-    pub fn set_facets(&mut self, facets: Result<Facets, String>) {
+    pub fn set_facets(&mut self, facets: Result<Facets, Failure>) {
         match facets {
             Ok(mut facets) => {
                 facets.departments.sort_by(|a, b| a.1.cmp(&b.1));
@@ -108,7 +109,7 @@ impl FilterPanel {
                 self.facets = Some(facets);
                 self.facets_error = None;
             }
-            Err(error) => self.facets_error = Some(error),
+            Err(failure) => self.facets_error = Some(failure::line(&failure)),
         }
     }
 
@@ -420,7 +421,7 @@ mod tests {
         let mut panel = FilterPanel::default();
         panel.open(&default_filters());
         assert!(render(&mut panel, 70, 12).contains("loading…"));
-        panel.set_facets(Err("offline".into()));
+        panel.set_facets(Err(crate::components::test_support::offline()));
         let drawn = render(&mut panel, 70, 12);
         assert!(drawn.contains("unavailable") && drawn.contains("offline"));
     }
