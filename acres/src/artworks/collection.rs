@@ -153,7 +153,6 @@ impl Builder {
     /// Builder::new().ids(Some(vec![256, 1024, 4096]));
     /// ```
     pub fn ids(mut self, ids: Option<Vec<u32>>) -> Self {
-        tracing::info!(msg = "Settings ids", ?ids);
         self.ids = ids;
         self
     }
@@ -173,7 +172,6 @@ impl Builder {
     ///
     /// [pagination section]: https://api.artic.edu/docs/#pagination
     pub fn limit(mut self, limit: Option<u32>) -> Self {
-        tracing::info!(msg = "Settings limit", limit);
         self.limit = limit;
         self
     }
@@ -193,7 +191,6 @@ impl Builder {
     ///
     /// [pagination section]: https://api.artic.edu/docs/#pagination
     pub fn page(mut self, page: Option<u32>) -> Self {
-        tracing::info!(msg = "Settings page", page);
         self.page = page;
         self
     }
@@ -208,7 +205,6 @@ impl Builder {
     /// Builder::new().fields(Some(vec!["title".into(), "description".into()]));
     /// ```
     pub fn fields(mut self, fields: Option<Vec<String>>) -> Self {
-        tracing::info!(msg = "Settings fields", ?fields);
         if let Some(fields) = fields {
             self.fields = fields;
         }
@@ -225,7 +221,6 @@ impl Builder {
     /// Builder::new().include(Some(vec!["place_pivots".into()]));
     /// ```
     pub fn include(mut self, include: Option<Vec<String>>) -> Self {
-        tracing::info!(msg = "Settings include", ?include);
         if let Some(include) = include {
             self.include = include;
         }

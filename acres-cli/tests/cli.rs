@@ -86,3 +86,30 @@ fn a_bad_environment_value_exits_7() -> Result<(), Box<dyn std::error::Error>> {
         .stderr(predicate::str::contains("offline"));
     Ok(())
 }
+
+#[test]
+fn verbose_logs_each_request_and_quiet_logs_nothing() -> Result<(), Box<dyn std::error::Error>> {
+    let cache = assert_fs::TempDir::new()?;
+    let run = |flag: &str| -> Result<String, Box<dyn std::error::Error>> {
+        let output = Command::cargo_bin("acres-cli")?
+            .env("ACRES_CACHE_DIR", cache.path())
+            .env("ACRES_STATE_DIR", cache.path())
+            .env_remove("RUST_LOG")
+            .env_remove("RUST_BACKTRACE")
+            .args([flag, "--offline", "artwork", "27992"])
+            .output()?;
+        Ok(String::from_utf8(output.stderr)?)
+    };
+
+    let verbose = run("-v")?;
+    assert!(verbose.contains("request failed"), "{verbose}");
+    assert!(verbose.contains(r#"kind="cache.missing""#), "{verbose}");
+
+    let quiet = run("-q")?;
+    assert!(!quiet.contains("request failed"), "{quiet}");
+    assert!(
+        quiet.starts_with("error: not cached while offline"),
+        "{quiet}"
+    );
+    Ok(())
+}

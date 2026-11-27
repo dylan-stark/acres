@@ -104,21 +104,18 @@ impl Builder {
     /// Builder::new().q(Some("monet".into()));
     /// ```
     pub fn q(mut self, q: Option<String>) -> Self {
-        tracing::info!(msg = "Setting q", ?q);
         self.q = q;
         self
     }
 
     /// Sets the search more complex query.
     pub fn query(mut self, query: Option<String>) -> Self {
-        tracing::info!(msg = "Setting query", ?query);
         self.query = query;
         self
     }
 
     /// Sets the sort field. The API sorts ascending unless [`Builder::descending`] is set.
     pub fn sort(mut self, field: Option<String>) -> Self {
-        tracing::info!(msg = "Setting sort", ?field);
         self.sort = field;
         self
     }
@@ -144,21 +141,18 @@ impl Builder {
 
     /// Sets the from parameter.
     pub fn from(mut self, from: Option<u32>) -> Self {
-        tracing::info!(msg = "Setting from", ?from);
         self.from = from;
         self
     }
 
     /// Sets the size parameter.
     pub fn size(mut self, size: Option<u32>) -> Self {
-        tracing::info!(msg = "Setting size", ?size);
         self.size = size;
         self
     }
 
     /// Sets the facets parameter.
     pub fn facets(mut self, facets: Option<Vec<String>>) -> Self {
-        tracing::info!(msg = "Setting facets", ?facets);
         self.facets = facets;
         self
     }
@@ -167,21 +161,18 @@ impl Builder {
     ///
     /// [`ArtworkSummary::FIELDS`]: crate::artworks::ArtworkSummary::FIELDS
     pub fn fields(mut self, fields: Option<Vec<String>>) -> Self {
-        tracing::info!(msg = "Setting fields", ?fields);
         self.fields = fields;
         self
     }
 
     /// Sets how many records a page holds, at most 100.
     pub fn limit(mut self, limit: Option<u32>) -> Self {
-        tracing::info!(msg = "Setting limit", ?limit);
         self.limit = limit;
         self
     }
 
     /// Sets which page to return, counted from 1.
     pub fn page(mut self, page: Option<u32>) -> Self {
-        tracing::info!(msg = "Setting page", ?page);
         self.page = page;
         self
     }
@@ -200,7 +191,6 @@ impl Builder {
     /// assert!(request.to_string().contains("query[bool][filter][0][term][is_public_domain]=true"));
     /// ```
     pub fn filters(mut self, filters: Filters) -> Self {
-        tracing::info!(msg = "Setting filters", ?filters);
         self.filters = filters;
         self
     }

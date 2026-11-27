@@ -25,3 +25,4 @@ Short records of non-obvious decisions, so a later reader (human or agent) knows
 | [0017](0017-tui-zoom-and-pan.md) | Zoom and pan in the art pane | Accepted |
 | [0018](0018-tui-browse-cached-images.md) | Browse cached images instead of placeholders | Accepted |
 | [0019](0019-error-kinds-and-exit-codes.md) | Error kinds, hints and CLI exit codes for people and agents | Accepted |
+| [0020](0020-log-levels-and-fields.md) | Log levels, fields and destinations | Accepted |
