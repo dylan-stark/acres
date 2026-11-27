@@ -45,7 +45,7 @@ A resize drag from 120 to 200 columns, re-rendering an 843 x 632 image into a Ra
 
 That is against a budget of 8 ms a frame. The workspace's ADRs 0008 to 0014 record how it got there.
 
-`charaoke` has no dependency on the rest of the [acres](https://github.com/dylan-stark/acres) workspace. The [API docs](https://docs.rs/charaoke) cover every type.
+`charaoke` has no dependency on the rest of the [acres](https://github.com/dylan-stark/acres) workspace. `cargo doc --open -p charaoke` builds the API docs, which cover every type.
 
 ## License
 

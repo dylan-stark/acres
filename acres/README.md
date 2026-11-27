@@ -41,7 +41,7 @@ Every error has a stable `kind()`, such as `cache.missing`, and many have a `hin
 
 A value that can't be read, such as `ACRES_OFFLINE=maybe`, makes `build()` fail with a `config.invalid` error.
 
-`acres` powers [`acres-cli`](../acres-cli) and [`acres-tui`](../acres-tui). The [API docs](https://docs.rs/acres) cover every endpoint and type.
+`acres` powers [`acres-cli`](../acres-cli) and [`acres-tui`](../acres-tui). `cargo doc --open -p acres` builds the API docs, which cover every endpoint and type.
 
 ## License
 

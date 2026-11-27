@@ -22,7 +22,7 @@ println!("{image}"); // https://www.artic.edu/iiif/2/3eec…/full/843,/0/default
 
 Full URLs parse back into requests too, and the `serde` feature serializes every type as its IIIF string form.
 
-`iiif` has no dependency on the rest of the [acres](https://github.com/dylan-stark/acres) workspace, so it works with any IIIF 2.0 server. The [API docs](https://docs.rs/iiif) cover every type.
+`iiif` has no dependency on the rest of the [acres](https://github.com/dylan-stark/acres) workspace, so it works with any IIIF 2.0 server. `cargo doc --open -p iiif` builds the API docs, which cover every type.
 
 ## License
 
