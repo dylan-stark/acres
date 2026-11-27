@@ -9,7 +9,7 @@ acres-tui --offline  # only what is already cached
 
 `?` lists every key. Keys and settings can be changed in `config.json5` in the config directory, which `acres-tui --version` prints.
 
-The [workspace README](https://github.com/dylan-stark/acres#the-tui) covers the keys, the configuration and troubleshooting.
+The [workspace README](https://github.com/dylan-stark/acres/blob/main/README.md#the-tui) covers the keys, the configuration and troubleshooting.
 
 ## License
 

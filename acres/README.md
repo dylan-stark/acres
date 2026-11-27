@@ -28,7 +28,7 @@ for artwork in page.value.data {
 Responses are typed (`Page<ArtworkSummary>`, `Item<Artwork>`, departments and artwork types), or raw JSON through `Catalog::raw`.
 Every error has a stable `kind()`, such as `cache.missing`, and many have a `hint()` on what to do next.
 
-The `ACRES_*` environment variables set the defaults, such as `ACRES_OFFLINE` and `ACRES_CACHE_DIR`; the [workspace README](https://github.com/dylan-stark/acres#configuration) lists them.
+The `ACRES_*` environment variables set the defaults, such as `ACRES_OFFLINE` and `ACRES_CACHE_DIR`; the [workspace README](https://github.com/dylan-stark/acres/blob/main/README.md#configuration) lists them.
 
 `acres` powers [`acres-cli`](../acres-cli) and [`acres-tui`](../acres-tui). The [API docs](https://docs.rs/acres) cover every endpoint and type.
 
