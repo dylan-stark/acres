@@ -1,9 +1,7 @@
 # Error handling
 
-How errors are built, named, worded and reported across the workspace. It is written for people,
-and coding agents follow it too (CLAUDE.md links here). The reasoning behind the main choices is in
-[ADR 0006](decisions/0006-iiif-error-naming.md) (naming and layers) and
-[ADR 0019](decisions/0019-error-kinds-and-exit-codes.md) (kinds, hints and exit codes).
+How errors are built, named, worded and reported across the workspace.
+The reasoning behind the main choices is in [ADR 0006](decisions/0006-iiif-error-naming.md) (naming and layers) and [ADR 0019](decisions/0019-error-kinds-and-exit-codes.md) (kinds, hints and exit codes).
 
 ## Libraries (`iiif`, `acres`, `charaoke`)
 
@@ -14,7 +12,7 @@ and coding agents follow it too (CLAUDE.md links here). The reasoning behind the
 - **Mark every public error enum `#[non_exhaustive]`.**
 - **Name variants for what is wrong with the input.** Use `Invalid` (present but malformed),
   `Missing` (required but absent), `Unexpected` (present but not allowed) or `OutOfRange` (parses,
-  but the value isn't allowed), or a more exact word where one exists (`TrailingSlash`). Don't
+  but the value isn't allowed), or a more exact phrase where one exists (`TrailingSlash`). Don't
   repeat the type's name (`BaseUriError::InvalidChar`, not `InvalidUriChar`).
 - **Keep dependency types out of the API.** Hold a third-party cause as
   `Box<dyn Error + Send + Sync>` (`acres::BoxError`) behind `#[source]`.
@@ -118,8 +116,3 @@ alone doesn't say it. For example, `cache.missing` says to go online.
 - A real panic restores the terminal, writes the report to the log file, and asks the user to
   report it.
 
-## Tests
-
-- Test each new error's kind, and its message when the message names the input.
-- Test that user input which used to panic now returns an error.
-- CLI tests check the exit code and, for agent-facing behavior, the JSON line.
