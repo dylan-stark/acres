@@ -15,6 +15,8 @@ crashed, and it logged a missing config file, the normal case, at ERROR. No crat
 
 ## Decision
 
+The current conventions, which may have grown since, are in [`docs/LOGGING.md`](../LOGGING.md).
+
 - **Levels.**
   - ERROR is for failures the app itself can't report any other way.
   - WARN is for degraded but continuing work the caller can't otherwise see, such as a shared

@@ -34,7 +34,7 @@ Library crates never depend on their consumers: `iiif`, `image-to-ascii-builder`
 - `scratch/` is gitignored working space for temporary files that should stay in the repo tree (notes, probes, drafts). Read and write there freely, but never commit anything in it except `scratch/README.md`.
 - Never read, modify, or commit `target/`.
 - Errors follow `docs/ERROR-HANDLING.md`: `thiserror` enums per layer in libraries, a stable `kind()` for every error, hints for what to do next, no panics on user input, config or API responses, and the CLI's exit codes and `--error-format json` contract (ADR 0019).
-- Logging follows ADR 0020: libraries return errors rather than logging them above DEBUG, normal work is DEBUG (one closing event per unit of work), WARN is only for degraded-but-continuing conditions, and durations are `*_ms` fields.
+- Logging follows `docs/LOGGING.md`: libraries return errors rather than logging them above DEBUG, one span and one closing event per unit of work, WARN only for degraded-but-continuing conditions, stable snake_case fields with durations as `*_ms` (ADR 0020).
 - Tests must mock the network. Never hit the live AIC API from tests.
 - TUI keybindings live in `acres-tui/.config/config.json5`.
 

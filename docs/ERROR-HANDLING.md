@@ -2,6 +2,7 @@
 
 How errors are built, named, worded and reported across the workspace.
 The reasoning behind the main choices is in [ADR 0006](decisions/0006-iiif-error-naming.md) (naming and layers) and [ADR 0019](decisions/0019-error-kinds-and-exit-codes.md) (kinds, hints and exit codes).
+What gets logged about errors, and at which level, is in [LOGGING.md](LOGGING.md).
 
 ## Libraries (`iiif`, `acres`, `charaoke`)
 

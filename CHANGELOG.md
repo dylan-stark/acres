@@ -49,6 +49,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Every `iiif`, `acres` and `charaoke` error has a stable `kind()`, such as `cache.missing` or `iiif.parameter.invalid_region`. `acres` errors also have `hint()`, and `acres::ResponseError::is_transient` says whether trying again may work.
 - `acres::ConfigError` (`config.invalid`): `CatalogBuilder::build` fails on an unreadable `ACRES_*` variable, such as `ACRES_OFFLINE=maybe`, instead of quietly using the defaults.
 - `docs/ERROR-HANDLING.md`, the conventions for errors across the workspace.
+- `docs/LOGGING.md`, the conventions for log levels, spans, fields and where each binary logs.
 - `acres-cli -v` logs each request's outcome to stderr: whether it came from the cache, its wait and fetch times in milliseconds and its size, or the kind of error. `-vv` and `-vvv` log more, `-q` logs nothing, and `RUST_LOG` still overrides them (see [ADR 0020](docs/decisions/0020-log-levels-and-fields.md)).
 - `acres::Catalog` requests run in a DEBUG `request` span and end with one DEBUG `fetched` or `request failed` event. TUI image fetches run in `image` and `cached_image` spans.
 
