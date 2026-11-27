@@ -2,7 +2,7 @@ use std::path::Path;
 
 use color_eyre::Result;
 use tracing_error::ErrorLayer;
-use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+use tracing_subscriber::{EnvFilter, fmt, fmt::format::FmtSpan, prelude::*};
 
 use crate::config;
 
@@ -28,7 +28,13 @@ pub fn init() -> Result<()> {
     let env_filter = env_filter
         .try_from_env()
         .or_else(|_| env_filter.with_env_var(LOG_ENV.clone()).from_env())?;
+    // At TRACE, each span also logs a `close` line with its busy and idle time.
+    let spans = match env_filter.max_level_hint() {
+        Some(level) if level < tracing::level_filters::LevelFilter::TRACE => FmtSpan::NONE,
+        _ => FmtSpan::CLOSE,
+    };
     let file_subscriber = fmt::layer()
+        .with_span_events(spans)
         .with_file(true)
         .with_line_number(true)
         .with_writer(log_file)

@@ -42,6 +42,9 @@ The current conventions, which may have grown since, are in [`docs/LOGGING.md`](
   `RUST_LOG`. Image fetches and cache reads run in `image` and `cached_image` spans keyed by
   artwork id.
 
+- **Span timings at TRACE.** When the filter allows TRACE, each span logs a `close` line with
+  `time.busy` and `time.idle`.
+
 ## Consequences
 
 - `acres-cli -v` shows what was fetched, from where and how long it took, which helps both

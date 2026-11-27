@@ -5,7 +5,7 @@ use std::io::IsTerminal;
 use color_eyre::Result;
 use tracing::level_filters::LevelFilter;
 use tracing_error::ErrorLayer;
-use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+use tracing_subscriber::{EnvFilter, fmt, fmt::format::FmtSpan, prelude::*};
 
 /// How much to log, from the command-line flags.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,17 +47,28 @@ pub fn init(verbosity: Verbosity) -> Result<()> {
     };
     let stderr = std::io::stderr();
     let ansi = stderr.is_terminal() && std::env::var_os("NO_COLOR").is_none();
+    let spans = span_events(&filter);
     tracing_subscriber::registry()
         .with(
             fmt::layer()
                 .with_writer(std::io::stderr)
                 .with_ansi(ansi)
                 .with_target(false)
+                .with_span_events(spans)
                 .with_filter(filter),
         )
         .with(ErrorLayer::default())
         .try_init()?;
     Ok(())
+}
+
+/// At TRACE, each span also logs a `close` line with its `time.busy` and `time.idle`, so `-vvv`
+/// shows how long every request took end to end.
+pub fn span_events(filter: &EnvFilter) -> FmtSpan {
+    match filter.max_level_hint() {
+        Some(level) if level < LevelFilter::TRACE => FmtSpan::NONE,
+        _ => FmtSpan::CLOSE,
+    }
 }
 
 /// INFO everywhere, plus the DEBUG `fetched` / `request failed` event that ends each request,
@@ -77,6 +88,14 @@ fn filter_directive(verbosity: Verbosity) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spans_log_their_close_only_at_trace() {
+        let filter = |d: &str| EnvFilter::try_new(d).unwrap();
+        assert_eq!(span_events(&filter("debug")), FmtSpan::NONE);
+        assert_eq!(span_events(&filter("trace")), FmtSpan::CLOSE);
+        assert_eq!(span_events(&filter("info,acres=trace")), FmtSpan::CLOSE);
+    }
 
     #[test]
     fn flags_pick_the_level() {

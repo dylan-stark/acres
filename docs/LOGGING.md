@@ -32,6 +32,9 @@ Errors themselves are covered in [ERROR-HANDLING.md](ERROR-HANDLING.md).
   values: `retrying`, not `Retrying in 2s after 429`. Values go in fields.
 - In async code, attach spans with `.instrument(span)`. Don't hold a `span.enter()` guard across
   an `.await`.
+- At TRACE, both binaries also log a `close` line for each span with its `time.busy` and
+  `time.idle`, so `acres-cli -vvv` or `ACRES_TUI_LOGLEVEL=trace` shows how long each request or
+  image load took end to end.
 
 ## Fields
 

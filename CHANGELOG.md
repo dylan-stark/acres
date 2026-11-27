@@ -51,7 +51,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `docs/ERROR-HANDLING.md`, the conventions for errors across the workspace.
 - `docs/LOGGING.md`, the conventions for log levels, spans, fields and where each binary logs.
 - `acres-cli -v` logs each request's outcome to stderr: whether it came from the cache, its wait and fetch times in milliseconds and its size, or the kind of error. `-vv` and `-vvv` log more, `-q` logs nothing, and `RUST_LOG` still overrides them (see [ADR 0020](docs/decisions/0020-log-levels-and-fields.md)).
-- `acres::Catalog` requests run in a DEBUG `request` span and end with one DEBUG `fetched` or `request failed` event. TUI image fetches run in `image` and `cached_image` spans.
+- `acres::Catalog` requests run in a DEBUG `request` span and end with one DEBUG `fetched` or `request failed` event. TUI image fetches run in `image` and `cached_image` spans. At TRACE (`acres-cli -vvv`, `ACRES_TUI_LOGLEVEL=trace`), each span also logs a `close` line with its busy and idle time.
 
 - The `acres-tui` record pane is a wall label (ADR 0013, step 3): artist, title and date, medium, credit line and reference number, all from the results list. `d` expands it in place to the full record (dimensions, place of origin, department, gallery and the description), fetched when asked for, and `enter` opens the full record in a large overlay that follows `n`/`p`. `o` opens the artwork on artic.edu and `y` copies its link (through OSC 52, so it works over SSH).
 - `acres-tui` decodes images on a blocking thread, off the app loop, and keeps the last 16 full images decoded, so going back to one shows it at once with no fetch.

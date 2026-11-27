@@ -61,7 +61,7 @@ When you're done, hit `q`, then `q` or `enter` again to confirm (`esc` stays). `
 
 Every command goes through one rate-limited client (60 requests a minute, as the API asks, shared by every run and the TUI) and an on-disk cache: images are kept for good, records for 7 days and search or listing pages for 24 hours. Pass `--offline` (or set `ACRES_OFFLINE=true`) to answer only from the cache, and set `ACRES_CONTACT` to add a contact to the `AIC-User-Agent` header the API asks for.
 
-Warnings go to stderr. Add `-v` to also see each request's outcome (whether it came from the cache, how long it waited for the rate limit and how long the fetch took), `-vv` or `-vvv` for more detail, or `-q` for no logging at all. `RUST_LOG` overrides these when set. [`docs/LOGGING.md`](docs/LOGGING.md) has the levels and fields.
+Warnings go to stderr. Add `-v` to also see each request's outcome (whether it came from the cache, how long it waited for the rate limit and how long the fetch took), `-vv` for more detail, `-vvv` for everything including how long each request took end to end, or `-q` for no logging at all. `RUST_LOG` overrides these when set. [`docs/LOGGING.md`](docs/LOGGING.md) has the levels and fields.
 
 ### Errors and exit codes
 
