@@ -1,0 +1,15 @@
+---
+source: acres-tui/src/explorer.rs
+expression: "render(&mut explorer, 80, 12)"
+---
+
+
+
+
+
+
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │error: not cached while offline: https://api.artic.edu/api/v1/artworks│
+    │· go online (unset ACRES_OFFLINE, or drop --offline) to fetch it once │
+    └──────────────────────────────────────────────────────────────────────┘

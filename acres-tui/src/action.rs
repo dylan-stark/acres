@@ -113,6 +113,8 @@ pub enum Action {
     PickRamp,
     #[strum(message = "toggle timings")]
     ToggleHud,
+    #[strum(message = "show the last failure")]
+    ShowLastFailure,
     #[strum(message = "quit, after asking")]
     AskQuit,
     #[strum(message = "quit without asking")]

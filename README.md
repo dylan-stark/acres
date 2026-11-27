@@ -47,7 +47,7 @@ Hit `?` for every key, listed for the focused pane first, and `esc` to close it.
 - `t` slides out a HUD over the right of the art with how long each fetch, decode, render and frame took. The log is `acres-tui.log` in the data directory (`acres-tui --version` prints where that is). It is kept across runs, and `ACRES_TUI_LOGLEVEL=debug` adds each request's outcome.
 - The mouse works too: scroll the list or the record, click a row to select it, and click a pane to focus it. Set `mouse: false` in the config to keep your terminal's own text selection.
 
-The status bar counts the results, says when the rate limit is holding a search up, shows a few useful keys for the focused pane and echoes the last key you pressed with what it did, or `not mapped here` when it did nothing there (`show_keys: false` turns that off). When something you asked for fails, such as fetching the full image, it says so in red with a hint on what to do next, until your next key.
+The status bar counts the results, says when the rate limit is holding a search up, shows a few useful keys for the focused pane and echoes the last key you pressed with what it did, or `not mapped here` when it did nothing there (`show_keys: false` turns that off). When something you asked for fails, such as fetching the full image, it says so in red with a hint on what to do next, until your next key. In zen it pops up over the bottom of the art instead, and `!` shows the last failure again.
 Keys are set in `acres-tui/.config/config.json5`, per pane, and your own config can override any of them.
 
 When you're done, hit `q`, then `q` or `enter` again to confirm (`esc` stays). `ctrl-c` quits without asking.

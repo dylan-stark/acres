@@ -45,7 +45,7 @@ use crate::{
         record::Record,
         results::Results,
         search::Search,
-        status::Status,
+        status::{self, Status},
         views::ViewList,
     },
     config::{Config, Context, KeyBindings, key_event_to_string, normalize},
@@ -209,6 +209,8 @@ pub struct Explorer {
     echo: Option<String>,
     /// The last failure of something asked for, with its hint, until the next key.
     alert: Option<String>,
+    /// The same, kept after the next key, for `!` to show again.
+    last_failure: Option<String>,
     search: Search,
     /// The list showing, and the other one: the results while the saved list shows, or the
     /// other way around.
@@ -279,6 +281,7 @@ impl Explorer {
             zen: false,
             echo: None,
             alert: None,
+            last_failure: None,
             search: Search::default(),
             results,
             other: Results::default(),
@@ -473,7 +476,13 @@ impl Explorer {
 
     /// Logs `error` and shows it, with its hint, in the status bar until the next key.
     fn fail(&mut self, error: eyre::Report) {
-        self.alert = Some(failure::line(&failure::failed(error.as_ref())));
+        self.alert_with(failure::line(&failure::failed(error.as_ref())));
+    }
+
+    /// Shows `line` in the status bar, or over the art in zen, until the next key.
+    fn alert_with(&mut self, line: String) {
+        self.last_failure = Some(line.clone());
+        self.alert = Some(line);
     }
 
     /// Shows `artwork` if the selection moved to it, and asks for its image. Near the end of a
@@ -1494,7 +1503,14 @@ impl Component for Explorer {
                 None
             }
             Action::Failed(failure) => {
-                self.alert = Some(failure::line(failure));
+                self.alert_with(failure::line(failure));
+                None
+            }
+            Action::ShowLastFailure => {
+                match &self.last_failure {
+                    Some(line) => self.alert = Some(line.clone()),
+                    None => self.echo = Some("! · nothing has failed".into()),
+                }
                 None
             }
             Action::FacetsLoaded(facets) => {
@@ -1626,6 +1642,9 @@ impl Component for Explorer {
             self.areas = Areas::default();
             self.art.draw(frame, area)?;
             self.hud.draw(frame, area)?;
+            if let Some(alert) = &self.alert {
+                status::draw_popup(frame, area, alert);
+            }
         } else {
             self.areas = Areas {
                 search,
@@ -2032,6 +2051,20 @@ mod tests {
                 .unwrap()
                 .ends_with("x · not mapped here")
         );
+    }
+
+    #[test]
+    fn zen_shows_a_failure_in_a_popup_and_bang_shows_it_again() {
+        let mut explorer = explorer();
+        press(&mut explorer, char('!'));
+        assert_eq!(explorer.echo.as_deref(), Some("! · nothing has failed"));
+        press(&mut explorer, char('z'));
+        explorer.update(Action::Failed(offline())).unwrap();
+        insta::assert_snapshot!(render(&mut explorer, 80, 12));
+        press(&mut explorer, char('j'));
+        assert!(!render(&mut explorer, 80, 12).contains("error:"));
+        press(&mut explorer, char('!'));
+        assert!(render(&mut explorer, 80, 12).contains("error: not cached while offline"));
     }
 
     #[test]

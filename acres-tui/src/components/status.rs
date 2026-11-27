@@ -4,10 +4,38 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Span},
-    widgets::Paragraph,
+    widgets::{Block, Clear, Paragraph, Wrap},
 };
 
 use super::{ACCENT, Component};
+
+/// Widest the zen popup gets, in columns.
+const POPUP_WIDTH: u16 = 72;
+
+/// Draws `alert` in a small box at the bottom of `area`, for zen, where there is no status bar.
+pub fn draw_popup(frame: &mut Frame, area: Rect, alert: &str) {
+    let text = Line::from(vec![
+        Span::raw("error: ").fg(Color::Red).bold(),
+        Span::raw(alert).fg(Color::Red),
+    ]);
+    let width = POPUP_WIDTH.min(area.width);
+    let inner = usize::from(width.saturating_sub(2).max(1));
+    let rows = text.width().div_ceil(inner).max(1);
+    let height = (u16::try_from(rows).unwrap_or(u16::MAX) + 2).min(area.height);
+    let popup = Rect::new(
+        area.x + (area.width - width) / 2,
+        area.bottom().saturating_sub(height + 1).max(area.y),
+        width,
+        height,
+    );
+    frame.render_widget(Clear, popup);
+    frame.render_widget(
+        Paragraph::new(text)
+            .wrap(Wrap { trim: true })
+            .block(Block::bordered().border_style(Style::new().fg(Color::Red))),
+        popup,
+    );
+}
 
 /// The one-line status bar: how many artworks are listed, a few keys for the focused pane, and
 /// the last key pressed with what it did.

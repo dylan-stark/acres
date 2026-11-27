@@ -35,10 +35,11 @@ The current conventions, which may have grown since, are in
 - **Apps add their own errors** with `classify_with`: the CLI and TUI for `clap_stdin`, the TUI
   for its config file.
 - **TUI failures carry a `Failure`, not a string.** A failure of something the user asked for
-  shows in the status bar with its hint until the next key. Every failure is logged once at WARN
+  shows in the status bar with its hint until the next key, or in a popup over the art in zen,
+  and `!` shows the last one again. Every failure is logged once at WARN
   with its `kind`.
 - **The `L` log drawer is removed.** It showed a second, partial copy of the log. With failures
-  in the status bar, the log file is enough.
+  in the status bar or the zen popup, and `!` to see the last one, the log file is enough.
 - **A failure that stops the TUI is written as the CLI writes it**, on stderr once the terminal
   is restored, with the CLI's exit code: 7 for a bad config file or keybinding.
 
@@ -46,7 +47,7 @@ The current conventions, which may have grown since, are in
 
 - The CLI's JSON and exit codes are unchanged. A new kind or exit code is added in one place and
   both apps get it.
-- The TUI's status bar can show a long message. It is cut at the screen's edge, and the whole
-  failure is in the log.
+- A long failure is cut at the edge of the status bar. The zen popup wraps it whole, and the log
+  always has it.
 - `acres-report` is one more crate to keep in the dependency rules. Since it is not published, it
   can change with the apps.

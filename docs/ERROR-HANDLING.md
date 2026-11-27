@@ -115,7 +115,8 @@ alone doesn't say it. For example, `cache.missing` says to go online.
 
 - Failures from something the user asked for (a full image fetch, opening or copying a link, a
   save, a note, a view, an export) show in red in the status bar, with their hint, until the next
-  key. Send them as `Action::Failed`. A failed search shows in the status bar's counts, and a
+  key. In zen, which has no status bar, the failure pops up over the bottom of the art instead.
+  `!` shows the last failure again. Send them as `Action::Failed`. A failed search shows in the status bar's counts, and a
   failed record or filter list in its own pane, each with the hint.
 - Failures in background work (cache reads while browsing) go only to the log file.
 - Classify every failure with `acres_tui::failure::failed`, which logs it once at WARN with its
