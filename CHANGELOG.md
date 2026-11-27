@@ -49,6 +49,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Every `iiif`, `acres` and `charaoke` error has a stable `kind()`, such as `cache.missing` or `iiif.parameter.invalid_region`. `acres` errors also have `hint()`, and `acres::ResponseError::is_transient` says whether trying again may work.
 - `acres::ConfigError` (`config.invalid`): `CatalogBuilder::build` fails on an unreadable `ACRES_*` variable, such as `ACRES_OFFLINE=maybe`, instead of quietly using the defaults.
 - `docs/ERROR-HANDLING.md`, the conventions for errors across the workspace.
+- `acres-cli -v` logs each request's outcome to stderr: whether it came from the cache, its wait and fetch times in milliseconds and its size, or the kind of error. `-vv` and `-vvv` log more, `-q` logs nothing, and `RUST_LOG` still overrides them (see [ADR 0020](docs/decisions/0020-log-levels-and-fields.md)).
+- `acres::Catalog` requests run in a DEBUG `request` span and end with one DEBUG `fetched` or `request failed` event. TUI image fetches run in `image` and `cached_image` spans.
 
 - The `acres-tui` record pane is a wall label (ADR 0013, step 3): artist, title and date, medium, credit line and reference number, all from the results list. `d` expands it in place to the full record (dimensions, place of origin, department, gallery and the description), fetched when asked for, and `enter` opens the full record in a large overlay that follows `n`/`p`. `o` opens the artwork on artic.edu and `y` copies its link (through OSC 52, so it works over SSH).
 - `acres-tui` decodes images on a blocking thread, off the app loop, and keeps the last 16 full images decoded, so going back to one shows it at once with no fetch.
@@ -106,6 +108,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- `acres-cli` shows warnings by default, such as a shared rate limit it can't use, instead of hiding everything below ERROR.
+- The `acres-tui` log is appended to instead of replaced on every start, so a crashed run's log survives a restart. It moves to `acres-tui.log.1` past 5 MB, and each run starts with a line giving the version. A missing config file is logged at INFO, not ERROR.
+- The `acres` search and collection builders no longer log every setter at INFO.
 - A bad key in an `acres-tui` keybinding is a startup error naming the key and its context, instead of a panic reported as a bug.
 - `acres` and `acres-tui` no longer panic when a default directory isn't valid UTF-8, and `acres-tui` no longer panics if it can't restore the terminal while shutting down.
 - `acres-cli` exits quietly when stdout is closed early, as by `| head`, and prints the IIIF URL without panicking in that case.

@@ -13,6 +13,7 @@ use reqwest::{
 };
 use serde::de::DeserializeOwned;
 use tokio::time::Instant;
+use tracing::Instrument;
 
 pub(crate) use cache::Cache;
 pub use limiter::Lane;
@@ -261,11 +262,37 @@ impl Catalog {
     }
 
     /// Fetches `endpoint` and returns the body as sent, for callers that pass it on unchanged.
+    ///
+    /// Runs in a DEBUG `request` span with the `endpoint` and `resource`, and ends with one
+    /// DEBUG event: `fetched` (with `from_cache`, `wait_ms`, `fetch_ms` and `bytes`) or
+    /// `request failed` (with the error's `kind`). Failures are returned, not logged above
+    /// DEBUG, so the caller reports them once (see ADR 0020).
     pub async fn raw(
         &self,
         endpoint: impl Display,
         resource: Resource,
     ) -> Result<Fetched<Bytes>, Error> {
+        let endpoint = endpoint.to_string();
+        let span = tracing::debug_span!("request", %endpoint, ?resource);
+        let result = self
+            .fetch(&endpoint, resource)
+            .instrument(span.clone())
+            .await;
+        span.in_scope(|| match &result {
+            Ok(fetched) => tracing::debug!(
+                from_cache = fetched.from_cache,
+                wait_ms = millis(fetched.wait),
+                fetch_ms = millis(fetched.fetch),
+                bytes = fetched.value.len(),
+                "fetched"
+            ),
+            Err(error) => tracing::debug!(kind = error.kind(), %error, "request failed"),
+        });
+        result
+    }
+
+    /// [`Catalog::raw`] without the span and the closing event.
+    async fn fetch(&self, endpoint: &str, resource: Resource) -> Result<Fetched<Bytes>, Error> {
         let endpoint = endpoint.to_string();
         let inner = &self.inner;
         if let Some(value) = inner.cache.load(&endpoint, resource)? {
@@ -303,6 +330,7 @@ impl Catalog {
                 .await
                 .map_err(transport)?;
             let status = response.status();
+            tracing::trace!(status = status.as_u16(), attempt, "response");
             let retry_after = retry_after(response.headers());
             let body = response.bytes().await.map_err(transport)?;
             fetch += sent.elapsed();
@@ -326,7 +354,12 @@ impl Catalog {
             );
             if retryable && attempt < inner.retries {
                 let back_off = retry_after.unwrap_or(Duration::from_secs(1 << attempt));
-                tracing::info!(%status, ?back_off, attempt, endpoint, "retrying");
+                tracing::info!(
+                    status = status.as_u16(),
+                    back_off_ms = millis(back_off),
+                    attempt,
+                    "retrying"
+                );
                 tokio::time::timeout_at(deadline, tokio::time::sleep(back_off))
                     .await
                     .map_err(|_| expired())?;
@@ -395,6 +428,11 @@ pub(crate) fn http_client(contact: Option<&str>) -> Result<reqwest::Client, Erro
             }
             .into()
         })
+}
+
+/// `duration` in whole milliseconds, for log fields.
+fn millis(duration: Duration) -> u64 {
+    u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
 }
 
 /// Builds a [`Catalog`]. Starts from the `ACRES_*` environment (`ACRES_BASE_URI`,

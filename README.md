@@ -44,7 +44,7 @@ Hit `?` for every key, listed for the focused pane first, and `esc` to close it.
 - `b` cycles the art from half blocks to quadrant blocks to ASCII, and `r` picks a different ramp, the characters ASCII mode draws with.
 - `z` shows the art alone, full screen, until `esc` or `z` again.
 - With the art focused, or in zen, `+` and `-` zoom (scrolling over the art zooms about the pointer), `h j k l` or the arrows pan by a cell (shifted, by a tenth of the view, and dragging pans too), `F` fills the frame with no letterbox and `0` fits the whole image again. Up close the 843-pixel image turns into even blocks of color. A minimap shows where you are while you move. `S` picks the frame the art is drawn on: the pane, the whole screen, a 20 x 12 Stamp, a 60 x 20 Postcard or any size up to the terminal's. `v` saves the view under a name (saving the artwork too), `V` lists the saved views to show, rename (`e`) or delete (`x`), and `X` exports the art as an `.ans` file you can `cat` (plus `.txt` in ASCII mode) to `exports/` in the data directory.
-- `t` slides out a HUD over the right of the art with how long each fetch, decode, render and frame took, and `L` slides the log out over the left.
+- `t` slides out a HUD over the right of the art with how long each fetch, decode, render and frame took, and `L` slides the log out over the left. The full log is `acres-tui.log` in the data directory (`acres-tui --version` prints where that is). It is kept across runs, and `ACRES_TUI_LOGLEVEL=debug` adds each request's outcome.
 - The mouse works too: scroll the list or the record, click a row to select it, and click a pane to focus it. Set `mouse: false` in the config to keep your terminal's own text selection.
 
 The status bar counts the results, says when the rate limit is holding a search up, shows a few useful keys for the focused pane and echoes the last key you pressed with what it did, or `not mapped here` when it did nothing there (`show_keys: false` turns that off).
@@ -60,6 +60,8 @@ When you're done, hit `q`, then `q` or `enter` again to confirm (`esc` stays). `
 ## The CLI
 
 Every command goes through one rate-limited client (60 requests a minute, as the API asks, shared by every run and the TUI) and an on-disk cache: images are kept for good, records for 7 days and search or listing pages for 24 hours. Pass `--offline` (or set `ACRES_OFFLINE=true`) to answer only from the cache, and set `ACRES_CONTACT` to add a contact to the `AIC-User-Agent` header the API asks for.
+
+Warnings go to stderr. Add `-v` to also see each request's outcome (whether it came from the cache, how long it waited for the rate limit and how long the fetch took), `-vv` or `-vvv` for more detail, or `-q` for no logging at all. `RUST_LOG` overrides these when set.
 
 ### Errors and exit codes
 

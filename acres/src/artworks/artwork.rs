@@ -65,7 +65,6 @@ impl TryFrom<ArtworkInfo> for iiif::BaseUri {
     type Error = Error;
 
     fn try_from(artwork: ArtworkInfo) -> std::result::Result<Self, Self::Error> {
-        tracing::debug!(artwork = ?artwork);
         let url = if artwork.config.iiif_url.as_str().ends_with("/") {
             artwork.config.iiif_url.clone()
         } else {
@@ -75,15 +74,13 @@ impl TryFrom<ArtworkInfo> for iiif::BaseUri {
             url.set_path(path.as_str());
             url
         };
-        tracing::debug!(url = ?url);
         let url = url
             .join(&artwork.data.image_id)
             .map_err(|e| RequestError::InvalidImageUrl {
                 image_id: artwork.data.image_id.clone(),
                 source: e.into(),
             })?;
-        tracing::debug!(url = %url);
-        tracing::trace!(url = ?url);
+        tracing::trace!(%url, "image base URI");
         url.as_str()
             .parse::<iiif::BaseUri>()
             .map_err(|e| RequestError::Iiif(e.into()).into())

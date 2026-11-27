@@ -44,8 +44,7 @@ async fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     let format =
         ErrorFormat::from_args_and_env(&args, std::env::var("ACRES_ERROR_FORMAT").ok().as_deref());
-    let setup = crate::logging::init().and_then(|()| color_eyre::install());
-    if let Err(report) = setup {
+    if let Err(report) = color_eyre::install() {
         return fail(&report, format);
     }
 
@@ -58,6 +57,11 @@ async fn main() -> ExitCode {
         }
         Err(error) => return report::emit(&report::usage(&error), format),
     };
+    let verbosity =
+        logging::Verbosity::from_flags(matches.get_count("verbose"), matches.get_flag("quiet"));
+    if let Err(report) = logging::init(verbosity) {
+        return fail(&report, format);
+    }
     match run(matches).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(report) => fail(&report, format),
@@ -93,6 +97,23 @@ fn cli() -> Command {
                 .value_name("FORMAT")
                 .value_parser(value_parser!(ErrorFormat))
                 .help("how errors are written to stderr: text, or one line of JSON for programs (also ACRES_ERROR_FORMAT)"),
+        )
+        .arg(
+            Arg::new("verbose")
+                .short('v')
+                .long("verbose")
+                .global(true)
+                .action(clap::ArgAction::Count)
+                .help("log more to stderr: -v for each request's outcome and retries, -vv for cache and timing detail, -vvv for everything (RUST_LOG overrides)"),
+        )
+        .arg(
+            Arg::new("quiet")
+                .short('q')
+                .long("quiet")
+                .global(true)
+                .action(clap::ArgAction::SetTrue)
+                .conflicts_with("verbose")
+                .help("log nothing, not even warnings; errors are still reported"),
         )
         .arg(
             Arg::new("offline")

@@ -9,6 +9,7 @@ use color_eyre::eyre::{self};
 use iiif::ImageRequest;
 use ratatui::{Frame, prelude::Rect};
 use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
+use tracing::Instrument;
 
 use crate::{
     action::{Action, Timing},
@@ -110,31 +111,34 @@ impl Iiif {
         let catalog = self.catalog.clone();
         let recent = self.recent.clone();
         let id = self.artwork_id;
-        self.pending = Some(tokio::spawn(async move {
-            tokio::time::sleep(PREVIEW_DELAY).await;
-            let read = Instant::now();
-            let bytes = match catalog.cached_image(&request) {
-                Ok(Some(bytes)) => bytes,
-                Ok(None) => return,
-                Err(e) => {
-                    let _ = tx.send(Action::Log(format!("cached image {id}: {e}")));
-                    return;
-                }
-            };
-            let timing = Timing::new(format!("cached {id}")).stage("read", read.elapsed());
-            match decode(bytes.to_vec(), timing).await {
-                Ok((image, timing)) => {
-                    recent
-                        .lock()
-                        .expect("no panics while holding the lock")
-                        .put(id, image.clone());
-                    let _ = tx.send(Action::UpdateImage { id, image, timing });
-                }
-                Err(e) => {
-                    let _ = tx.send(Action::Log(format!("cached image {id}: {e}")));
+        self.pending = Some(tokio::spawn(
+            async move {
+                tokio::time::sleep(PREVIEW_DELAY).await;
+                let read = Instant::now();
+                let bytes = match catalog.cached_image(&request) {
+                    Ok(Some(bytes)) => bytes,
+                    Ok(None) => return,
+                    Err(e) => {
+                        let _ = tx.send(Action::Log(format!("cached image {id}: {e}")));
+                        return;
+                    }
+                };
+                let timing = Timing::new(format!("cached {id}")).stage("read", read.elapsed());
+                match decode(bytes.to_vec(), timing).await {
+                    Ok((image, timing)) => {
+                        recent
+                            .lock()
+                            .expect("no panics while holding the lock")
+                            .put(id, image.clone());
+                        let _ = tx.send(Action::UpdateImage { id, image, timing });
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Action::Log(format!("cached image {id}: {e}")));
+                    }
                 }
             }
-        }));
+            .instrument(tracing::debug_span!("cached_image", id)),
+        ));
     }
 
     /// Fetches and decodes the full image now, replacing any cached read still waiting.
@@ -142,43 +146,45 @@ impl Iiif {
         let Some(image_request) = self.request.clone() else {
             return;
         };
-        tracing::debug!(image_request = %image_request);
         let tx = self.action_tx.clone();
         let catalog = self.catalog.clone();
         let recent = self.recent.clone();
         let id = self.artwork_id;
         self.abort_pending();
-        self.pending = Some(tokio::spawn(async move {
-            let fetched = match catalog.image(&image_request).await {
-                Ok(fetched) => fetched,
-                Err(e) => {
-                    let _ = tx.send(Action::Log(format!("image {id}: {e}")));
-                    return;
-                }
-            };
-            let mut timing = Timing::new(format!("image {id}"));
-            timing = if fetched.from_cache {
-                timing.stage("hit", Duration::ZERO)
-            } else {
-                timing
-                    .stage("wait", fetched.wait)
-                    .stage("fetch", fetched.fetch)
-            };
-            // Fetched means cached now, so its row can say so.
-            let _ = tx.send(Action::Cached(vec![id]));
-            match decode(fetched.value.to_vec(), timing).await {
-                Ok((image, timing)) => {
-                    recent
-                        .lock()
-                        .expect("no panics while holding the lock")
-                        .put(id, image.clone());
-                    let _ = tx.send(Action::UpdateImage { id, image, timing });
-                }
-                Err(e) => {
-                    let _ = tx.send(Action::Log(format!("image {id}: {e}")));
+        self.pending = Some(tokio::spawn(
+            async move {
+                let fetched = match catalog.image(&image_request).await {
+                    Ok(fetched) => fetched,
+                    Err(e) => {
+                        let _ = tx.send(Action::Log(format!("image {id}: {e}")));
+                        return;
+                    }
+                };
+                let mut timing = Timing::new(format!("image {id}"));
+                timing = if fetched.from_cache {
+                    timing.stage("hit", Duration::ZERO)
+                } else {
+                    timing
+                        .stage("wait", fetched.wait)
+                        .stage("fetch", fetched.fetch)
+                };
+                // Fetched means cached now, so its row can say so.
+                let _ = tx.send(Action::Cached(vec![id]));
+                match decode(fetched.value.to_vec(), timing).await {
+                    Ok((image, timing)) => {
+                        recent
+                            .lock()
+                            .expect("no panics while holding the lock")
+                            .put(id, image.clone());
+                        let _ = tx.send(Action::UpdateImage { id, image, timing });
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Action::Log(format!("image {id}: {e}")));
+                    }
                 }
             }
-        }));
+            .instrument(tracing::debug_span!("image", id)),
+        ));
     }
 
     /// Checks `entries` against the disk cache on a blocking thread, and sends back the ids of

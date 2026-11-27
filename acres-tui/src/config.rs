@@ -9,7 +9,6 @@ use directories::ProjectDirs;
 use lazy_static::lazy_static;
 use ratatui::style::{Color, Modifier, Style};
 use serde::{Deserialize, Serialize, de::Deserializer};
-use tracing::error;
 
 use crate::action::Action;
 
@@ -124,7 +123,7 @@ impl Config {
             }
         }
         if !found_config {
-            error!("No configuration file found. Application may not behave as expected");
+            tracing::info!(dir = %config_dir.display(), "no config file; using the built-in keys and settings");
         }
 
         let mut cfg: Self = builder.build()?.try_deserialize()?;
