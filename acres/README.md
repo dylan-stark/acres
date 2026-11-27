@@ -28,7 +28,18 @@ for artwork in page.value.data {
 Responses are typed (`Page<ArtworkSummary>`, `Item<Artwork>`, departments and artwork types), or raw JSON through `Catalog::raw`.
 Every error has a stable `kind()`, such as `cache.missing`, and many have a `hint()` on what to do next.
 
-The `ACRES_*` environment variables set the defaults, such as `ACRES_OFFLINE` and `ACRES_CACHE_DIR`; the [workspace README](https://github.com/dylan-stark/acres/blob/main/README.md#configuration) lists them.
+`Catalog::builder()` starts from these environment variables, and the builder's methods override them:
+
+| Variable | What it does | Default |
+| --- | --- | --- |
+| `ACRES_OFFLINE` | `true` answers only from the cache, without touching the network | `false` |
+| `ACRES_CONTACT` | A contact, such as an email address, added to the `AIC-User-Agent` header | none |
+| `ACRES_CACHE_DIR` | Where responses and images are cached | the platform cache directory |
+| `ACRES_USE_CACHE` | `false` turns the cache off | `true` |
+| `ACRES_STATE_DIR` | Where the rate limit shared between processes is kept | the platform state directory |
+| `ACRES_BASE_URI` | The API to talk to | `https://api.artic.edu/api/v1` |
+
+A value that can't be read, such as `ACRES_OFFLINE=maybe`, makes `build()` fail with a `config.invalid` error.
 
 `acres` powers [`acres-cli`](../acres-cli) and [`acres-tui`](../acres-tui). The [API docs](https://docs.rs/acres) cover every endpoint and type.
 
