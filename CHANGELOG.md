@@ -5,11 +5,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-27
+
+This release turns `acres-tui` into an explorer for the whole collection and replaces the image-to-ASCII engine.
+
+- `acres-tui` searches, filters and sorts the collection live, shows a wall label and the full record, zooms and pans the art, and saves artworks, notes and named views.
+- `charaoke`, a new engine, converts images fast enough to redraw on every resize, in color, with half and quadrant blocks.
+- `acres::Catalog` is one client for the API, with a rate limit shared across processes, retries and a disk cache.
+- Errors say what failed and what to do next, with stable kinds and exit codes, and `acres-cli --error-format json` writes them for programs.
+- Release binaries for Linux (x86-64 and arm64), macOS (arm64) and Windows (x86-64).
+
+The sections below list every change.
+
 ### Added
 
 - Workspace split into `iiif`, `image-to-ascii-builder`, `acres`, `acres-cli` and `acres-tui` crates (see [ADR 0003](docs/decisions/0003-split-iiif-crate.md)).
 - `acres-cli` for fetching artworks, manifests and IIIF URLs/bytes and for rendering ASCII art, with JSON written to stdout (see [ADR 0002](docs/decisions/0002-cli-json-to-stdout.md)).
 - `acres-tui` now reads artworks from a JSON file produced by `acres-cli`.
+- Release builds for Linux x86-64 and arm64, macOS arm64 and Windows x86-64, attached to each GitHub release.
 - Crate-level documentation, runnable examples and an expanded README.
 - CI snapshot check (`cargo insta test --check`), an optional Claude Code PR review workflow and a `reviewer` subagent.
 - Offline demo recording (`make demo`) and snapshot tests for TUI components.
@@ -54,14 +67,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - `acres::Catalog` requests run in a DEBUG `request` span and end with one DEBUG `fetched` or `request failed` event. TUI image fetches run in `image` and `cached_image` spans. At TRACE (`acres-cli -vvv`, `ACRES_TUI_LOGLEVEL=trace`), each span also logs a `close` line with its busy and idle time.
 - `acres-tui` shows a failure of something asked for in the status bar, with a hint on what to do next, until the next key: a full image fetch, opening or copying a link, saving, notes, views and exports. In zen the failure pops up over the art instead, and `!` shows the last one again. Search, record and filter failures carry the hint too. Each failure is logged once at WARN with its `kind` (see [ADR 0021](docs/decisions/0021-shared-error-reporting.md)).
 - `acres-report`, an internal crate that `acres-cli` and `acres-tui` share to classify a failure (kind, hint and exit code) and write it as text or JSON. It is not published.
-
 - The `acres-tui` record pane is a wall label (ADR 0013, step 3): artist, title and date, medium, credit line and reference number, all from the results list. `d` expands it in place to the full record (dimensions, place of origin, department, gallery and the description), fetched when asked for, and `enter` opens the full record in a large overlay that follows `n`/`p`. `o` opens the artwork on artic.edu and `y` copies its link (through OSC 52, so it works over SSH).
 - `acres-tui` decodes images on a blocking thread, off the app loop, and keeps the last 16 full images decoded, so going back to one shows it at once with no fetch.
-
 - `acres-tui` filters and sorts searches (ADR 0013, step 4). `f` opens a filter overlay for image, public domain, on view, department, artwork type and years, with the departments and types listed from the API. `s` cycles relevance, oldest, newest and title. Filters apply with no search text too, and the status bar counts the filters set and names the sort.
 - `acres::artworks::search::Filters::words`, which keeps only artworks whose title or artist contains every word, for sorted searches where `q`'s loose matches would come first.
 - `acres::Catalog::departments` and `Catalog::artwork_types` list the filter choices as typed `Department` and `ArtworkType` pages, and `ApiConfig::image_base_uri` and `ApiConfig::artwork_url` build an image's IIIF base URI and an artwork's website link from a response's config. `acres-tui` uses them instead of building these URLs itself.
-
 - `acres-tui` pivots, goes back, saves and surprises (ADR 0013, step 5). `A` lists more by the selected artwork's artist and `D` more from its department, keeping the filters and sort, and the status bar names them (`by Claude Monet`). `backspace` goes back through earlier lists with their cursor and loaded pages. `R` shows a random artwork from the first 1,000 matching the search and filters.
 - Saved artworks in `acres-tui`: `m` saves or unsaves the selected artwork (marked `*` in the results), `'` switches to the saved list and back, and `e` writes a one-line note, shown under the wall label. They are kept in `saved.json` in the data directory, a versioned file holding each record whole with when it was saved and its note, so the list opens offline. `--from-file` reads `saved.json` as well as an Artworks JSON.
 - `acres-cli config` prints the settings in effect and where files live, as JSON: the base URI, offline mode, contact, cache directory and its size, and the shared rate-limit file. `acres::Catalog::cache_dir`, `rate_limit_file` and `contact` report the same.
@@ -157,6 +167,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 - First pass at basic functionality: browse Art Institute of Chicago public-domain artworks as ASCII art in a TUI (`aic-tui`).
 
-[Unreleased]: https://github.com/dylan-stark/acres/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/dylan-stark/acres/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/dylan-stark/acres/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/dylan-stark/acres/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/dylan-stark/acres/releases/tag/v0.1.0

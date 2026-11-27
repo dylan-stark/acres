@@ -1,6 +1,6 @@
 [package]
 name = "iiif"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2024"
 readme = "README.md"
 description = "Simple, ergonomic access for working with IIIF API 2.0 services."

@@ -1,3 +1,10 @@
 [workspace]
 resolver = "2"
 members = ["acres", "acres-cli", "acres-report", "acres-tui", "charaoke", "iiif", "image-to-ascii-builder"]
+
+# Release binaries ship without debug symbols. Benches inherit from release, so keep theirs for profiling.
+[profile.release]
+strip = true
+
+[profile.bench]
+strip = "none"

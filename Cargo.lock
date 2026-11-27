@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "acres"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -27,7 +27,7 @@ dependencies = [
 
 [[package]]
 name = "acres-cli"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "acres",
  "acres-report",
@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "acres-report"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "acres",
  "charaoke",
@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "acres-tui"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "acres",
  "acres-report",
@@ -581,7 +581,7 @@ dependencies = [
 
 [[package]]
 name = "charaoke"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "ansi-to-tui",
  "criterion",
@@ -2835,7 +2835,7 @@ dependencies = [
 
 [[package]]
 name = "iiif"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "percent-encoding",
@@ -2898,7 +2898,7 @@ dependencies = [
 
 [[package]]
 name = "image-to-ascii-builder"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "ansi-to-tui",
  "anyhow",
