@@ -2,6 +2,7 @@
 name = "charaoke"
 version = "0.1.0"
 edition = "2024"
+readme = "README.md"
 description = "Fast image-to-ASCII conversion, built for live terminal rendering."
 keywords = [ "ascii", "ascii-art", "image", "terminal" ]
 categories = [ "multimedia::images", "command-line-interface" ]

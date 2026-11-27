@@ -2,6 +2,7 @@
 name = "image-to-ascii-builder"
 version = "0.1.0"
 edition = "2024"
+readme = "README.md"
 description = "Builder for working with the image-to-ascii crate."
 keywords = []
 categories = []

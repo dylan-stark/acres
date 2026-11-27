@@ -321,6 +321,10 @@ fn cli() -> Command {
                 .arg(Arg::new("to").long("to").help("type of output").default_value("url").value_parser(value_parser!(IiifTo)))
         )
         .subcommand(
+            Command::new("config")
+                .about("Show the effective settings and where acres keeps its files, as JSON"),
+        )
+        .subcommand(
             Command::new("iiif-info")
                 .about("Get associated IIIF image information")
                 .arg(
@@ -358,6 +362,11 @@ async fn run(matches: clap::ArgMatches) -> Result<()> {
     let catalog = catalog.build()?;
 
     match matches.subcommand() {
+        Some(("config", _)) => {
+            let settings = serde_json::to_vec_pretty(&settings(&catalog))
+                .expect("settings are plain strings, numbers and booleans");
+            print_body(&settings)?;
+        }
         Some(("artwork", matches)) => {
             let id = matches
                 .get_one::<u32>("id")
@@ -537,6 +546,38 @@ fn open_input(input: &FileOrStdin) -> Result<impl io::Read> {
 
 /// Writes a JSON body to stdout as the API sent it, ending with a newline.
 #[doc(hidden)]
+/// What `acres-cli config` prints: the settings in effect after the `ACRES_*` variables and
+/// flags, and where files live.
+#[doc(hidden)]
+fn settings(catalog: &Catalog) -> serde_json::Value {
+    let cache_dir = catalog.cache_dir();
+    serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "base_uri": catalog.base_uri(),
+        "offline": catalog.is_offline(),
+        "contact": catalog.contact(),
+        "cache_dir": cache_dir.map(|dir| dir.display().to_string()),
+        "cache_bytes": cache_dir.map(dir_bytes),
+        "rate_limit_file": catalog.rate_limit_file().map(|path| path.display().to_string()),
+    })
+}
+
+/// The total size of the files under `dir`, or 0 when it doesn't exist yet.
+#[doc(hidden)]
+fn dir_bytes(dir: &std::path::Path) -> u64 {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return 0;
+    };
+    entries
+        .flatten()
+        .map(|entry| match entry.file_type() {
+            Ok(kind) if kind.is_dir() => dir_bytes(&entry.path()),
+            Ok(_) => entry.metadata().map(|m| m.len()).unwrap_or(0),
+            Err(_) => 0,
+        })
+        .sum()
+}
+
 fn print_body(body: &[u8]) -> Result<()> {
     let mut stdout = io::stdout().lock();
     stdout
