@@ -2,6 +2,7 @@
 name = "acres"
 version = "0.1.0"
 edition = "2024"
+readme = "README.md"
 description = "Simple and ergonomic access to the Art Institute of Chicago's public APIs."
 keywords = []
 categories = []

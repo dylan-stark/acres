@@ -1,6 +1,6 @@
 # 0009. `charaoke` loads an image once and renders it many times
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-23
 
 ## Context

@@ -32,6 +32,10 @@ impl Cache {
         Self { dir, offline }
     }
 
+    pub(crate) fn dir(&self) -> Option<&std::path::Path> {
+        self.dir.as_deref()
+    }
+
     fn path(&self, endpoint: &str, resource: Resource) -> Option<PathBuf> {
         let kind = match resource {
             Resource::Page => "pages",

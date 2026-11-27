@@ -74,6 +74,32 @@ fn usage_errors_follow_the_error_format() -> Result<(), Box<dyn std::error::Erro
 }
 
 #[test]
+fn config_shows_the_effective_settings_and_paths() -> Result<(), Box<dyn std::error::Error>> {
+    let cache = assert_fs::TempDir::new()?;
+    std::fs::create_dir_all(cache.path().join("pages"))?;
+    std::fs::write(cache.path().join("pages").join("entry"), b"12345")?;
+    let output = Command::cargo_bin("acres-cli")?
+        .env("ACRES_CACHE_DIR", cache.path())
+        .env("ACRES_OFFLINE", "true")
+        .env("ACRES_CONTACT", "someone@example.com")
+        .arg("config")
+        .output()?;
+    assert!(output.status.success());
+    let settings: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(settings["offline"], true);
+    assert_eq!(settings["contact"], "someone@example.com");
+    assert_eq!(settings["cache_dir"], cache.path().display().to_string());
+    assert_eq!(settings["cache_bytes"], 5);
+    assert!(
+        settings["rate_limit_file"]
+            .as_str()
+            .unwrap()
+            .ends_with("rate-limit")
+    );
+    Ok(())
+}
+
+#[test]
 fn a_bad_environment_value_exits_7() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("acres-cli")?;
     cmd.env("ACRES_OFFLINE", "maybe")

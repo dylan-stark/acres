@@ -1,6 +1,6 @@
 # 0008. Build `charaoke`, a from-scratch ASCII engine, with an 8 ms frame budget
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-23
 
 ## Context

@@ -64,6 +64,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 - `acres-tui` pivots, goes back, saves and surprises (ADR 0013, step 5). `A` lists more by the selected artwork's artist and `D` more from its department, keeping the filters and sort, and the status bar names them (`by Claude Monet`). `backspace` goes back through earlier lists with their cursor and loaded pages. `R` shows a random artwork from the first 1,000 matching the search and filters.
 - Saved artworks in `acres-tui`: `m` saves or unsaves the selected artwork (marked `*` in the results), `'` switches to the saved list and back, and `e` writes a one-line note, shown under the wall label. They are kept in `saved.json` in the data directory, a versioned file holding each record whole with when it was saved and its note, so the list opens offline. `--from-file` reads `saved.json` as well as an Artworks JSON.
+- `acres-cli config` prints the settings in effect and where files live, as JSON: the base URI, offline mode, contact, cache directory and its size, and the shared rate-limit file. `acres::Catalog::cache_dir`, `rate_limit_file` and `contact` report the same.
+- `acres-tui --version` also prints the log file and the cache directory.
+- The README covers installing, every `ACRES_*` variable, the TUI config file, where files live on each platform and troubleshooting. Each crate has its own README, and `CONTRIBUTING.md` and `docs/RELEASING.md` cover contributing and cutting a release.
 
 ### Changed
 
@@ -111,6 +114,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- `acres-tui --version` no longer prints a dangling `-` when the build has no git description, or an empty `Authors:` line.
 - `acres-tui` reports a failure that stops it on stderr as `acres-cli` does (`error:`, `caused by:`, `hint:`) and exits with the CLI's codes, such as 7 for a bad config file or `ACRES_*` variable, instead of printing a full error report and exiting with 1.
 - `acres-cli` shows warnings by default, such as a shared rate limit it can't use, instead of hiding everything below ERROR.
 - The `acres-tui` log is appended to instead of replaced on every start, so a crashed run's log survives a restart. It moves to `acres-tui.log.1` past 5 MB, and each run starts with a line giving the version. A missing config file is logged at INFO, not ERROR.

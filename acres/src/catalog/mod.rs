@@ -4,7 +4,12 @@ mod cache;
 mod limiter;
 mod shared;
 
-use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    fmt::Display,
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
 
 use bytes::Bytes;
 use reqwest::{
@@ -133,6 +138,8 @@ struct Inner {
     cache: Cache,
     limiter: Arc<Limiter>,
     retries: u32,
+    rate_limit_file: Option<PathBuf>,
+    contact: Option<String>,
 }
 
 impl Catalog {
@@ -149,6 +156,21 @@ impl Catalog {
     /// Whether this catalog only answers from the cache.
     pub fn is_offline(&self) -> bool {
         self.inner.cache.offline
+    }
+
+    /// Where responses are cached, or `None` when caching is off.
+    pub fn cache_dir(&self) -> Option<&Path> {
+        self.inner.cache.dir()
+    }
+
+    /// The file the rate limit is shared through, or `None` when it is kept in memory.
+    pub fn rate_limit_file(&self) -> Option<&Path> {
+        self.inner.rate_limit_file.as_deref()
+    }
+
+    /// Who to contact about these requests, as sent in `AIC-User-Agent`.
+    pub fn contact(&self) -> Option<&str> {
+        self.inner.contact.as_deref()
     }
 
     /// The longest a request waits in the queue before it fails with
@@ -563,8 +585,8 @@ impl CatalogBuilder {
             return Err(ConfigError::Invalid(message).into());
         }
         let mut limiter = Limiter::new(self.per_minute, self.burst);
-        if let Some(path) = self.rate_limit_file {
-            limiter = limiter.shared(SharedBucket::new(path));
+        if let Some(path) = &self.rate_limit_file {
+            limiter = limiter.shared(SharedBucket::new(path.clone()));
         }
         Ok(Catalog {
             inner: Arc::new(Inner {
@@ -573,6 +595,8 @@ impl CatalogBuilder {
                 cache: Cache::new(self.cache_dir, self.offline),
                 limiter: Arc::new(limiter),
                 retries: self.retries,
+                rate_limit_file: self.rate_limit_file,
+                contact: self.contact,
             }),
             max_wait: self.max_wait,
         })

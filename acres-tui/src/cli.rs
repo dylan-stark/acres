@@ -1,10 +1,13 @@
 use clap::Parser;
 use clap_stdin::FileOrStdin;
 
-use crate::config::{get_config_dir, get_data_dir};
+use crate::{
+    config::{get_config_dir, get_data_dir},
+    logging::LOG_FILE,
+};
 
 #[derive(Parser, Debug)]
-#[command(author, version = version(), about)]
+#[command(version = version(), about)]
 pub struct Cli {
     /// Explore a saved `Artworks` JSON, such as `acres-cli artworks` writes, or a saved list
     /// (`saved.json`), instead of the live collection. Searching then narrows it by title.
@@ -26,29 +29,31 @@ pub struct Cli {
     pub frame_rate: f64,
 }
 
-const VERSION_MESSAGE: &str = concat!(
-    env!("CARGO_PKG_VERSION"),
-    "-",
-    env!("VERGEN_GIT_DESCRIBE"),
-    " (",
-    env!("VERGEN_BUILD_DATE"),
-    ")"
-);
-
+/// The version, with the git description and build date when the build had them, then where
+/// the TUI keeps its files.
 pub fn version() -> String {
-    let author = clap::crate_authors!();
-
-    // let current_exe_path = PathBuf::from(clap::crate_name!()).display().to_string();
-    let config_dir_path = get_config_dir().display().to_string();
-    let data_dir_path = get_data_dir().display().to_string();
-
+    let describe = env!("VERGEN_GIT_DESCRIBE");
+    let build = match (describe.is_empty(), env!("VERGEN_BUILD_DATE")) {
+        (true, date) => date.to_string(),
+        (false, date) => format!("{describe}, {date}"),
+    };
+    let data_dir = get_data_dir();
+    let cache_dir = acres::Catalog::builder()
+        .build()
+        .ok()
+        .and_then(|catalog| catalog.cache_dir().map(|dir| dir.display().to_string()))
+        .unwrap_or_else(|| "none (caching is off)".into());
     format!(
         "\
-{VERSION_MESSAGE}
+{version} ({build})
 
-Authors: {author}
-
-Config directory: {config_dir_path}
-Data directory: {data_dir_path}"
+Config directory: {config}
+Data directory: {data}
+Log file: {log}
+Cache directory: {cache_dir}",
+        version = env!("CARGO_PKG_VERSION"),
+        config = get_config_dir().display(),
+        data = data_dir.display(),
+        log = data_dir.join(LOG_FILE.as_str()).display(),
     )
 }

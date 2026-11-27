@@ -2,24 +2,35 @@
 
 This is a collection of tools for working with [The Art Institute of Chicago API](https://api.artic.edu/docs/#introduction) in [Rust](https://rust-lang.org/):
 
-- [`acres`](./acres/): A library for easy, ergonomic programming against the Art Institute API
-- [`iiif`](./iiif/): A library for working with servers implementing supporting [International Image Interoperability API 2.0](https://iiif.io/api/image/2.0/).
-- [`image-to-ascii-builder`](./image-to-ascii-builder/): A library that implements the [builder pattern](https://rust-unofficial.github.io/patterns/patterns/creational/builder.html) for the awesome [`image-to-ascii`](https://github.com/kpberry/image-to-ascii) library, now kept as the benchmark baseline for `charaoke`.
-- [`charaoke`](./charaoke/): A from-scratch, performance-focused image-to-ASCII engine for live terminal rendering, used by the CLI and TUI.
 - [`acres-cli`](./acres-cli): A command-line UI using the great [Clap](https://github.com/clap-rs/clap) tool.
-- [`acres-tui`](./acres-tui): A terminal UI using the fantastic [Ratatui](https://ratatui.rs/) framework
+- [`acres-tui`](./acres-tui): A terminal UI using the fantastic [Ratatui](https://ratatui.rs/) framework.
+- [`acres`](./acres/): A library for easy, ergonomic programming against the Art Institute API.
+- [`iiif`](./iiif/): A library for building requests to servers that implement the [International Image Interoperability Framework (IIIF) Image API 2.0](https://iiif.io/api/image/2.0/).
+- [`charaoke`](./charaoke/): A from-scratch, performance-focused image-to-ASCII engine for live terminal rendering, used by the CLI and TUI.
+- [`image-to-ascii-builder`](./image-to-ascii-builder/): A [builder](https://rust-unofficial.github.io/patterns/patterns/creational/builder.html) for the awesome [`image-to-ascii`](https://github.com/kpberry/image-to-ascii) library, kept only as the benchmark baseline for `charaoke`.
 
-The CLI was originally inspired by the Art Institute's [`aic-bash`](https://github.com/art-institute-of-chicago/aic-bash) utility for generating ASCII art but evolved to be something of a Swiss Army Knife for working with the [Artworks collection](https://api.artic.edu/docs/#collections-3).
-Currently, it includes
-- an [`artworks` command](#working-with-the-artworks-collection) for finding and inspecting pieces from the collection,
-- an [`iiif` command](#working-with-iiif-urls) for constructing IIIF URLs for downloading images for the artwork you find, and
-- an [`ascii-art` tool](#working-with-ascii-art) for rendering those images as ASCII art directly in the terminal.
+## Install
 
-The TUI is, essentially, no surprise, the interactive equivalent of the CLI: it searches the collection live.
+Prebuilt `acres-cli` and `acres-tui` binaries for Linux (x86-64 and arm64), macOS (Apple silicon) and Windows are attached to each [GitHub release](https://github.com/dylan-stark/acres/releases).
+Download the archive for your platform, unpack it and put the binaries on your `PATH`.
+
+To build from source instead, install Rust with [rustup](https://rustup.rs/) and run
+
+```sh
+cargo install --locked --git https://github.com/dylan-stark/acres acres-cli acres-tui
+```
+
+The TUI looks best in a terminal with truecolor support (most modern terminals set `COLORTERM=truecolor`); elsewhere it falls back to 256 colors.
+
+## The TUI
+
+The TUI is the interactive equivalent of the CLI: it searches the collection live.
 
 ```sh
 acres-tui
 ```
+
+To get going: type `/`, a search such as `monet` and `enter`; move with `j` and `k`; press `enter` to fetch the full image; and `z` to see it full screen. `?` lists every key.
 
 It opens on Highlights, a short built-in list of public-domain works (the Great Wave, a few Monets, La Grande Jatte and others).
 Set `highlights` in your config to a list of artwork ids to start on your own picks instead.
@@ -58,6 +69,14 @@ When you're done, hit `q`, then `q` or `enter` again to confirm (`esc` stays). `
 </a>
 
 ## The CLI
+
+The CLI was originally inspired by the Art Institute's [`aic-bash`](https://github.com/art-institute-of-chicago/aic-bash) utility for generating ASCII art but evolved to be something of a Swiss Army Knife for working with the [Artworks collection](https://api.artic.edu/docs/#collections-3).
+Currently, it includes
+- an [`artworks` command](#working-with-the-artworks-collection) for finding and inspecting pieces from the collection,
+- an [`iiif` command](#working-with-iiif-urls) for constructing IIIF URLs for downloading images for the artwork you find, and
+- an [`ascii-art` tool](#working-with-ascii-art) for rendering those images as ASCII art directly in the terminal.
+
+The commands are `artwork`, `artwork-manifest`, `artworks` and `artworks-search` to fetch from the collection, `iiif` and `iiif-info` for an artwork's image URL and IIIF image information, `ascii-art` to draw an image in the terminal, and `config` to show the settings in effect and where files live. `acres-cli <command> --help` covers each one.
 
 Every command goes through one rate-limited client (60 requests a minute, as the API asks, shared by every run and the TUI) and an on-disk cache: images are kept for good, records for 7 days and search or listing pages for 24 hours. Pass `--offline` (or set `ACRES_OFFLINE=true`) to answer only from the cache, and set `ACRES_CONTACT` to add a contact to the `AIC-User-Agent` header the API asks for.
 
@@ -228,6 +247,12 @@ For example, you can change the quality to retrieve the black-and-white variant 
 https://www.artic.edu/iiif/2/3eec80ab-bad4-8b35-1adb-57b7e7cb7adb/full/843,/0/bitonal.png
 ```
 
+To see what sizes and tiles the image server offers for an artwork, `iiif-info` fetches its IIIF image information (`info.json`):
+
+```sh
+acres-cli artwork 77333 | acres-cli iiif-info -
+```
+
 ### Working with ASCII Art
 
 Once you have images, why not make ASCII art?
@@ -300,6 +325,65 @@ Or, equivalently,
 [...]
 ```
 
+## Configuration
+
+Both tools read these environment variables. Flags such as `--offline` override them.
+
+| Variable | What it does | Default |
+| --- | --- | --- |
+| `ACRES_OFFLINE` | `true` answers only from the cache, without touching the network | `false` |
+| `ACRES_CONTACT` | A contact, such as an email address, added to the `AIC-User-Agent` header | none |
+| `ACRES_CACHE_DIR` | Where responses and images are cached | the platform cache directory |
+| `ACRES_USE_CACHE` | `false` turns the cache off, so every request goes to the network | `true` |
+| `ACRES_STATE_DIR` | Where the rate limit shared between runs is kept | the platform state directory |
+| `ACRES_BASE_URI` | The API to talk to | `https://api.artic.edu/api/v1` |
+| `ACRES_ERROR_FORMAT` | `json` writes CLI errors as one line of JSON | `text` |
+| `ACRES_TUI_CONFIG` | The TUI's config directory | the platform config directory |
+| `ACRES_TUI_DATA` | The TUI's data directory: saved artworks, exports and the log | the platform data directory |
+| `ACRES_TUI_LOGLEVEL` | The TUI's log level, such as `debug` or `trace` | `info` |
+| `RUST_LOG` | Overrides the log level of either tool | none |
+| `NO_COLOR` | Turns off colored CLI logs | unset |
+
+A bad value, such as `ACRES_OFFLINE=maybe`, stops either tool with an error naming the variable, and exit code 7.
+
+The TUI also reads `config.json5` (or `.json`, `.yaml`, `.toml`, `.ini`) from its config directory.
+Any key in the built-in [`acres-tui/.config/config.json5`](acres-tui/.config/config.json5) can be overridden there, as well as these settings:
+
+```json5
+{
+  "highlights": [24645, 16568, 27992], // artwork ids to start on, instead of the built-in Highlights
+  "mouse": false, // leave the mouse to the terminal, for its own text selection
+  "show_keys": false, // don't echo the last key in the status bar
+  "keybindings": { "Global": { "<Ctrl-q>": "Quit" } },
+}
+```
+
+### Where files live
+
+| What | Linux | macOS |
+| --- | --- | --- |
+| Cache | `~/.cache/acres` | `~/Library/Caches/com.acres.acres` |
+| Shared rate limit (`rate-limit`) | `~/.local/state/acres` | `~/Library/Application Support/com.acres.acres` |
+| TUI config | `~/.config/acres-tui` | `~/Library/Application Support/com.aic.acres-tui` |
+| TUI data (`saved.json`, `exports/`, `acres-tui.log`) | `~/.local/share/acres-tui` | `~/Library/Application Support/com.aic.acres-tui` |
+
+`acres-cli config` prints the settings in effect, the cache directory and its size, and the rate-limit file, as JSON.
+`acres-tui --version` prints the TUI's config and data directories, its log file and the cache directory.
+On Windows they are under `%LOCALAPPDATA%`, and both commands say exactly where.
+
+Everything in the cache can be fetched again, so deleting the cache directory is always safe.
+
+## Troubleshooting
+
+- **`not cached while offline` (exit 4).** The artwork hasn't been fetched yet. Go online (drop `--offline` or `ACRES_OFFLINE`) to fetch it once.
+- **`rate limited` in the status bar, or exit 5 from the CLI.** The API allows 60 requests a minute, shared by every run on the machine. Wait a minute and try again.
+- **The TUI won't start because of the config (exit 7).** The message names the bad key or setting. Fix it in the config file, or remove the file to go back to the defaults.
+- **Colors look wrong or banded.** Your terminal may not advertise truecolor. Set `COLORTERM=truecolor` if it supports it, or press `b` for ASCII mode.
+- **You can't select text in the TUI.** Set `"mouse": false` in the config.
+- **Something failed and you want to know why.** Run the CLI with `-v` (or `-vv`), or start the TUI with `ACRES_TUI_LOGLEVEL=debug` and read `acres-tui.log`. In the TUI, `!` shows the last failure again.
+
+Anything else is worth [an issue](https://github.com/dylan-stark/acres/issues).
+
 ## License
 
 Licensed under either of
@@ -312,6 +396,8 @@ Licensed under either of
 at your option.
 
 ## Contribution
+
+[`CONTRIBUTING.md`](CONTRIBUTING.md) covers building, testing and the conventions, and [`docs/RELEASING.md`](docs/RELEASING.md) how a release is cut.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
