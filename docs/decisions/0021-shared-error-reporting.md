@@ -27,7 +27,7 @@ We considered three ways to share the logic.
 The current conventions, which may have grown since, are in
 [`docs/ERROR-HANDLING.md`](../ERROR-HANDLING.md).
 
-- **`acres-report`** is an internal crate (`publish = false`) that depends on `acres`, `iiif`
+- **`acres-report`** is a crate shared by the apps that depends on `acres`, `iiif`
   and `charaoke`. It holds the exit codes, the `Failure` type and its classification from an
   error chain, and the text and JSON renderers. `acres-cli` and `acres-tui` both depend on it and
   never on each other. `acres` keeps only its own errors' facts: `kind`, `hint` and
@@ -49,5 +49,5 @@ The current conventions, which may have grown since, are in
   both apps get it.
 - A long failure is cut at the edge of the status bar. The zen popup wraps it whole, and the log
   always has it.
-- `acres-report` is one more crate to keep in the dependency rules. Since it is not published, it
-  can change with the apps.
+- `acres-report` is one more crate to keep in the dependency rules. It is publish-ready, so the
+  apps can go on crates.io, but it exists for the apps and its API changes with them.

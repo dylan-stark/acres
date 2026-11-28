@@ -8,6 +8,7 @@ Rust workspace of tools for the [Art Institute of Chicago API](https://api.artic
 - The Rust toolchain is pinned in `rust-toolchain.toml` (rustup required) and CI uses the same version. To bump Rust, change both `rust-toolchain.toml` and the `dtolnay/rust-toolchain@<version>` refs in `.github/workflows/ci.yml` and `snapshots.yml`. A weekly canary workflow runs clippy on stable/beta to flag upcoming breakage.
 - `make demo` — records `demo.gif` offline (needs `vhs`, `ttyd` and Chromium; `make docker-demo` runs it in the image): serves `acres-tui/tests/fixtures/` images on `127.0.0.1:8099` and runs `demo.tape` against `acres-tui/tests/fixtures/artworks.json`.
 - `make bench` — criterion benches for `charaoke` stages and the `image-to-ascii` baseline (`target/criterion/report/index.html`); each run prints its change from the previous one. `make bench-save` stores a named baseline (`BASELINE=main` by default) and `make bench-compare` reports changes against it without overwriting it. `FILTER=<name>` narrows any of them. Not part of `make check`.
+- Releases follow `docs/RELEASING.md`; the `cut-release` skill (`.claude/skills/cut-release/`) runs those steps.
 - `make coverage` — report-only `cargo llvm-cov` summary (needs `cargo install cargo-llvm-cov`).
 - TUI render tests are `insta` snapshots (`acres-tui/src/components/snapshots/`). After an intended UI change run `cargo insta review` (needs `cargo install cargo-insta --locked`; or `INSTA_UPDATE=always cargo test -p acres-tui`) and commit the `.snap` changes.
 - CI also runs `cargo insta test --check --unreferenced=reject` (`snapshots.yml`; run it locally with `cargo-insta` installed to match) and an optional Claude review job (`claude-review.yml`, enabled by repo variable `CLAUDE_REVIEW=true` plus the `ANTHROPIC_API_KEY` secret). The `.claude/agents/reviewer.md` subagent checks a diff against these conventions.
@@ -19,7 +20,7 @@ Rust workspace of tools for the [Art Institute of Chicago API](https://api.artic
 - `image-to-ascii-builder` — builder wrapper around `image-to-ascii`, kept only for the baseline benches (no workspace deps; see ADR 0011)
 - `charaoke` — from-scratch, performance-focused image-to-ASCII engine used by the CLI and TUI (no workspace deps; see ADRs 0008 and 0011)
 - `acres` — AIC API library; depends on `iiif`
-- `acres-report` — internal (`publish = false`) failure classification (kind, hint, exit code) and text/JSON rendering shared by the apps; depends on `acres`, `iiif`, `charaoke` (see ADR 0021)
+- `acres-report` — failure classification (kind, hint, exit code) and text/JSON rendering shared by the apps; depends on `acres`, `iiif`, `charaoke` (see ADR 0021)
 - `acres-cli` — Clap CLI; depends on `acres`, `acres-report`, `iiif`, `charaoke`
 - `acres-tui` — Ratatui TUI; depends on `acres`, `acres-report`, `iiif`, `charaoke`
 

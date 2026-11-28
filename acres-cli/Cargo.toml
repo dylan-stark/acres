@@ -1,20 +1,25 @@
 [package]
 name = "acres-cli"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2024"
 readme = "README.md"
+description = "A command line for the Art Institute of Chicago API: artworks, IIIF image URLs and terminal art."
+keywords = [ "art", "museum", "cli", "ascii-art", "iiif" ]
+categories = [ "command-line-utilities" ]
+repository = "https://github.com/dylan-stark/acres"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
-acres = { path = "../acres" }
-acres-report = { path = "../acres-report" }
+acres = { path = "../acres", version = "0.3.0" }
+acres-report = { path = "../acres-report", version = "0.3.0" }
 bytes = { version = "1.10.1", features = ["serde"] }
-charaoke = { path = "../charaoke" }
+charaoke = { path = "../charaoke", version = "0.3.0" }
 clap = { version = "4.5.37", features = ["cargo", "derive", "string"] }
 clap-stdin = "0.7.0"
 color-eyre = "0.6.4"
 crossterm = "0.29.0"
 eyre = "0.6.12"
-iiif = { path = "../iiif" }
+iiif = { path = "../iiif", version = "0.3.0" }
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 reqwest = "0.12.23"
 serde_json = "1.0.140"
