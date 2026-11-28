@@ -20,7 +20,7 @@ Rust workspace of tools for the [Art Institute of Chicago API](https://api.artic
 - `image-to-ascii-builder` — builder wrapper around `image-to-ascii`, kept only for the baseline benches (no workspace deps; see ADR 0011)
 - `charaoke` — from-scratch, performance-focused image-to-ASCII engine used by the CLI and TUI (no workspace deps; see ADRs 0008 and 0011)
 - `acres` — AIC API library; depends on `iiif`
-- `acres-report` — internal (`publish = false`) failure classification (kind, hint, exit code) and text/JSON rendering shared by the apps; depends on `acres`, `iiif`, `charaoke` (see ADR 0021)
+- `acres-report` — failure classification (kind, hint, exit code) and text/JSON rendering shared by the apps; depends on `acres`, `iiif`, `charaoke` (see ADR 0021)
 - `acres-cli` — Clap CLI; depends on `acres`, `acres-report`, `iiif`, `charaoke`
 - `acres-tui` — Ratatui TUI; depends on `acres`, `acres-report`, `iiif`, `charaoke`
 

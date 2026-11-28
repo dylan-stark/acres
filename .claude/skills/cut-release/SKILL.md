@@ -31,10 +31,10 @@ description: Cut an acres release: bump the versions, close the changelog sectio
 2. Dry-run packaging of the crates meant for crates.io, all in one command so the unpublished local dependencies resolve:
 
    ```sh
-   cargo publish --dry-run -p iiif -p charaoke -p acres
+   cargo publish --dry-run -p iiif -p charaoke -p acres -p acres-report -p acres-cli -p acres-tui
    ```
 
-   Crates with `publish = false` (`acres-report`, `image-to-ascii-builder`) are skipped, and so are the apps that depend on them. Each packaged crate must list `description`, `license`, `repository` and `readme`.
+   `image-to-ascii-builder` has `publish = false` and is left out. Each packaged crate must list `description`, `license`, `repository` and `readme`.
 3. `.github/workflows/cd.yml` builds the targets listed in `docs/RELEASING.md`. If the targets changed, update both.
 
 ## 4. Open the release PR

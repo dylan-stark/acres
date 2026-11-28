@@ -1,7 +1,7 @@
 # Releasing
 
 A release is a version tag on `main`. Pushing the tag runs the CD workflow, which builds the `acres-cli` and `acres-tui` binaries and attaches them to a GitHub release.
-The crates are prepared for crates.io but not published yet. `acres-report` and `image-to-ascii-builder` set `publish = false`, so the apps that depend on `acres-report` can't be published as they are. The name `iiif` is already taken on crates.io, so that crate needs a new package name before it is published.
+The crates are prepared for crates.io but not published yet. `image-to-ascii-builder` sets `publish = false`, since it is only the bench baseline. The name `iiif` is already taken on crates.io, so that crate needs a new package name before it is published.
 
 The `cut-release` Claude Code skill in `.claude/skills/` runs these steps in order.
 
@@ -15,7 +15,7 @@ Do these on a branch, in one pull request:
 4. Check that each crate meant for crates.io would package. Name them in one command, so cargo resolves the local dependencies that aren't on crates.io yet:
 
    ```sh
-   cargo publish --dry-run -p iiif -p charaoke -p acres
+   cargo publish --dry-run -p iiif -p charaoke -p acres -p acres-report -p acres-cli -p acres-tui
    ```
 
 5. Merge the pull request.

@@ -4,8 +4,10 @@ version = "0.3.0"
 edition = "2024"
 description = "How the acres apps classify and report a failure: a kind, a hint and an exit code."
 repository = "https://github.com/dylan-stark/acres"
+readme = "README.md"
+keywords = [ "error", "exit-code", "cli", "json" ]
+categories = [ "command-line-interface", "development-tools" ]
 license = "MIT OR Apache-2.0"
-publish = false
 
 [dependencies]
 acres = { path = "../acres", version = "0.3.0" }
